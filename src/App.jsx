@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -19,7 +19,17 @@ import {
   Award,
   Target,
   ChartColumn,
-  CalendarOff
+  CalendarOff,
+  BookOpen,
+  Bold,
+  Italic,
+  Underline,
+  List,
+  ListOrdered,
+  Image as ImageIcon,
+  Heading1,
+  Heading2,
+  Heading3
 } from 'lucide-react';
 import {
   format,
@@ -58,12 +68,26 @@ function App() {
   const [currentView, setCurrentView] = useState('calendar'); // 'calendar', 'analyze', or 'profile'
   const [trades, setTrades] = useState([]);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [journalContent, setJournalContent] = useState('');
   const [formData, setFormData] = useState({
     symbol: '',
     amount: '',
     category: '',
     fees: '',
     notes: ''
+  });
+
+  const editorRef = useRef(null);
+  const imageInputRef = useRef(null);
+  const [activeFormats, setActiveFormats] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+    h1: false,
+    h2: false,
+    h3: false,
+    insertUnorderedList: false,
+    insertOrderedList: false
   });
 
   const categories = ['Forex', 'Stocks', 'Crypto', 'Options', 'Indices', 'Other'];
@@ -89,6 +113,16 @@ function App() {
   };
 
   const openModal = (date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDateNormalized = new Date(date);
+    selectedDateNormalized.setHours(0, 0, 0, 0);
+
+    // Prevent opening modal for future dates
+    if (selectedDateNormalized > today) {
+      return;
+    }
+
     if (activeTab === 'Week' || isSameMonth(date, startOfMonth(currentDate))) {
       setSelectedDate(date);
     }
@@ -98,6 +132,7 @@ function App() {
     setSelectedDate(null);
     setModalTab('add');
     setTradeType('profit');
+    setJournalContent('');
     setFormData({
       symbol: '',
       amount: '',
@@ -106,6 +141,158 @@ function App() {
       notes: ''
     });
   };
+
+  // WYSIWYG Editor functions
+  const updateActiveFormats = () => {
+    if (!editorRef.current) return;
+
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+
+    const parentElement = selection.anchorNode?.parentElement;
+    const tagName = parentElement?.tagName?.toLowerCase();
+
+    setActiveFormats({
+      bold: document.queryCommandState('bold'),
+      italic: document.queryCommandState('italic'),
+      underline: document.queryCommandState('underline'),
+      h1: tagName === 'h1',
+      h2: tagName === 'h2',
+      h3: tagName === 'h3',
+      insertUnorderedList: document.queryCommandState('insertUnorderedList'),
+      insertOrderedList: document.queryCommandState('insertOrderedList')
+    });
+  };
+
+  const formatText = (command, value = null) => {
+    if (!editorRef.current) return;
+
+    // Ensure editor has focus
+    editorRef.current.focus();
+
+    // Special handling for italic command with manual fallback
+    if (command === 'italic') {
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+
+        // Check if already italic
+        const parentElement = range.commonAncestorContainer.parentElement;
+        const isItalic = parentElement && (parentElement.tagName === 'EM' || parentElement.tagName === 'I');
+
+        if (isItalic) {
+          // Remove italic by unwrapping
+          const content = parentElement.textContent;
+          const textNode = document.createTextNode(content);
+          parentElement.parentNode.replaceChild(textNode, parentElement);
+        } else if (!range.collapsed) {
+          // Apply italic by wrapping in em tag
+          const em = document.createElement('em');
+          em.appendChild(range.extractContents());
+          range.insertNode(em);
+
+          // Restore selection
+          range.selectNodeContents(em);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+
+        setTimeout(updateActiveFormats, 10);
+        return;
+      }
+    }
+
+    // Execute the command for other formats
+    const success = document.execCommand(command, false, value);
+
+    if (!success) {
+      console.warn(`Failed to execute command: ${command}`);
+    }
+
+    // Update active formats after formatting
+    setTimeout(updateActiveFormats, 10);
+  };
+
+  const insertImage = (src) => {
+    if (editorRef.current) {
+      const selection = window.getSelection();
+      const range = selection.getRangeAt(0);
+
+      // Create wrapper div for the image
+      const wrapper = document.createElement('div');
+      wrapper.contentEditable = 'false';
+      wrapper.style.display = 'inline-block';
+      wrapper.style.position = 'relative';
+      wrapper.style.margin = '0.5rem 0';
+      wrapper.style.maxWidth = '100%';
+      wrapper.style.cursor = 'pointer';
+
+      const img = document.createElement('img');
+      img.src = src;
+      img.style.maxWidth = '100%';
+      img.style.height = 'auto';
+      img.style.borderRadius = '0.5rem';
+      img.style.display = 'block';
+
+      wrapper.appendChild(img);
+
+      // Insert the wrapper
+      range.deleteContents();
+      range.insertNode(wrapper);
+
+      // Move cursor after the image
+      range.setStartAfter(wrapper);
+      range.setEndAfter(wrapper);
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      // Add a line break after the image
+      const br = document.createElement('br');
+      range.insertNode(br);
+
+      editorRef.current.focus();
+
+      // Update content state
+      setJournalContent(editorRef.current.innerHTML);
+    }
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        insertImage(event.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = '';
+  };
+
+  const handlePaste = (e) => {
+    const items = e.clipboardData?.items;
+    if (items) {
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          e.preventDefault();
+          const blob = items[i].getAsFile();
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            insertImage(event.target.result);
+          };
+          reader.readAsDataURL(blob);
+          break;
+        }
+      }
+    }
+  };
+
+  // Set initial content only once
+  useEffect(() => {
+    if (editorRef.current && selectedDate && journalContent === '') {
+      editorRef.current.innerHTML = journalContent;
+    }
+  }, [selectedDate]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -304,15 +491,24 @@ function App() {
           style={{ gridTemplateColumns: `repeat(${numDays}, 1fr)` }}
         >
           {days}
-          {allDays.map((day, idx) => (
-            <div
-              className={`day-cell ${!isSameMonth(day, monthStart) ? 'disabled' : ''} ${isSameDay(day, new Date()) ? 'today' : ''}`}
-              key={idx}
-              onClick={() => openModal(day)}
-            >
-              <span className="day-number">{format(day, 'd')}</span>
-            </div>
-          ))}
+          {allDays.map((day, idx) => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const dayNormalized = new Date(day);
+            dayNormalized.setHours(0, 0, 0, 0);
+            const isFuture = dayNormalized > today;
+
+            return (
+              <div
+                className={`day-cell ${!isSameMonth(day, monthStart) ? 'disabled' : ''} ${isSameDay(day, new Date()) ? 'today' : ''} ${isFuture ? 'disabled' : ''}`}
+                key={idx}
+                onClick={() => openModal(day)}
+                style={{ cursor: isFuture ? 'not-allowed' : 'pointer' }}
+              >
+                <span className="day-number">{format(day, 'd')}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -367,27 +563,35 @@ function App() {
         </div>
 
         <div className="week-days-list">
-          {weekDays.map((day, idx) => (
-            <div
-              key={idx}
-              className={`week-day-item ${isToday(day) ? 'week-day-today' : ''}`}
-              style={{ animationDelay: `${idx * 50}ms` }}
-              onClick={() => openModal(day)}
-            >
-              <div className="week-day-left">
-                <div className={`week-day-number ${isToday(day) ? 'week-day-number-today' : ''}`}>
-                  {format(day, 'd')}
+          {weekDays.map((day, idx) => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const dayNormalized = new Date(day);
+            dayNormalized.setHours(0, 0, 0, 0);
+            const isFuture = dayNormalized > today;
+
+            return (
+              <div
+                key={idx}
+                className={`week-day-item ${isToday(day) ? 'week-day-today' : ''} ${isFuture ? 'disabled' : ''}`}
+                style={{ animationDelay: `${idx * 50}ms`, cursor: isFuture ? 'not-allowed' : 'pointer', opacity: isFuture ? 0.5 : 1 }}
+                onClick={() => openModal(day)}
+              >
+                <div className="week-day-left">
+                  <div className={`week-day-number ${isToday(day) ? 'week-day-number-today' : ''}`}>
+                    {format(day, 'd')}
+                  </div>
+                  <div className="week-day-info">
+                    <span className="week-day-name">{format(day, 'EEEE')}</span>
+                  </div>
                 </div>
-                <div className="week-day-info">
-                  <span className="week-day-name">{format(day, 'EEEE')}</span>
+                <div className="week-day-right">
+                  <span className="week-day-empty">—</span>
+                  <ChevronRight className="h-4 w-4 text-slate-500 ml-2" size={16} />
                 </div>
               </div>
-              <div className="week-day-right">
-                <span className="week-day-empty">—</span>
-                <ChevronRight className="h-4 w-4 text-slate-500 ml-2" size={16} />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );
@@ -417,12 +621,19 @@ function App() {
         const isTodayDate = isToday(date);
         const title = `${format(date, 'MMM d')}: $0.00`;
 
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const dateNormalized = new Date(date);
+        dateNormalized.setHours(0, 0, 0, 0);
+        const isFuture = dateNormalized > today;
+
         cells.push(
           <div
             key={day}
             className={`year-mini-day neutral ${isTodayDate ? 'today' : ''}`}
             title={title}
-            onClick={() => setSelectedDate(date)}
+            onClick={() => !isFuture && setSelectedDate(date)}
+            style={{ cursor: isFuture ? 'not-allowed' : 'pointer', opacity: isFuture ? 0.5 : 1 }}
           />
         );
       }
@@ -656,8 +867,8 @@ function App() {
     if (!selectedDate) return null;
 
     return (
-      <div className="modal-overlay" onClick={closeModal}>
-        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-overlay">
+        <div className="modal-content">
           <button className="close-modal" onClick={closeModal}>
             <X size={20} />
           </button>
@@ -677,11 +888,11 @@ function App() {
                 New Entry
               </button>
               <button
-                className={`modal-tab ${modalTab === 'history' ? 'active' : ''}`}
-                onClick={() => setModalTab('history')}
+                className={`modal-tab ${modalTab === 'journal' ? 'active' : ''}`}
+                onClick={() => setModalTab('journal')}
               >
-                <ListFilter size={14} />
-                History
+                <BookOpen size={14} />
+                Journal
               </button>
             </div>
 
@@ -691,7 +902,7 @@ function App() {
                   <label className="form-label">Trade Result</label>
                   <div className="trade-type-grid">
                     <div
-                      className={`trade-type-option ${tradeType === 'profit' ? 'selected' : ''}`}
+                      className={`trade-type-option profit ${tradeType === 'profit' ? 'selected' : ''}`}
                       onClick={() => setTradeType('profit')}
                     >
                       <div className="trade-type-icon">
@@ -700,7 +911,7 @@ function App() {
                       <span className="trade-type-label">Profit</span>
                     </div>
                     <div
-                      className={`trade-type-option ${tradeType === 'loss' ? 'selected' : ''}`}
+                      className={`trade-type-option loss ${tradeType === 'loss' ? 'selected' : ''}`}
                       onClick={() => setTradeType('loss')}
                     >
                       <div className="trade-type-icon">
@@ -819,11 +1030,135 @@ function App() {
                   Add Entry
                 </button>
               </form>
-            ) : (
-              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                No entries for this date yet.
+            ) : modalTab === 'journal' ? (
+              <div className="journal-editor-container">
+                <div className="journal-toolbar">
+                  <div className="journal-toolbar-group">
+                    <button
+                      type="button"
+                      className={`journal-toolbar-btn ${activeFormats.bold ? 'active' : ''}`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        formatText('bold');
+                      }}
+                      title="Bold"
+                    >
+                      <Bold size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className={`journal-toolbar-btn ${activeFormats.italic ? 'active' : ''}`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        formatText('italic');
+                      }}
+                      title="Italic"
+                    >
+                      <Italic size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className={`journal-toolbar-btn ${activeFormats.underline ? 'active' : ''}`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        formatText('underline');
+                      }}
+                      title="Underline"
+                    >
+                      <Underline size={16} />
+                    </button>
+                  </div>
+                  <div className="journal-toolbar-group">
+                    <button
+                      type="button"
+                      className={`journal-toolbar-btn ${activeFormats.h1 ? 'active' : ''}`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        formatText('formatBlock', 'h1');
+                      }}
+                      title="Heading 1"
+                    >
+                      <Heading1 size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className={`journal-toolbar-btn ${activeFormats.h2 ? 'active' : ''}`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        formatText('formatBlock', 'h2');
+                      }}
+                      title="Heading 2"
+                    >
+                      <Heading2 size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className={`journal-toolbar-btn ${activeFormats.h3 ? 'active' : ''}`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        formatText('formatBlock', 'h3');
+                      }}
+                      title="Heading 3"
+                    >
+                      <Heading3 size={16} />
+                    </button>
+                  </div>
+                  <div className="journal-toolbar-group">
+                    <button
+                      type="button"
+                      className={`journal-toolbar-btn ${activeFormats.insertUnorderedList ? 'active' : ''}`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        formatText('insertUnorderedList');
+                      }}
+                      title="Bullet List"
+                    >
+                      <List size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className={`journal-toolbar-btn ${activeFormats.insertOrderedList ? 'active' : ''}`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        formatText('insertOrderedList');
+                      }}
+                      title="Numbered List"
+                    >
+                      <ListOrdered size={16} />
+                    </button>
+                  </div>
+                  <div className="journal-toolbar-group">
+                    <button
+                      type="button"
+                      className="journal-toolbar-btn"
+                      onClick={() => imageInputRef.current?.click()}
+                      title="Insert Image"
+                    >
+                      <ImageIcon size={16} />
+                    </button>
+                  </div>
+                </div>
+                <div
+                  ref={editorRef}
+                  className="journal-editor"
+                  contentEditable
+                  suppressContentEditableWarning
+                  data-placeholder="Write your trading journal entry here... You can paste screenshots directly (Ctrl+V)"
+                  onInput={(e) => setJournalContent(e.currentTarget.innerHTML)}
+                  onPaste={handlePaste}
+                  onMouseUp={updateActiveFormats}
+                  onKeyUp={updateActiveFormats}
+                  onClick={updateActiveFormats}
+                />
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="journal-image-input"
+                  onChange={handleImageUpload}
+                />
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
