@@ -711,12 +711,25 @@
   margin-bottom: 60px;
 }
 
+.week-view-header-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  gap: 1rem;
+}
+
 .week-view-header {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 2rem;
-  margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+  .week-view-header-wrapper {
+    flex-direction: column;
+  }
 }
 
 .week-view-title {
@@ -879,12 +892,25 @@
   }
 }
 
+.year-view-header-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  gap: 1rem;
+}
+
 .year-view-header {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 2rem;
-  margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+  .year-view-header-wrapper {
+    flex-direction: column;
+  }
 }
 
 .premium-month-btn {
@@ -1670,4 +1696,221 @@
 .profile-update-button:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+/* All Time View Styles */
+.alltime-view-container {
+  animation: fadeIn 0.3s ease-out;
+  margin-bottom: 60px;
+}
+
+.alltime-header-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.alltime-total-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.alltime-total-profit {
+  border-left: 3px solid var(--accent-green);
+}
+
+.alltime-total-loss {
+  border-left: 3px solid #ef4444;
+}
+
+.alltime-total-icon {
+  background: var(--accent-green);
+  padding: 1rem;
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.alltime-total-loss .alltime-total-icon {
+  background: #ef4444;
+}
+
+.alltime-total-content {
+  flex: 1;
+}
+
+.alltime-total-label {
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin: 0;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.alltime-total-amount {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0.5rem 0 0.25rem;
+}
+
+.alltime-total-sublabel {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.alltime-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.alltime-stat-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.2s;
+}
+
+.alltime-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.alltime-stat-icon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.alltime-stat-icon-blue {
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--accent-blue);
+}
+
+.alltime-stat-icon-purple {
+  background: rgba(139, 92, 246, 0.1);
+  color: #8b5cf6;
+}
+
+.alltime-stat-icon-green {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--accent-green);
+}
+
+.alltime-stat-icon-red {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.alltime-stat-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.alltime-stat-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.alltime-stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.alltime-years-section {
+  margin-top: 2rem;
+}
+
+.alltime-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1.25rem;
+}
+
+.alltime-years-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.alltime-year-item {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.2s;
+  animation: fadeInUp 0.3s ease-out forwards;
+  opacity: 0;
+}
+
+.alltime-year-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.alltime-year-profit {
+  border-left: 3px solid var(--accent-green);
+}
+
+.alltime-year-loss {
+  border-left: 3px solid #ef4444;
+}
+
+.alltime-year-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.alltime-year-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.alltime-year-trades {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.alltime-year-total {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
 }
