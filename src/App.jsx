@@ -152,9 +152,20 @@ function App() {
     const parentElement = selection.anchorNode?.parentElement;
     const tagName = parentElement?.tagName?.toLowerCase();
 
+    // Check if selection is within an italic element
+    let isItalic = false;
+    let element = parentElement;
+    while (element && element !== editorRef.current) {
+      if (element.tagName === 'EM' || element.tagName === 'I') {
+        isItalic = true;
+        break;
+      }
+      element = element.parentElement;
+    }
+
     setActiveFormats({
       bold: document.queryCommandState('bold'),
-      italic: document.queryCommandState('italic'),
+      italic: isItalic,
       underline: document.queryCommandState('underline'),
       h1: tagName === 'h1',
       h2: tagName === 'h2',
