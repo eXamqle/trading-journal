@@ -1,17 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Shield } from 'lucide-react';
+import { useAuth } from './contexts/AuthContext';
+import { authAPI } from './api/auth';
 
 function Profile() {
+  const { user, updateUser } = useAuth();
   const [activeTab, setActiveTab] = useState('account');
   const [accountData, setAccountData] = useState({
-    name: 'John Doe',
-    email: 'ylptwcqbqouxnmbysh@nesopf.com'
+    name: '',
+    email: ''
   });
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
+
+  // Load user data when component mounts or user changes
+  useEffect(() => {
+    if (user) {
+      setAccountData({
+        name: user.name || '',
+        email: user.email || ''
+      });
+    }
+  }, [user]);
 
   const handleAccountChange = (e) => {
     const { id, value } = e.target;
@@ -29,7 +42,17 @@ function Profile() {
     }));
   };
 
-  const handleUpdatePassword = () => {
+  const handleUpdateAccount = async () => {
+    try {
+      const { data } = await authAPI.updateProfile(accountData);
+      updateUser(data);
+      alert('Account updated successfully');
+    } catch (error) {
+      alert('Failed to update account: ' + (error.response?.data?.message || 'Unknown error'));
+    }
+  };
+
+  const handleUpdatePassword = async () => {
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
       alert('Please fill in all password fields');
       return;
@@ -38,12 +61,25 @@ function Profile() {
       alert('New passwords do not match');
       return;
     }
-    alert('Password updated successfully');
-    setPasswordData({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    });
+    if (passwordData.newPassword.length < 6) {
+      alert('New password must be at least 6 characters');
+      return;
+    }
+
+    try {
+      await authAPI.updatePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      });
+      alert('Password updated successfully');
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+    } catch (error) {
+      alert('Failed to update password: ' + (error.response?.data?.message || 'Unknown error'));
+    }
   };
 
   return (
@@ -98,6 +134,11 @@ function Profile() {
                     />
                   </div>
                 </div>
+              </div>
+              <div className="profile-card-footer">
+                <button className="profile-update-button" onClick={handleUpdateAccount}>
+                  Update Account
+                </button>
               </div>
             </div>
           </div>

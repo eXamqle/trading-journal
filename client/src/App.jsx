@@ -10,7 +10,6 @@ import {
   BarChart3,
   User,
   PlusCircle,
-  Twitter,
   MessageCircle,
   Minus,
   X,
@@ -56,8 +55,12 @@ import {
 import './App.css';
 import Analyze from './Analyze';
 import Profile from './Profile';
+import { useAuth } from './contexts/AuthContext';
+import { tradesAPI } from './api/trades';
+import { journalAPI } from './api/journal';
 
 function App() {
+  const { user, logout } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [activeTab, setActiveTab] = useState('Month');
   const [selectedDate, setSelectedDate] = useState(null);
@@ -69,6 +72,9 @@ function App() {
   const [trades, setTrades] = useState([]);
   const [profileOpen, setProfileOpen] = useState(false);
   const [journalContent, setJournalContent] = useState('');
+  const [journalEntries, setJournalEntries] = useState({}); // Store journal entries by date
+  const [viewingJournal, setViewingJournal] = useState(false); // Track if viewing journal
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     symbol: '',
     amount: '',
@@ -76,6 +82,38 @@ function App() {
     fees: '',
     notes: ''
   });
+
+  // Load trades and journal entries on mount
+  useEffect(() => {
+    loadTrades();
+    loadJournalEntries();
+  }, []);
+
+  const loadTrades = async () => {
+    try {
+      setLoading(true);
+      const { data } = await tradesAPI.getAll();
+      // Convert date strings back to Date objects
+      const tradesWithDates = data.trades.map(trade => ({
+        ...trade,
+        date: new Date(trade.date)
+      }));
+      setTrades(tradesWithDates);
+    } catch (error) {
+      console.error('Failed to load trades:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadJournalEntries = async () => {
+    try {
+      const { data } = await journalAPI.getAll();
+      setJournalEntries(data.entries);
+    } catch (error) {
+      console.error('Failed to load journal entries:', error);
+    }
+  };
 
   const editorRef = useRef(null);
   const imageInputRef = useRef(null);
@@ -91,6 +129,42 @@ function App() {
   });
 
   const categories = ['Forex', 'Stocks', 'Crypto', 'Options', 'Indices', 'Other'];
+
+  // Helper function to calculate P&L from trades
+  const calculatePnL = (tradesArray) => {
+    return tradesArray.reduce((sum, trade) => {
+      const amount = parseFloat(trade.amount) || 0;
+      const fees = parseFloat(trade.fees) || 0;
+      if (trade.type === 'profit') {
+        return sum + amount - fees;
+      } else if (trade.type === 'loss') {
+        return sum - amount - fees;
+      }
+      return sum - fees; // break-even still has fees
+    }, 0);
+  };
+
+  // Get trades for a specific date range
+  const getTradesInRange = (startDate, endDate) => {
+    return trades.filter(trade => {
+      const tradeDate = new Date(trade.date);
+      tradeDate.setHours(0, 0, 0, 0);
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      return tradeDate >= start && tradeDate <= end;
+    });
+  };
+
+  // Get trades for a specific date
+  const getTradesForDate = (date) => {
+    return trades.filter(trade => {
+      const tradeDate = new Date(trade.date);
+      const compareDate = new Date(date);
+      return isSameDay(tradeDate, compareDate);
+    });
+  };
 
   const nextPeriod = () => {
     if (activeTab === 'Week') {
@@ -112,7 +186,7 @@ function App() {
     }
   };
 
-  const openModal = (date) => {
+  const openModal = (date, forceViewMode = false) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const selectedDateNormalized = new Date(date);
@@ -124,15 +198,43 @@ function App() {
     }
 
     if (activeTab === 'Week' || isSameMonth(date, startOfMonth(currentDate))) {
+      const dateKey = format(date, 'yyyy-MM-dd');
+      const existingJournal = journalEntries[dateKey] || '';
+
       setSelectedDate(date);
+      setJournalContent(existingJournal);
+
+      // If forceViewMode is true and there's a journal entry, open in view mode
+      if (forceViewMode && existingJournal) {
+        setViewingJournal(true);
+        setModalTab('journal');
+      } else {
+        setViewingJournal(false);
+      }
     }
   };
 
-  const closeModal = () => {
+  const closeModal = async () => {
+    // Save journal content before closing
+    if (selectedDate && journalContent) {
+      const dateKey = format(selectedDate, 'yyyy-MM-dd');
+      try {
+        await journalAPI.saveEntry(dateKey, journalContent);
+        setJournalEntries(prev => ({
+          ...prev,
+          [dateKey]: journalContent
+        }));
+      } catch (error) {
+        console.error('Failed to save journal:', error);
+        alert('Failed to save journal entry. Please try again.');
+      }
+    }
+
     setSelectedDate(null);
     setModalTab('add');
     setTradeType('profit');
     setJournalContent('');
+    setViewingJournal(false);
     setFormData({
       symbol: '',
       amount: '',
@@ -152,20 +254,9 @@ function App() {
     const parentElement = selection.anchorNode?.parentElement;
     const tagName = parentElement?.tagName?.toLowerCase();
 
-    // Check if selection is within an italic element
-    let isItalic = false;
-    let element = parentElement;
-    while (element && element !== editorRef.current) {
-      if (element.tagName === 'EM' || element.tagName === 'I') {
-        isItalic = true;
-        break;
-      }
-      element = element.parentElement;
-    }
-
     setActiveFormats({
       bold: document.queryCommandState('bold'),
-      italic: isItalic,
+      italic: document.queryCommandState('italic'),
       underline: document.queryCommandState('underline'),
       h1: tagName === 'h1',
       h2: tagName === 'h2',
@@ -181,43 +272,24 @@ function App() {
     // Ensure editor has focus
     editorRef.current.focus();
 
-    // Special handling for italic command with manual fallback
-    if (command === 'italic') {
+    // Execute the command
+    document.execCommand(command, false, value);
+
+    // For list commands, move cursor to the end of the line
+    if (command === 'insertUnorderedList' || command === 'insertOrderedList') {
       const selection = window.getSelection();
       if (selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
+        const listItem = range.startContainer.parentElement?.closest('li');
 
-        // Check if already italic
-        const parentElement = range.commonAncestorContainer.parentElement;
-        const isItalic = parentElement && (parentElement.tagName === 'EM' || parentElement.tagName === 'I');
-
-        if (isItalic) {
-          // Remove italic by unwrapping
-          const content = parentElement.textContent;
-          const textNode = document.createTextNode(content);
-          parentElement.parentNode.replaceChild(textNode, parentElement);
-        } else if (!range.collapsed) {
-          // Apply italic by wrapping in em tag
-          const em = document.createElement('em');
-          em.appendChild(range.extractContents());
-          range.insertNode(em);
-
-          // Restore selection
-          range.selectNodeContents(em);
+        if (listItem) {
+          // Move cursor to the end of the list item
+          range.selectNodeContents(listItem);
+          range.collapse(false); // false = collapse to end
           selection.removeAllRanges();
           selection.addRange(range);
         }
-
-        setTimeout(updateActiveFormats, 10);
-        return;
       }
-    }
-
-    // Execute the command for other formats
-    const success = document.execCommand(command, false, value);
-
-    if (!success) {
-      console.warn(`Failed to execute command: ${command}`);
     }
 
     // Update active formats after formatting
@@ -298,11 +370,40 @@ function App() {
     }
   };
 
+  const handleEditorKeyDown = (e) => {
+    // Handle Tab key for indentation (like Word)
+    if (e.key === 'Tab') {
+      e.preventDefault();
+
+      if (e.shiftKey) {
+        // Shift+Tab for outdent
+        document.execCommand('outdent', false, null);
+      } else {
+        // Tab for indent
+        document.execCommand('indent', false, null);
+      }
+    }
+  };
+
   // Set initial content only once
   useEffect(() => {
     if (editorRef.current && selectedDate && journalContent === '') {
       editorRef.current.innerHTML = journalContent;
     }
+  }, [selectedDate]);
+
+  // Disable body scroll when modal is open
+  useEffect(() => {
+    if (selectedDate) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
   }, [selectedDate]);
 
   const handleInputChange = (e) => {
@@ -313,22 +414,38 @@ function App() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const newTrade = {
-      id: Date.now().toString(),
-      date: selectedDate,
-      type: tradeType,
-      symbol: formData.symbol,
-      amount: formData.amount,
-      category: formData.category,
-      fees: formData.fees || '0',
-      notes: formData.notes
-    };
+    // Validate category is selected
+    if (!formData.category) {
+      alert('Please select a category');
+      return;
+    }
 
-    setTrades(prevTrades => [...prevTrades, newTrade]);
-    closeModal();
+    try {
+      const tradeData = {
+        date: selectedDate.toISOString(),
+        type: tradeType,
+        symbol: formData.symbol,
+        amount: formData.amount,
+        category: formData.category,
+        fees: formData.fees || '0',
+        notes: formData.notes
+      };
+
+      const { data } = await tradesAPI.create(tradeData);
+      // Convert date string to Date object
+      const tradeWithDate = {
+        ...data.trade,
+        date: new Date(data.trade.date)
+      };
+      setTrades(prevTrades => [...prevTrades, tradeWithDate]);
+      closeModal();
+    } catch (error) {
+      console.error('Failed to create trade:', error);
+      alert('Failed to create trade: ' + (error.response?.data?.message || 'Unknown error'));
+    }
   };
 
   const renderHeader = () => {
@@ -371,7 +488,7 @@ function App() {
               onClick={() => setProfileOpen(!profileOpen)}
             >
               <User size={20} />
-              <span>John Doe</span>
+              <span>{user?.name || 'Loading...'}</span>
             </div>
             {profileOpen && (
               <>
@@ -392,7 +509,10 @@ function App() {
                     <span>Profile</span>
                   </div>
                   <div className="profile-dropdown-separator" />
-                  <div className="profile-dropdown-item profile-dropdown-item-danger" onClick={() => alert('Sign out clicked')}>
+                  <div className="profile-dropdown-item profile-dropdown-item-danger" onClick={() => {
+                    setProfileOpen(false);
+                    logout();
+                  }}>
                     <LogOut size={16} />
                     <span>Sign Out</span>
                   </div>
@@ -406,24 +526,49 @@ function App() {
   };
 
   const renderTopStats = () => {
+    const monthStart = startOfMonth(currentDate);
+    const monthEnd = endOfMonth(currentDate);
+    const monthTrades = getTradesInRange(monthStart, monthEnd);
+    const monthlyTotal = calculatePnL(monthTrades);
+
+    const yearStart = startOfYear(currentDate);
+    const yearEnd = endOfYear(currentDate);
+    const yearTrades = getTradesInRange(yearStart, yearEnd);
+    const annualTotal = calculatePnL(yearTrades);
+
+    const isMonthlyProfit = monthlyTotal >= 0;
+    const isAnnualProfit = annualTotal >= 0;
+
     return (
       <div className="top-stats">
-        <div className="week-total-card week-total-profit">
+        <div className={`week-total-card ${isMonthlyProfit ? 'week-total-profit' : 'week-total-loss'}`}>
           <div className="week-total-icon">
-            <TrendingUp className="h-6 w-6 text-white" />
+            {isMonthlyProfit ? (
+              <TrendingUp className="h-6 w-6 text-white" />
+            ) : (
+              <TrendingDown className="h-6 w-6 text-white" />
+            )}
           </div>
           <div>
             <p className="week-total-label">Monthly Net Total</p>
-            <p className="week-total-amount">$0.00</p>
+            <p className="week-total-amount">
+              {monthlyTotal >= 0 ? '+' : ''}${monthlyTotal.toFixed(2)}
+            </p>
           </div>
         </div>
-        <div className="week-total-card week-total-profit">
+        <div className={`week-total-card ${isAnnualProfit ? 'week-total-profit' : 'week-total-loss'}`}>
           <div className="week-total-icon">
-            <TrendingUp className="h-6 w-6 text-white" />
+            {isAnnualProfit ? (
+              <TrendingUp className="h-6 w-6 text-white" />
+            ) : (
+              <TrendingDown className="h-6 w-6 text-white" />
+            )}
           </div>
           <div>
             <p className="week-total-label">Annual Net Total</p>
-            <p className="week-total-amount">$0.00</p>
+            <p className="week-total-amount">
+              {annualTotal >= 0 ? '+' : ''}${annualTotal.toFixed(2)}
+            </p>
           </div>
         </div>
       </div>
@@ -508,15 +653,27 @@ function App() {
             const dayNormalized = new Date(day);
             dayNormalized.setHours(0, 0, 0, 0);
             const isFuture = dayNormalized > today;
+            const dateKey = format(day, 'yyyy-MM-dd');
+            const hasJournal = journalEntries[dateKey] && journalEntries[dateKey].trim() !== '';
+
+            const dayTrades = getTradesForDate(day);
+            const dayPnL = calculatePnL(dayTrades);
+            const hasTrades = dayTrades.length > 0;
 
             return (
               <div
                 className={`day-cell ${!isSameMonth(day, monthStart) ? 'disabled' : ''} ${isSameDay(day, new Date()) ? 'today' : ''} ${isFuture ? 'disabled' : ''}`}
                 key={idx}
-                onClick={() => openModal(day)}
+                onClick={() => openModal(day, hasJournal)}
                 style={{ cursor: isFuture ? 'not-allowed' : 'pointer' }}
               >
                 <span className="day-number">{format(day, 'd')}</span>
+                {hasTrades && (
+                  <span className={`day-pnl ${dayPnL >= 0 ? 'profit' : 'loss'}`}>
+                    {dayPnL >= 0 ? '+' : ''}${Math.abs(dayPnL).toFixed(0)}
+                  </span>
+                )}
+                {hasJournal && <span className="journal-indicator">📝</span>}
               </div>
             );
           })}
@@ -537,6 +694,10 @@ function App() {
         return dayOfWeek !== 0 && dayOfWeek !== 6; // Exclude Sunday (0) and Saturday (6)
       });
     }
+
+    const weekTrades = getTradesInRange(weekStart, weekEnd);
+    const weekTotal = calculatePnL(weekTrades);
+    const isWeekProfit = weekTotal >= 0;
 
     return (
       <div className="week-view-container animate-fade-in">
@@ -563,13 +724,19 @@ function App() {
           </button>
         </div>
 
-        <div className="week-total-card week-total-profit">
+        <div className={`week-total-card ${isWeekProfit ? 'week-total-profit' : 'week-total-loss'}`}>
           <div className="week-total-icon">
-            <TrendingUp className="h-6 w-6 text-white" />
+            {isWeekProfit ? (
+              <TrendingUp className="h-6 w-6 text-white" />
+            ) : (
+              <TrendingDown className="h-6 w-6 text-white" />
+            )}
           </div>
           <div>
             <p className="week-total-label">Total P&L</p>
-            <p className="week-total-amount">+$0.00</p>
+            <p className="week-total-amount">
+              {weekTotal >= 0 ? '+' : ''}${weekTotal.toFixed(2)}
+            </p>
           </div>
         </div>
 
@@ -580,13 +747,19 @@ function App() {
             const dayNormalized = new Date(day);
             dayNormalized.setHours(0, 0, 0, 0);
             const isFuture = dayNormalized > today;
+            const dateKey = format(day, 'yyyy-MM-dd');
+            const hasJournal = journalEntries[dateKey] && journalEntries[dateKey].trim() !== '';
+
+            const dayTrades = getTradesForDate(day);
+            const dayPnL = calculatePnL(dayTrades);
+            const hasTrades = dayTrades.length > 0;
 
             return (
               <div
                 key={idx}
                 className={`week-day-item ${isToday(day) ? 'week-day-today' : ''} ${isFuture ? 'disabled' : ''}`}
                 style={{ animationDelay: `${idx * 50}ms`, cursor: isFuture ? 'not-allowed' : 'pointer', opacity: isFuture ? 0.5 : 1 }}
-                onClick={() => openModal(day)}
+                onClick={() => openModal(day, hasJournal)}
               >
                 <div className="week-day-left">
                   <div className={`week-day-number ${isToday(day) ? 'week-day-number-today' : ''}`}>
@@ -594,10 +767,17 @@ function App() {
                   </div>
                   <div className="week-day-info">
                     <span className="week-day-name">{format(day, 'EEEE')}</span>
+                    {hasJournal && <span className="journal-badge">📝 Journal</span>}
                   </div>
                 </div>
                 <div className="week-day-right">
-                  <span className="week-day-empty">—</span>
+                  {hasTrades ? (
+                    <span className={dayPnL >= 0 ? 'text-emerald-400' : 'text-red-400'} style={{ fontWeight: '600' }}>
+                      {dayPnL >= 0 ? '+' : ''}${dayPnL.toFixed(2)}
+                    </span>
+                  ) : (
+                    <span className="week-day-empty">—</span>
+                  )}
                   <ChevronRight className="h-4 w-4 text-slate-500 ml-2" size={16} />
                 </div>
               </div>
@@ -610,8 +790,13 @@ function App() {
 
   const renderYearView = () => {
     const yearStart = startOfYear(currentDate);
+    const yearEnd = endOfYear(currentDate);
     const currentYear = format(currentDate, 'yyyy');
     const months = Array.from({ length: 12 }, (_, i) => addMonths(yearStart, i));
+
+    const yearTrades = getTradesInRange(yearStart, yearEnd);
+    const yearTotal = calculatePnL(yearTrades);
+    const isYearProfit = yearTotal >= 0;
 
     const renderMiniCalendar = (month) => {
       const monthStart = startOfMonth(month);
@@ -630,7 +815,18 @@ function App() {
       for (let day = 1; day <= daysInMonth; day++) {
         const date = new Date(format(month, 'yyyy'), format(month, 'M') - 1, day);
         const isTodayDate = isToday(date);
-        const title = `${format(date, 'MMM d')}: $0.00`;
+        const dateKey = format(date, 'yyyy-MM-dd');
+        const hasJournal = journalEntries[dateKey] && journalEntries[dateKey].trim() !== '';
+
+        const dayTrades = getTradesForDate(date);
+        const dayPnL = calculatePnL(dayTrades);
+        const hasTrades = dayTrades.length > 0;
+
+        const title = hasTrades
+          ? `${format(date, 'MMM d')}: ${dayPnL >= 0 ? '+' : ''}$${dayPnL.toFixed(2)}${hasJournal ? ' 📝' : ''}`
+          : hasJournal
+          ? `${format(date, 'MMM d')}: Has journal 📝`
+          : `${format(date, 'MMM d')}: No trades`;
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -638,12 +834,17 @@ function App() {
         dateNormalized.setHours(0, 0, 0, 0);
         const isFuture = dateNormalized > today;
 
+        let dayClass = 'year-mini-day neutral';
+        if (hasTrades) {
+          dayClass = `year-mini-day ${dayPnL >= 0 ? 'profit' : 'loss'}`;
+        }
+
         cells.push(
           <div
             key={day}
-            className={`year-mini-day neutral ${isTodayDate ? 'today' : ''}`}
+            className={`${dayClass} ${isTodayDate ? 'today' : ''} ${hasJournal ? 'has-journal' : ''}`}
             title={title}
-            onClick={() => !isFuture && setSelectedDate(date)}
+            onClick={() => !isFuture && openModal(date, hasJournal)}
             style={{ cursor: isFuture ? 'not-allowed' : 'pointer', opacity: isFuture ? 0.5 : 1 }}
           />
         );
@@ -674,35 +875,51 @@ function App() {
           </div>
         </div>
 
-        <div className="year-total-card year-total-profit">
+        <div className={`year-total-card ${isYearProfit ? 'year-total-profit' : 'year-total-loss'}`}>
           <div className="year-total-icon">
-            <TrendingUp className="h-6 w-6 text-white" />
+            {isYearProfit ? (
+              <TrendingUp className="h-6 w-6 text-white" />
+            ) : (
+              <TrendingDown className="h-6 w-6 text-white" />
+            )}
           </div>
           <div>
             <p className="year-total-label">Total P&L</p>
-            <p className="year-total-amount">$0</p>
+            <p className="year-total-amount">
+              {yearTotal >= 0 ? '+' : ''}${yearTotal.toFixed(2)}
+            </p>
             <p className="year-total-sublabel">in {currentYear}</p>
           </div>
         </div>
 
         <div className="year-months-grid">
-          {months.map((month, idx) => (
-            <div
-              key={idx}
-              className="year-month-card"
-              style={{ animationDelay: `${idx * 40}ms` }}
-            >
-              <div className="year-month-header">
-                <span className="year-month-name">{format(month, 'MMM')}</span>
+          {months.map((month, idx) => {
+            const monthStart = startOfMonth(month);
+            const monthEnd = endOfMonth(month);
+            const monthTrades = getTradesInRange(monthStart, monthEnd);
+            const monthTotal = calculatePnL(monthTrades);
+            const hasMonthTrades = monthTrades.length > 0;
+
+            return (
+              <div
+                key={idx}
+                className="year-month-card"
+                style={{ animationDelay: `${idx * 40}ms` }}
+              >
+                <div className="year-month-header">
+                  <span className="year-month-name">{format(month, 'MMM')}</span>
+                </div>
+                <div className="year-mini-calendar">
+                  {renderMiniCalendar(month)}
+                </div>
+                <div className={`year-month-total ${hasMonthTrades ? (monthTotal >= 0 ? 'text-emerald-400' : 'text-red-400') : 'text-slate-500'}`}>
+                  <span>
+                    {hasMonthTrades ? `${monthTotal >= 0 ? '+' : ''}$${monthTotal.toFixed(2)}` : '$0'}
+                  </span>
+                </div>
               </div>
-              <div className="year-mini-calendar">
-                {renderMiniCalendar(month)}
-              </div>
-              <div className="year-month-total text-slate-500">
-                <span className="text-slate-600">$0</span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );
@@ -907,7 +1124,21 @@ function App() {
               </button>
             </div>
 
-            {modalTab === 'add' ? (
+            {viewingJournal ? (
+              <div className="journal-view-container">
+                <div
+                  className="journal-view-content"
+                  dangerouslySetInnerHTML={{ __html: journalContent }}
+                />
+                <button
+                  type="button"
+                  className="modal-action-button"
+                  onClick={() => setViewingJournal(false)}
+                >
+                  ✏️ Edit Journal
+                </button>
+              </div>
+            ) : modalTab === 'add' ? (
               <form onSubmit={handleSubmit}>
                 <div className="form-field full-width">
                   <label className="form-label">Trade Result</label>
@@ -944,7 +1175,7 @@ function App() {
 
                 <div className="form-grid">
                   <div className="form-field">
-                    <label className="form-label" htmlFor="symbol">Symbol</label>
+                    <label className="form-label" htmlFor="symbol">Symbol *</label>
                     <input
                       id="symbol"
                       name="symbol"
@@ -953,10 +1184,11 @@ function App() {
                       placeholder="e.g. BTCUSDT"
                       value={formData.symbol}
                       onChange={handleInputChange}
+                      required
                     />
                   </div>
                   <div className="form-field">
-                    <label className="form-label" htmlFor="amount">Amount ($)</label>
+                    <label className="form-label" htmlFor="amount">Amount ($) *</label>
                     <input
                       id="amount"
                       name="amount"
@@ -967,15 +1199,17 @@ function App() {
                       placeholder="0.00"
                       value={formData.amount}
                       onChange={handleInputChange}
+                      required
                     />
                   </div>
                   <div className="form-field">
-                    <label className="form-label" htmlFor="category">Category</label>
+                    <label className="form-label" htmlFor="category">Category *</label>
                     <div className="dropdown-container">
                       <button
                         type="button"
                         className="dropdown-trigger"
                         onClick={() => setCategoryOpen(!categoryOpen)}
+                        style={{ borderColor: !formData.category ? '#ef4444' : undefined }}
                       >
                         <span className={formData.category ? '' : 'placeholder'}>
                           {formData.category || 'Select Market'}
@@ -1036,10 +1270,6 @@ function App() {
                   />
                 </div>
 
-                <button type="submit" className="form-submit">
-                  <PlusCircle size={20} />
-                  Add Entry
-                </button>
               </form>
             ) : modalTab === 'journal' ? (
               <div className="journal-editor-container">
@@ -1157,6 +1387,7 @@ function App() {
                   data-placeholder="Write your trading journal entry here... You can paste screenshots directly (Ctrl+V)"
                   onInput={(e) => setJournalContent(e.currentTarget.innerHTML)}
                   onPaste={handlePaste}
+                  onKeyDown={handleEditorKeyDown}
                   onMouseUp={updateActiveFormats}
                   onKeyUp={updateActiveFormats}
                   onClick={updateActiveFormats}
@@ -1170,6 +1401,26 @@ function App() {
                 />
               </div>
             ) : null}
+
+            {/* Persistent action button */}
+            {!viewingJournal && (
+              <button
+                type="button"
+                className="modal-action-button"
+                onClick={() => {
+                  if (modalTab === 'add') {
+                    // Trigger form submit for add tab
+                    document.querySelector('.modal-content form')?.requestSubmit();
+                  } else if (modalTab === 'journal') {
+                    // Save journal and close modal
+                    closeModal();
+                  }
+                }}
+              >
+                <PlusCircle size={20} />
+                {modalTab === 'add' ? 'Add Entry' : 'Save Journal'}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1177,19 +1428,62 @@ function App() {
   };
 
   const renderSidebar = () => {
+    const monthStart = startOfMonth(currentDate);
+    const monthEnd = endOfMonth(currentDate);
+    const monthTrades = getTradesInRange(monthStart, monthEnd);
+
+    const wins = monthTrades.filter(t => t.type === 'profit').length;
+    const losses = monthTrades.filter(t => t.type === 'loss').length;
+    const totalTrades = monthTrades.length;
+    const winRate = totalTrades > 0 ? (wins / totalTrades * 100).toFixed(1) : '0.0';
+
+    // Calculate daily P&L for the month
+    const dailyPnL = {};
+    monthTrades.forEach(trade => {
+      const dateKey = format(new Date(trade.date), 'yyyy-MM-dd');
+      if (!dailyPnL[dateKey]) {
+        dailyPnL[dateKey] = 0;
+      }
+      const amount = parseFloat(trade.amount) || 0;
+      const fees = parseFloat(trade.fees) || 0;
+      if (trade.type === 'profit') {
+        dailyPnL[dateKey] += amount - fees;
+      } else if (trade.type === 'loss') {
+        dailyPnL[dateKey] -= amount + fees;
+      } else {
+        dailyPnL[dateKey] -= fees;
+      }
+    });
+
+    const dailyTotals = Object.values(dailyPnL);
+    const bestDay = dailyTotals.length > 0 ? Math.max(...dailyTotals) : 0;
+    const worstDay = dailyTotals.length > 0 ? Math.min(...dailyTotals) : 0;
+
+    // Calculate average win and loss
+    const profitTrades = monthTrades.filter(t => t.type === 'profit');
+    const lossTrades = monthTrades.filter(t => t.type === 'loss');
+
+    const avgWin = profitTrades.length > 0
+      ? profitTrades.reduce((sum, t) => sum + parseFloat(t.amount) - parseFloat(t.fees || 0), 0) / profitTrades.length
+      : 0;
+
+    const avgLoss = lossTrades.length > 0
+      ? lossTrades.reduce((sum, t) => sum + parseFloat(t.amount) + parseFloat(t.fees || 0), 0) / lossTrades.length
+      : 0;
+
     return (
       <aside className="sidebar-section">
         <h2 className="sidebar-title">{format(currentDate, 'MMMM yyyy')} Statistics</h2>
 
         <div className="info-card">
           <span className="info-label">Win Rate</span>
-          <div className="info-value">0.0%</div>
-          <div className="info-subtext">0W / 0L</div>
+          <div className="info-value">{winRate}%</div>
+          <div className="info-subtext">{wins}W / {losses}L</div>
         </div>
 
         <div className="info-card">
           <span className="info-label">Total Trades</span>
-          <div className="info-value">0</div>
+          <div className="info-value">{totalTrades}</div>
           <div className="info-subtext">{format(currentDate, 'MMMM')}</div>
         </div>
 
@@ -1197,11 +1491,15 @@ function App() {
           <span className="info-label">Daily Performance</span>
           <div className="perf-row">
             <span className="perf-label">Best Day</span>
-            <span className="perf-value positive">$0.00</span>
+            <span className={`perf-value ${bestDay >= 0 ? 'positive' : 'negative'}`}>
+              {bestDay >= 0 ? '+' : ''}${bestDay.toFixed(2)}
+            </span>
           </div>
           <div className="perf-row">
             <span className="perf-label">Worst Day</span>
-            <span className="perf-value positive">$0.00</span>
+            <span className={`perf-value ${worstDay >= 0 ? 'positive' : 'negative'}`}>
+              {worstDay >= 0 ? '+' : ''}${worstDay.toFixed(2)}
+            </span>
           </div>
         </div>
 
@@ -1209,11 +1507,15 @@ function App() {
           <span className="info-label">Average Stats</span>
           <div className="perf-row">
             <span className="perf-label">Avg Win</span>
-            <span className="perf-value positive">$0.00</span>
+            <span className="perf-value positive">
+              +${avgWin.toFixed(2)}
+            </span>
           </div>
           <div className="perf-row">
             <span className="perf-label">Avg Loss</span>
-            <span className="perf-value positive">$0.00</span>
+            <span className="perf-value negative">
+              -${avgLoss.toFixed(2)}
+            </span>
           </div>
         </div>
       </aside>

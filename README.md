@@ -1,6 +1,6 @@
 # Trading Journal & Calendar 📊💰
 
-A modern, feature-rich trading journal application to track, analyze, and improve your trading performance. Built with React and designed for traders who want to maintain detailed records of their trades and gain insights into their trading patterns.
+A modern, feature-rich **full-stack** trading journal application with SQL database backend, user authentication, and persistent data storage. Track, analyze, and improve your trading performance with secure cloud-based storage.
 
 ## ✨ Features
 
@@ -46,12 +46,22 @@ A modern, feature-rich trading journal application to track, analyze, and improv
 
 ## 🛠️ Tech Stack
 
+### Frontend
 - **Framework**: React 19.2.0
 - **Date Utilities**: date-fns 4.1.0
 - **Icons**: lucide-react 0.563.0
 - **Build Tool**: Vite 7.2.4
+- **HTTP Client**: Axios 1.6.5
 - **Styling**: Custom CSS with CSS Variables
 - **Language**: JavaScript (ES6+)
+
+### Backend
+- **Runtime**: Node.js
+- **Framework**: Express 4.18.2
+- **Database**: SQLite (better-sqlite3 9.2.2)
+- **Authentication**: JWT (jsonwebtoken 9.0.2)
+- **Security**: bcryptjs 2.4.3, CORS 2.8.5
+- **Environment**: dotenv 16.3.1
 
 ## 📦 Installation
 
@@ -63,16 +73,28 @@ A modern, feature-rich trading journal application to track, analyze, and improv
 
 2. **Install dependencies**
    ```bash
+   # Install root dependencies
    npm install
+
+   # Install client & server dependencies
+   cd client && npm install
+   cd ../server && npm install
+   cd ..
    ```
 
-3. **Start the development server**
+3. **Start both servers**
    ```bash
    npm run dev
    ```
+   This starts:
+   - Frontend at `http://localhost:5173`
+   - Backend at `http://localhost:5000`
 
-4. **Open your browser**
-   Navigate to `http://localhost:5173` (or the port shown in terminal)
+4. **Login with default account**
+   ```
+   Email: john@example.com
+   Password: password123
+   ```
 
 ## 🚀 Usage
 
@@ -108,18 +130,36 @@ A modern, feature-rich trading journal application to track, analyze, and improv
 
 ```
 trading-journal/
-├── src/
-│   ├── App.jsx           # Main application component
-│   ├── App.css           # Global styles
-│   ├── Analyze.jsx       # Analytics dashboard component
-│   ├── Profile.jsx       # User profile component
-│   ├── main.jsx          # Application entry point
-│   └── index.css         # Base styles and CSS variables
-├── public/               # Static assets
-├── index.html           # HTML template
-├── package.json         # Dependencies and scripts
-├── vite.config.js       # Vite configuration
-└── README.md           # This file
+├── client/                 # Frontend React application
+│   ├── src/
+│   │   ├── api/           # API client utilities
+│   │   ├── contexts/      # React contexts (Auth)
+│   │   ├── components/    # React components (Login)
+│   │   ├── App.jsx        # Main app component
+│   │   ├── App.css        # Global styles
+│   │   ├── Analyze.jsx    # Analytics dashboard
+│   │   ├── Profile.jsx    # User profile
+│   │   └── main.jsx       # Entry point
+│   ├── public/           # Static assets
+│   └── package.json      # Frontend dependencies
+│
+├── server/                 # Backend Express application
+│   ├── src/
+│   │   ├── config/
+│   │   │   └── database.js       # SQLite configuration
+│   │   ├── routes/
+│   │   │   ├── auth.js          # Authentication API
+│   │   │   ├── trades.js        # Trades CRUD API
+│   │   │   └── journal.js       # Journal API
+│   │   ├── middleware/
+│   │   │   └── auth.js          # JWT authentication
+│   │   └── server.js            # Express app
+│   ├── database/
+│   │   └── trading-journal.db   # SQLite database
+│   ├── .env              # Environment variables
+│   └── package.json      # Backend dependencies
+│
+└── package.json           # Root workspace configuration
 ```
 
 ## 🎨 Key Components
@@ -148,8 +188,24 @@ trading-journal/
 
 ## 🔧 Available Scripts
 
+### Root Directory
 ```bash
-# Start development server
+# Start both frontend and backend
+npm run dev
+
+# Start only frontend
+npm run dev:client
+
+# Start only backend
+npm run dev:server
+
+# Build frontend for production
+npm run build
+```
+
+### Client Directory (cd client/)
+```bash
+# Start Vite dev server
 npm run dev
 
 # Build for production
@@ -162,18 +218,34 @@ npm run preview
 npm run lint
 ```
 
+### Server Directory (cd server/)
+```bash
+# Start Express server with auto-reload
+npm run dev
+
+# Start Express server (production)
+npm start
+```
+
+## ✅ Completed Features
+
+- [x] **Database integration** - SQLite with persistent storage
+- [x] **User authentication** - JWT-based login/register system
+- [x] **Multi-user support** - Each user has isolated data
+- [x] **Password hashing** - Secure bcrypt encryption
+- [x] **REST API** - Complete backend API for all operations
+- [x] **Journal entries** - Rich text with formatting and images
+
 ## 🎯 Future Enhancements
 
-- [ ] Database integration for persistent storage
-- [ ] User authentication system
 - [ ] Performance charts and graphs
 - [ ] Advanced statistics (Sharpe ratio, drawdown, etc.)
-- [ ] Trade journal with screenshots
 - [ ] Trading strategy templates
 - [ ] Multi-currency support
 - [ ] Mobile app version
 - [ ] Dark/Light theme toggle
 - [ ] Backup and restore functionality
+- [ ] Real-time sync across devices
 
 ## 🌈 Color Scheme
 
@@ -183,13 +255,28 @@ npm run lint
 - **Accent Purple**: `#8b5cf6` - Profit factor
 - **Background**: Dark theme optimized for trading
 
-## 📊 Data Storage
+## 📊 Data Storage & Security
 
-Currently, the application stores trade data in React state (in-memory). This means:
-- ✅ Fast and responsive
-- ✅ No backend setup required
-- ⚠️ Data resets on page refresh
-- 🔜 Database integration planned for persistent storage
+### Database
+The application uses **SQLite** for persistent storage with three main tables:
+- **users** - User accounts with hashed passwords
+- **trades** - All trading entries with full details
+- **journal_entries** - Rich text journal content per date
+
+### Security Features
+- ✅ **JWT Authentication** - Secure token-based auth
+- ✅ **Password Hashing** - bcrypt with salt rounds
+- ✅ **CORS Protection** - Restricted to frontend origin
+- ✅ **SQL Injection Prevention** - Prepared statements
+- ✅ **User Isolation** - Users only access their own data
+- ✅ **Token Expiration** - 24-hour JWT tokens
+
+### API Endpoints
+- **Auth**: `/api/auth/*` - Login, register, profile management
+- **Trades**: `/api/trades/*` - CRUD operations for trades
+- **Journal**: `/api/journal/*` - CRUD operations for journal entries
+
+All endpoints (except login/register) require Bearer token authentication.
 
 ## 🤝 Contributing
 
