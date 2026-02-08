@@ -178,7 +178,7 @@ function App() {
                   onClick={() => setProfileOpen(false)}
                 />
                 <div className="profile-dropdown-menu">
-                  <div className="profile-dropdown-header">My Account</div>
+                  <div className="profile-dropdown-header">Account</div>
                   <div
                     className="profile-dropdown-item"
                     onClick={() => {
