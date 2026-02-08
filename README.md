@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Trading Journal & Calendar 📊💰
 
 A modern, feature-rich trading journal application to track, analyze, and improve your trading performance. Built with React and designed for traders who want to maintain detailed records of their trades and gain insights into their trading patterns.
@@ -206,3 +207,7 @@ For questions or feedback, please open an issue on GitHub.
 ---
 
 **Built with ❤️ for traders by traders**
+=======
+# trading-journal
+Trading Journal App
+>>>>>>> bac39589e0fcfdaff58a5d1ef563c4def66307b7
