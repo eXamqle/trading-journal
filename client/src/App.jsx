@@ -154,7 +154,7 @@ function App() {
     insertOrderedList: false
   });
 
-  const categories = ['Forex', 'Stocks', 'Crypto', 'Options', 'Indices', 'Other'];
+  const categories = ['Stocks', 'Options', 'Indices'];
 
   // Helper function to calculate P&L from trades
   const calculatePnL = (tradesArray) => {
@@ -468,7 +468,6 @@ function App() {
         setAvailableTags(prev => [...prev, { name: trimmedTag, color: randomColor }]);
       }
     }
-    setTagInput('');
   };
 
   const handleRemoveTag = (tagToRemove) => {
@@ -1309,11 +1308,109 @@ function App() {
                 </div>
 
                 <div className="form-field full-width">
-                  <label className="form-label" htmlFor="tags">Tags</label>
+                  <label className="form-label">Tags</label>
 
-                  {/* Selected tags display */}
-                  {formData.tags.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                  <div style={{ position: 'relative' }}>
+                    {/* Dropdown above input */}
+                    {tagsOpen && (() => {
+                      const filteredTags = availableTags.filter(tag =>
+                        tag.name.toLowerCase().includes(tagSearchQuery.toLowerCase())
+                      );
+                      const showCreate = tagSearchQuery && !availableTags.find(t => t.name.toLowerCase() === tagSearchQuery.toLowerCase());
+
+                      return (
+                        <div style={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: '0.5rem',
+                          padding: '0.75rem',
+                          background: 'var(--bg-secondary)',
+                          border: '1px solid var(--border-color)',
+                          borderBottom: 'none',
+                          borderRadius: '0.5rem 0.5rem 0 0',
+                          maxHeight: '180px',
+                          overflowY: 'auto',
+                          marginBottom: '-1px'
+                        }}>
+                          {filteredTags.map((tag) => {
+                            const isSelected = formData.tags.includes(tag.name);
+                            return (
+                              <button
+                                key={tag.name}
+                                type="button"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  if (isSelected) {
+                                    handleRemoveTag(tag.name);
+                                  } else {
+                                    handleAddTag(tag.name);
+                                  }
+                                }}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.375rem',
+                                  padding: '0.375rem 0.625rem',
+                                  borderRadius: '999px',
+                                  fontSize: '0.8125rem',
+                                  background: isSelected ? 'var(--accent-purple)' : 'var(--bg-primary)',
+                                  border: `1px solid ${isSelected ? 'var(--accent-purple)' : 'var(--border-color)'}`,
+                                  color: isSelected ? 'white' : 'var(--text-primary)',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: tag.color, flexShrink: 0 }} />
+                                {tag.name}
+                                {isSelected && <span style={{ fontSize: '0.7rem' }}>✓</span>}
+                              </button>
+                            );
+                          })}
+                          {showCreate && (
+                            <button
+                              type="button"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                handleAddTag(tagSearchQuery);
+                                setTagSearchQuery('');
+                              }}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                padding: '0.375rem 0.625rem',
+                                borderRadius: '999px',
+                                fontSize: '0.8125rem',
+                                background: 'transparent',
+                                border: '1px dashed var(--border-color)',
+                                color: 'var(--text-secondary)',
+                                cursor: 'pointer',
+                                fontStyle: 'italic',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              + Create "{tagSearchQuery}"
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Input with selected tags */}
+                    <div
+                      style={{
+                        width: '100%',
+                        minHeight: '42px',
+                        padding: '0.5rem',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: tagsOpen ? '0 0 0.5rem 0.5rem' : '0.5rem',
+                        background: 'var(--bg-primary)',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        gap: '0.375rem'
+                      }}
+                    >
                       {formData.tags.map((tag, index) => (
                         <span
                           key={index}
@@ -1324,112 +1421,48 @@ function App() {
                           <button
                             type="button"
                             className="tag-remove"
-                            onClick={() => handleRemoveTag(tag)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveTag(tag);
+                            }}
                           >
                             <X size={12} />
                           </button>
                         </span>
                       ))}
-                    </div>
-                  )}
-
-                  {/* Tags dropdown */}
-                  <div className="dropdown-container" style={{ position: 'relative' }}>
-                    <button
-                      type="button"
-                      className="dropdown-trigger"
-                      onClick={() => setTagsOpen(!tagsOpen)}
-                    >
-                      <span className="placeholder">
-                        {formData.tags.length === 0 ? 'Select tags...' : 'Add more tags...'}
-                      </span>
-                      <ChevronRight
-                        size={16}
+                      <input
+                        id="tags-input"
+                        type="text"
+                        placeholder={formData.tags.length === 0 ? 'Type to add tags...' : ''}
+                        value={tagSearchQuery}
+                        onChange={(e) => setTagSearchQuery(e.target.value)}
+                        onClick={() => setTagsOpen(true)}
+                        onBlur={() => setTimeout(() => setTagsOpen(false), 150)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && tagSearchQuery.trim()) {
+                            e.preventDefault();
+                            handleAddTag(tagSearchQuery);
+                            setTagSearchQuery('');
+                          } else if (e.key === 'Backspace' && !tagSearchQuery && formData.tags.length > 0) {
+                            e.preventDefault();
+                            handleRemoveTag(formData.tags[formData.tags.length - 1]);
+                          } else if (e.key === 'Escape') {
+                            setTagsOpen(false);
+                            setTagSearchQuery('');
+                          }
+                        }}
                         style={{
-                          transform: tagsOpen ? 'rotate(90deg)' : 'rotate(0deg)',
-                          transition: 'transform 0.2s'
+                          flex: 1,
+                          minWidth: '120px',
+                          border: 'none',
+                          outline: 'none',
+                          background: 'transparent',
+                          color: 'var(--text-primary)',
+                          fontSize: '0.875rem',
+                          padding: '0.25rem'
                         }}
                       />
-                    </button>
-                    {tagsOpen && (
-                      <div className="dropdown-menu" style={{
-                        maxHeight: '250px',
-                        overflowY: 'auto',
-                        position: 'absolute',
-                        bottom: '100%',
-                        marginBottom: '0.5rem',
-                        width: '100%'
-                      }}>
-                        <div style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-color)', position: 'sticky', top: 0, background: 'var(--bg-secondary)', zIndex: 1 }}>
-                          <input
-                            type="text"
-                            placeholder="Search tags..."
-                            value={tagSearchQuery}
-                            onChange={(e) => setTagSearchQuery(e.target.value)}
-                            style={{
-                              width: '100%',
-                              padding: '0.5rem',
-                              border: '1px solid var(--border-color)',
-                              borderRadius: '0.375rem',
-                              background: 'var(--bg-primary)',
-                              color: 'var(--text-primary)',
-                              fontSize: '0.875rem'
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        </div>
-                        {availableTags
-                          .filter(tag =>
-                            tag.name.toLowerCase().includes(tagSearchQuery.toLowerCase())
-                          )
-                          .map((tag) => (
-                            <button
-                              key={tag.name}
-                              type="button"
-                              className="dropdown-item"
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                background: formData.tags.includes(tag.name) ? 'var(--accent-purple)' : 'transparent'
-                              }}
-                              onClick={() => {
-                                if (formData.tags.includes(tag.name)) {
-                                  handleRemoveTag(tag.name);
-                                } else {
-                                  handleAddTag(tag.name);
-                                }
-                              }}
-                            >
-                              <div
-                                style={{
-                                  width: '12px',
-                                  height: '12px',
-                                  borderRadius: '2px',
-                                  background: tag.color
-                                }}
-                              />
-                              {tag.name}
-                              {formData.tags.includes(tag.name) && (
-                                <span style={{ marginLeft: 'auto', fontSize: '0.75rem' }}>✓</span>
-                              )}
-                            </button>
-                          ))}
-                        {tagSearchQuery && !availableTags.find(t => t.name.toLowerCase() === tagSearchQuery.toLowerCase()) && (
-                          <button
-                            type="button"
-                            className="dropdown-item"
-                            style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }}
-                            onClick={() => {
-                              handleAddTag(tagSearchQuery);
-                              setTagSearchQuery('');
-                            }}
-                          >
-                            + Create "{tagSearchQuery}"
-                          </button>
-                        )}
-                      </div>
-                    )}
+                    </div>
                   </div>
                 </div>
 

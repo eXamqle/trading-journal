@@ -23,7 +23,7 @@ function Analyze({ trades }) {
 
   const periods = ['This Week', 'This Month', 'Last 30 Days', 'This Year', 'All Time'];
   const types = ['All Types', 'Profit', 'Loss', 'Break Even'];
-  const categories = ['All Categories', 'Forex', 'Stocks', 'Crypto', 'Options', 'Indices', 'Other'];
+  const categories = ['All Categories', 'Stocks', 'Options', 'Indices'];
 
   // Filter trades based on period
   const filteredByPeriod = useMemo(() => {
