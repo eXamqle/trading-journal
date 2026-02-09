@@ -48,20 +48,76 @@ export function initDatabase() {
       UNIQUE(user_id, date)
     );
 
+    CREATE TABLE IF NOT EXISTS tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      color TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
     CREATE INDEX IF NOT EXISTS idx_trades_user_date ON trades(user_id, date DESC);
     CREATE INDEX IF NOT EXISTS idx_trades_user_category ON trades(user_id, category);
     CREATE INDEX IF NOT EXISTS idx_journal_user_date ON journal_entries(user_id, date DESC);
+    CREATE INDEX IF NOT EXISTS idx_tags_user ON tags(user_id);
   `);
 
   // Create default user if none exists
   const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get();
   if (userCount.count === 0) {
     const hash = bcrypt.hashSync('password123', 10);
-    db.prepare(`
+    const result = db.prepare(`
       INSERT INTO users (name, email, password_hash)
       VALUES (?, ?, ?)
     `).run('John Doe', 'john@example.com', hash);
     console.log('✓ Default user created: john@example.com / password123');
+
+    // Create default tags for the new user
+    createDefaultTags(result.lastInsertRowid);
+  }
+
+  // Create default tags for existing users who don't have any
+  const usersWithoutTags = db.prepare(`
+    SELECT u.id
+    FROM users u
+    LEFT JOIN tags t ON u.id = t.user_id
+    GROUP BY u.id
+    HAVING COUNT(t.id) = 0
+  `).all();
+
+  usersWithoutTags.forEach(user => {
+    createDefaultTags(user.id);
+  });
+
+  if (usersWithoutTags.length > 0) {
+    console.log(`✓ Default tags created for ${usersWithoutTags.length} user(s)`);
+  }
+}
+
+function createDefaultTags(userId) {
+  const defaultTags = [
+    // Strategy tags
+    { name: 'Scalp', color: '#10b981' },
+    { name: 'Day Trade', color: '#3b82f6' },
+    { name: 'Swing', color: '#8b5cf6' },
+    { name: 'Breakout', color: '#f59e0b' },
+    { name: 'Reversal', color: '#ef4444' },
+    { name: 'Trend Following', color: '#06b6d4' },
+    // Psychology/Emotional tags
+    { name: 'FOMO', color: '#dc2626' },
+    { name: 'Revenge Trade', color: '#991b1b' },
+    { name: 'Overtrading', color: '#ea580c' },
+    { name: 'Emotional', color: '#9333ea' },
+    { name: 'Disciplined', color: '#059669' },
+    { name: 'Patient', color: '#0891b2' }
+  ];
+
+  const insertTag = db.prepare('INSERT INTO tags (user_id, name, color) VALUES (?, ?, ?)');
+
+  for (const tag of defaultTags) {
+    insertTag.run(userId, tag.name, tag.color);
   }
 }
 

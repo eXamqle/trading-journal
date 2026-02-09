@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, Shield, Tag, Plus, X } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import { authAPI } from './api/auth';
+import { tagsAPI } from './api/tags';
 import ColorPicker from './ColorPicker';
 
 function Profile({ availableTags, setAvailableTags }) {
@@ -97,7 +98,7 @@ function Profile({ availableTags, setAvailableTags }) {
     }
   };
 
-  const handleAddTag = () => {
+  const handleAddTag = async () => {
     const trimmedName = newTagName.trim();
     if (!trimmedName) {
       setAlertModal({ open: true, message: 'Please enter a tag name.', title: 'Validation Error' });
@@ -107,27 +108,60 @@ function Profile({ availableTags, setAvailableTags }) {
       setAlertModal({ open: true, message: 'A tag with this name already exists.', title: 'Duplicate Tag' });
       return;
     }
-    setAvailableTags([...availableTags, { name: trimmedName, color: newTagColor }]);
-    setNewTagName('');
-    setNewTagColor('#3b82f6');
+
+    try {
+      const { data } = await tagsAPI.create({ name: trimmedName, color: newTagColor });
+      setAvailableTags([...availableTags, { name: data.tag.name, color: data.tag.color, id: data.tag.id }]);
+      setNewTagName('');
+      setNewTagColor('#3b82f6');
+      setAlertModal({ open: true, message: 'Tag created successfully!', title: 'Success' });
+    } catch (error) {
+      setAlertModal({
+        open: true,
+        message: error.response?.data?.message || 'Failed to create tag. Please try again.',
+        title: 'Error'
+      });
+    }
   };
 
   const handleDeleteTag = (index) => {
+    const tag = availableTags[index];
     setConfirmModal({
       open: true,
       message: 'Are you sure you want to delete this tag? This action cannot be undone.',
       title: 'Delete Tag',
-      onConfirm: () => {
-        setAvailableTags(availableTags.filter((_, i) => i !== index));
-        setConfirmModal({ ...confirmModal, open: false });
+      onConfirm: async () => {
+        try {
+          await tagsAPI.delete(tag.id);
+          setAvailableTags(availableTags.filter((_, i) => i !== index));
+          setConfirmModal({ ...confirmModal, open: false });
+          setAlertModal({ open: true, message: 'Tag deleted successfully!', title: 'Success' });
+        } catch (error) {
+          setConfirmModal({ ...confirmModal, open: false });
+          setAlertModal({
+            open: true,
+            message: error.response?.data?.message || 'Failed to delete tag. Please try again.',
+            title: 'Error'
+          });
+        }
       }
     });
   };
 
-  const handleUpdateTagColor = (index, newColor) => {
-    const updatedTags = [...availableTags];
-    updatedTags[index].color = newColor;
-    setAvailableTags(updatedTags);
+  const handleUpdateTagColor = async (index, newColor) => {
+    const tag = availableTags[index];
+    try {
+      await tagsAPI.update(tag.id, { name: tag.name, color: newColor });
+      const updatedTags = [...availableTags];
+      updatedTags[index].color = newColor;
+      setAvailableTags(updatedTags);
+    } catch (error) {
+      setAlertModal({
+        open: true,
+        message: error.response?.data?.message || 'Failed to update tag color. Please try again.',
+        title: 'Error'
+      });
+    }
   };
 
   return (

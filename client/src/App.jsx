@@ -28,8 +28,7 @@ import {
   Image as ImageIcon,
   Heading1,
   Heading2,
-  Heading3,
-  Tag
+  Heading3
 } from 'lucide-react';
 import {
   format,
@@ -60,6 +59,7 @@ import JournalEntries from './JournalEntries';
 import { useAuth } from './contexts/AuthContext';
 import { tradesAPI } from './api/trades';
 import { journalAPI } from './api/journal';
+import { tagsAPI } from './api/tags';
 
 function App() {
   const { user, logout } = useAuth();
@@ -69,6 +69,8 @@ function App() {
   const [modalTab, setModalTab] = useState('add');
   const [tradeType, setTradeType] = useState('profit');
   const [categoryOpen, setCategoryOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
+  const [tagSearchQuery, setTagSearchQuery] = useState('');
   const [isSevenDayWeek, setIsSevenDayWeek] = useState(() => {
     const saved = localStorage.getItem('isSevenDayWeek');
     return saved !== null ? JSON.parse(saved) : true;
@@ -90,20 +92,13 @@ function App() {
   });
 
   // Tags management
-  const [tagInput, setTagInput] = useState('');
-  const [availableTags, setAvailableTags] = useState([
-    { name: 'Scalp', color: '#10b981' },
-    { name: 'Day Trade', color: '#3b82f6' },
-    { name: 'Swing', color: '#8b5cf6' },
-    { name: 'Breakout', color: '#f59e0b' },
-    { name: 'Reversal', color: '#ef4444' },
-    { name: 'Trend Following', color: '#06b6d4' }
-  ]);
+  const [availableTags, setAvailableTags] = useState([]);
 
-  // Load trades and journal entries on mount
+  // Load trades, journal entries, and tags on mount
   useEffect(() => {
     loadTrades();
     loadJournalEntries();
+    loadTags();
   }, []);
 
   // Save 7/5 day preference to localStorage
@@ -134,6 +129,15 @@ function App() {
       setJournalEntries(data.entries);
     } catch (error) {
       console.error('Failed to load journal entries:', error);
+    }
+  };
+
+  const loadTags = async () => {
+    try {
+      const { data } = await tagsAPI.getAll();
+      setAvailableTags(data.tags.map(tag => ({ name: tag.name, color: tag.color, id: tag.id })));
+    } catch (error) {
+      console.error('Failed to load tags:', error);
     }
   };
 
@@ -243,7 +247,7 @@ function App() {
 
     setSelectedDate(date);
     setJournalContent(existingJournal);
-    setViewingJournal(true);
+    setViewingJournal(false);
     setModalTab('journal');
   };
 
@@ -268,7 +272,8 @@ function App() {
     setTradeType('profit');
     setJournalContent('');
     setViewingJournal(false);
-    setTagInput('');
+    setTagsOpen(false);
+    setTagSearchQuery('');
     setFormData({
       symbol: '',
       amount: '',
@@ -471,17 +476,6 @@ function App() {
       ...prev,
       tags: prev.tags.filter(tag => tag !== tagToRemove)
     }));
-  };
-
-  const handleTagInputKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleAddTag(tagInput);
-    } else if (e.key === 'Backspace' && tagInput === '' && formData.tags.length > 0) {
-      // Remove last tag on backspace if input is empty
-      const lastTag = formData.tags[formData.tags.length - 1];
-      handleRemoveTag(lastTag);
-    }
   };
 
   const getTagColor = (tagName) => {
@@ -1164,9 +1158,9 @@ function App() {
             <X size={20} />
           </button>
 
-          <div className="modal-header">
-            <h2 className="modal-title">{format(selectedDate, 'MMMM d, yyyy')}</h2>
-            <p className="modal-subtitle">Trade Management Ritual</p>
+          <div className="modal-header" style={{ textAlign: 'left' }}>
+            <h2 className="modal-title" style={{ textAlign: 'left' }}>{format(selectedDate, 'MMMM d, yyyy')}</h2>
+            <p className="modal-subtitle" style={{ textAlign: 'left' }}>Trade Management Ritual</p>
           </div>
 
           <div className="modal-body">
@@ -1188,18 +1182,12 @@ function App() {
             </div>
 
             {viewingJournal ? (
-              <div className="journal-view-container">
+              <div className="journal-view-container" style={{ padding: '1rem 0' }}>
                 <div
                   className="journal-view-content"
                   dangerouslySetInnerHTML={{ __html: journalContent }}
+                  style={{ maxHeight: '60vh', overflowY: 'auto', padding: '0.5rem' }}
                 />
-                <button
-                  type="button"
-                  className="modal-action-button"
-                  onClick={() => setViewingJournal(false)}
-                >
-                  ✏️ Edit Journal
-                </button>
               </div>
             ) : modalTab === 'add' ? (
               <form onSubmit={handleSubmit}>
@@ -1323,8 +1311,9 @@ function App() {
                 <div className="form-field full-width">
                   <label className="form-label" htmlFor="tags">Tags</label>
 
-                  <div className="tags-input-container">
-                    <div className="tags-input-wrapper">
+                  {/* Selected tags display */}
+                  {formData.tags.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
                       {formData.tags.map((tag, index) => (
                         <span
                           key={index}
@@ -1341,39 +1330,104 @@ function App() {
                           </button>
                         </span>
                       ))}
-                      <input
-                        type="text"
-                        className="tags-input"
-                        placeholder={formData.tags.length === 0 ? "Type to add tags..." : ""}
-                        value={tagInput}
-                        onChange={(e) => setTagInput(e.target.value)}
-                        onKeyDown={handleTagInputKeyDown}
-                        onBlur={() => {
-                          if (tagInput.trim()) {
-                            handleAddTag(tagInput);
-                          }
+                    </div>
+                  )}
+
+                  {/* Tags dropdown */}
+                  <div className="dropdown-container" style={{ position: 'relative' }}>
+                    <button
+                      type="button"
+                      className="dropdown-trigger"
+                      onClick={() => setTagsOpen(!tagsOpen)}
+                    >
+                      <span className="placeholder">
+                        {formData.tags.length === 0 ? 'Select tags...' : 'Add more tags...'}
+                      </span>
+                      <ChevronRight
+                        size={16}
+                        style={{
+                          transform: tagsOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                          transition: 'transform 0.2s'
                         }}
                       />
-                    </div>
-                    {availableTags.length > 0 && (
-                      <div className="tag-suggestions">
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.375rem' }}>
-                          Quick add:
+                    </button>
+                    {tagsOpen && (
+                      <div className="dropdown-menu" style={{
+                        maxHeight: '250px',
+                        overflowY: 'auto',
+                        position: 'absolute',
+                        bottom: '100%',
+                        marginBottom: '0.5rem',
+                        width: '100%'
+                      }}>
+                        <div style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-color)', position: 'sticky', top: 0, background: 'var(--bg-secondary)', zIndex: 1 }}>
+                          <input
+                            type="text"
+                            placeholder="Search tags..."
+                            value={tagSearchQuery}
+                            onChange={(e) => setTagSearchQuery(e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '0.5rem',
+                              border: '1px solid var(--border-color)',
+                              borderRadius: '0.375rem',
+                              background: 'var(--bg-primary)',
+                              color: 'var(--text-primary)',
+                              fontSize: '0.875rem'
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          />
                         </div>
                         {availableTags
-                          .filter(t => !formData.tags.includes(t.name))
-                          .map((tag, index) => (
+                          .filter(tag =>
+                            tag.name.toLowerCase().includes(tagSearchQuery.toLowerCase())
+                          )
+                          .map((tag) => (
                             <button
-                              key={index}
+                              key={tag.name}
                               type="button"
-                              className="tag-suggestion"
-                              style={{ borderColor: tag.color, color: tag.color }}
-                              onClick={() => handleAddTag(tag.name)}
+                              className="dropdown-item"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                background: formData.tags.includes(tag.name) ? 'var(--accent-purple)' : 'transparent'
+                              }}
+                              onClick={() => {
+                                if (formData.tags.includes(tag.name)) {
+                                  handleRemoveTag(tag.name);
+                                } else {
+                                  handleAddTag(tag.name);
+                                }
+                              }}
                             >
-                              <Tag size={12} />
+                              <div
+                                style={{
+                                  width: '12px',
+                                  height: '12px',
+                                  borderRadius: '2px',
+                                  background: tag.color
+                                }}
+                              />
                               {tag.name}
+                              {formData.tags.includes(tag.name) && (
+                                <span style={{ marginLeft: 'auto', fontSize: '0.75rem' }}>✓</span>
+                              )}
                             </button>
                           ))}
+                        {tagSearchQuery && !availableTags.find(t => t.name.toLowerCase() === tagSearchQuery.toLowerCase()) && (
+                          <button
+                            type="button"
+                            className="dropdown-item"
+                            style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }}
+                            onClick={() => {
+                              handleAddTag(tagSearchQuery);
+                              setTagSearchQuery('');
+                            }}
+                          >
+                            + Create "{tagSearchQuery}"
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1844,10 +1898,9 @@ function App() {
             </div>
             {activeTab === 'All Time' ? renderAllTimeSidebar() : renderSidebar()}
           </main>
-
-          {renderModal()}
         </>
       )}
+      {renderModal()}
       {renderAlertModal()}
     </div>
   );

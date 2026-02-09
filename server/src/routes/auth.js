@@ -32,14 +32,39 @@ router.post('/register', (req, res) => {
       VALUES (?, ?, ?)
     `).run(name, email, passwordHash);
 
+    const userId = result.lastInsertRowid;
+
+    // Create default tags for the new user
+    const defaultTags = [
+      // Strategy tags
+      { name: 'Scalp', color: '#10b981' },
+      { name: 'Day Trade', color: '#3b82f6' },
+      { name: 'Swing', color: '#8b5cf6' },
+      { name: 'Breakout', color: '#f59e0b' },
+      { name: 'Reversal', color: '#ef4444' },
+      { name: 'Trend Following', color: '#06b6d4' },
+      // Psychology/Emotional tags
+      { name: 'FOMO', color: '#dc2626' },
+      { name: 'Revenge Trade', color: '#991b1b' },
+      { name: 'Overtrading', color: '#ea580c' },
+      { name: 'Emotional', color: '#9333ea' },
+      { name: 'Disciplined', color: '#059669' },
+      { name: 'Patient', color: '#0891b2' }
+    ];
+
+    const insertTag = db.prepare('INSERT INTO tags (user_id, name, color) VALUES (?, ?, ?)');
+    for (const tag of defaultTags) {
+      insertTag.run(userId, tag.name, tag.color);
+    }
+
     // Generate JWT token
-    const token = jwt.sign({ userId: result.lastInsertRowid }, process.env.JWT_SECRET, {
+    const token = jwt.sign({ userId }, process.env.JWT_SECRET, {
       expiresIn: '24h'
     });
 
     res.status(201).json({
       user: {
-        id: result.lastInsertRowid,
+        id: userId,
         name,
         email
       },
