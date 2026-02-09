@@ -5,7 +5,8 @@ import {
   TrendingUp,
   ChartColumn,
   Download,
-  ChevronDown
+  ChevronDown,
+  X
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -18,6 +19,7 @@ function Analyze({ trades }) {
   const [categoryFilter, setCategoryFilter] = useState('All Categories');
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('trades');
+  const [alertModal, setAlertModal] = useState({ open: false, message: '', title: 'Notice' });
 
   const periods = ['This Week', 'This Month', 'Last 30 Days', 'This Year', 'All Time'];
   const types = ['All Types', 'Profit', 'Loss', 'Break Even'];
@@ -117,7 +119,7 @@ function Analyze({ trades }) {
 
   const handleExport = () => {
     if (filteredTrades.length === 0) {
-      alert('No trades to export');
+      setAlertModal({ open: true, message: 'No trades available to export for the selected filters.', title: 'No Data' });
       return;
     }
 
@@ -151,6 +153,36 @@ function Analyze({ trades }) {
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
+  };
+
+  const renderAlertModal = () => {
+    if (!alertModal.open) return null;
+
+    return (
+      <div className="modal-overlay" style={{ zIndex: 10000 }}>
+        <div className="modal-content" style={{ maxWidth: '400px', padding: '2rem' }}>
+          <button className="close-modal" onClick={() => setAlertModal({ ...alertModal, open: false })}>
+            <X size={20} />
+          </button>
+
+          <div className="modal-header" style={{ marginBottom: '1.5rem' }}>
+            <h2 className="modal-title" style={{ fontSize: '1.25rem' }}>{alertModal.title}</h2>
+          </div>
+
+          <div style={{ marginBottom: '2rem', color: 'var(--text-primary)', lineHeight: '1.6' }}>
+            {alertModal.message}
+          </div>
+
+          <button
+            className="modal-action-button"
+            onClick={() => setAlertModal({ ...alertModal, open: false })}
+            style={{ width: '100%' }}
+          >
+            OK
+          </button>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -418,6 +450,7 @@ function Analyze({ trades }) {
           </div>
         </div>
       )}
+      {renderAlertModal()}
     </main>
   );
 }

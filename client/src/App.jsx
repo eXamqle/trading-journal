@@ -28,7 +28,8 @@ import {
   Image as ImageIcon,
   Heading1,
   Heading2,
-  Heading3
+  Heading3,
+  Tag
 } from 'lucide-react';
 import {
   format,
@@ -55,6 +56,7 @@ import {
 import './App.css';
 import Analyze from './Analyze';
 import Profile from './Profile';
+import JournalEntries from './JournalEntries';
 import { useAuth } from './contexts/AuthContext';
 import { tradesAPI } from './api/trades';
 import { journalAPI } from './api/journal';
@@ -67,27 +69,47 @@ function App() {
   const [modalTab, setModalTab] = useState('add');
   const [tradeType, setTradeType] = useState('profit');
   const [categoryOpen, setCategoryOpen] = useState(false);
-  const [isSevenDayWeek, setIsSevenDayWeek] = useState(true);
-  const [currentView, setCurrentView] = useState('calendar'); // 'calendar', 'analyze', or 'profile'
+  const [isSevenDayWeek, setIsSevenDayWeek] = useState(() => {
+    const saved = localStorage.getItem('isSevenDayWeek');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  const [currentView, setCurrentView] = useState('calendar'); // 'calendar', 'analyze', 'profile', or 'journalEntries'
   const [trades, setTrades] = useState([]);
   const [profileOpen, setProfileOpen] = useState(false);
   const [journalContent, setJournalContent] = useState('');
   const [journalEntries, setJournalEntries] = useState({}); // Store journal entries by date
   const [viewingJournal, setViewingJournal] = useState(false); // Track if viewing journal
   const [loading, setLoading] = useState(false);
+  const [alertModal, setAlertModal] = useState({ open: false, message: '', title: 'Notice' });
   const [formData, setFormData] = useState({
     symbol: '',
     amount: '',
     category: '',
     fees: '',
-    notes: ''
+    tags: []
   });
+
+  // Tags management
+  const [tagInput, setTagInput] = useState('');
+  const [availableTags, setAvailableTags] = useState([
+    { name: 'Scalp', color: '#10b981' },
+    { name: 'Day Trade', color: '#3b82f6' },
+    { name: 'Swing', color: '#8b5cf6' },
+    { name: 'Breakout', color: '#f59e0b' },
+    { name: 'Reversal', color: '#ef4444' },
+    { name: 'Trend Following', color: '#06b6d4' }
+  ]);
 
   // Load trades and journal entries on mount
   useEffect(() => {
     loadTrades();
     loadJournalEntries();
   }, []);
+
+  // Save 7/5 day preference to localStorage
+  useEffect(() => {
+    localStorage.setItem('isSevenDayWeek', JSON.stringify(isSevenDayWeek));
+  }, [isSevenDayWeek]);
 
   const loadTrades = async () => {
     try {
@@ -214,6 +236,17 @@ function App() {
     }
   };
 
+  const handleViewJournalEntry = (dateString) => {
+    const date = new Date(dateString);
+    const dateKey = format(date, 'yyyy-MM-dd');
+    const existingJournal = journalEntries[dateKey] || '';
+
+    setSelectedDate(date);
+    setJournalContent(existingJournal);
+    setViewingJournal(true);
+    setModalTab('journal');
+  };
+
   const closeModal = async () => {
     // Save journal content before closing
     if (selectedDate && journalContent) {
@@ -226,7 +259,7 @@ function App() {
         }));
       } catch (error) {
         console.error('Failed to save journal:', error);
-        alert('Failed to save journal entry. Please try again.');
+        setAlertModal({ open: true, message: 'Failed to save journal entry. Please try again.', title: 'Error' });
       }
     }
 
@@ -235,12 +268,13 @@ function App() {
     setTradeType('profit');
     setJournalContent('');
     setViewingJournal(false);
+    setTagInput('');
     setFormData({
       symbol: '',
       amount: '',
       category: '',
       fees: '',
-      notes: ''
+      tags: []
     });
   };
 
@@ -414,12 +448,53 @@ function App() {
     }));
   };
 
+  // Tag management functions
+  const handleAddTag = (tagName) => {
+    const trimmedTag = tagName.trim();
+    if (trimmedTag && !formData.tags.includes(trimmedTag)) {
+      setFormData(prev => ({
+        ...prev,
+        tags: [...prev.tags, trimmedTag]
+      }));
+      // Add to available tags if new
+      if (!availableTags.find(t => t.name === trimmedTag)) {
+        const colors = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6'];
+        const randomColor = colors[Math.floor(Math.random() * colors.length)];
+        setAvailableTags(prev => [...prev, { name: trimmedTag, color: randomColor }]);
+      }
+    }
+    setTagInput('');
+  };
+
+  const handleRemoveTag = (tagToRemove) => {
+    setFormData(prev => ({
+      ...prev,
+      tags: prev.tags.filter(tag => tag !== tagToRemove)
+    }));
+  };
+
+  const handleTagInputKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddTag(tagInput);
+    } else if (e.key === 'Backspace' && tagInput === '' && formData.tags.length > 0) {
+      // Remove last tag on backspace if input is empty
+      const lastTag = formData.tags[formData.tags.length - 1];
+      handleRemoveTag(lastTag);
+    }
+  };
+
+  const getTagColor = (tagName) => {
+    const tag = availableTags.find(t => t.name === tagName);
+    return tag ? tag.color : '#64748b';
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     // Validate category is selected
     if (!formData.category) {
-      alert('Please select a category');
+      setAlertModal({ open: true, message: 'Please select a category before adding a trade.', title: 'Validation Error' });
       return;
     }
 
@@ -431,7 +506,7 @@ function App() {
         amount: formData.amount,
         category: formData.category,
         fees: formData.fees || '0',
-        notes: formData.notes
+        tags: formData.tags
       };
 
       const { data } = await tradesAPI.create(tradeData);
@@ -444,14 +519,25 @@ function App() {
       closeModal();
     } catch (error) {
       console.error('Failed to create trade:', error);
-      alert('Failed to create trade: ' + (error.response?.data?.message || 'Unknown error'));
+      setAlertModal({
+        open: true,
+        message: error.response?.data?.message || 'An unexpected error occurred. Please try again.',
+        title: 'Failed to Create Trade'
+      });
     }
   };
 
   const renderHeader = () => {
     return (
       <header className="header">
-        <div className="logo-section">
+        <div
+          className="logo-section"
+          onClick={() => {
+            setCurrentView('calendar');
+            setActiveTab('Month');
+          }}
+          style={{ cursor: 'pointer' }}
+        >
           <div className="logo-icon">
             <span style={{ fontSize: '24px', fontWeight: 'bold' }}>$$$</span>
           </div>
@@ -461,27 +547,18 @@ function App() {
           </div>
         </div>
         <div className="nav-actions">
-          {currentView !== 'profile' && (
-            <div className="nav-link" onClick={() => setCurrentView(currentView === 'calendar' ? 'analyze' : 'calendar')}>
-              {currentView === 'calendar' ? (
-                <>
-                  <BarChart3 size={20} />
-                  <span>Analyze</span>
-                </>
-              ) : (
-                <>
-                  <CalendarIcon size={20} />
-                  <span>Calendar</span>
-                </>
-              )}
-            </div>
-          )}
-          {currentView === 'profile' && (
-            <div className="nav-link" onClick={() => setCurrentView('calendar')}>
-              <CalendarIcon size={20} />
-              <span>Back to Calendar</span>
-            </div>
-          )}
+          <div className="nav-link" onClick={() => setCurrentView('calendar')}>
+            <CalendarIcon size={20} />
+            <span>Calendar</span>
+          </div>
+          <div className="nav-link" onClick={() => setCurrentView('journalEntries')}>
+            <BookOpen size={20} />
+            <span>Journal</span>
+          </div>
+          <div className="nav-link" onClick={() => setCurrentView('analyze')}>
+            <BarChart3 size={20} />
+            <span>Analysis</span>
+          </div>
           <div className="profile-dropdown-container">
             <div
               className="user-profile"
@@ -619,10 +696,9 @@ function App() {
     });
 
     return (
-      <div className="calendar-container">
+      <div className="calendar-container" key={`calendar-${isSevenDayWeek ? '7day' : '5day'}`}>
         <div className="calendar-header">
-          <div style={{ width: '100px' }}></div>
-          <div className="calendar-nav">
+          <div className="calendar-nav" style={{ margin: '0 auto' }}>
             <button className="nav-btn" onClick={prevPeriod}>
               <ChevronLeft size={20} />
             </button>
@@ -634,17 +710,11 @@ function App() {
               <ChevronRight size={20} />
             </button>
           </div>
-          <button
-            className="toggle-7day"
-            onClick={() => setIsSevenDayWeek(!isSevenDayWeek)}
-          >
-            <CalendarIcon size={14} />
-            {isSevenDayWeek ? '7-DAY WEEK' : '5-DAY WEEK'}
-          </button>
         </div>
         <div
-          className="calendar-grid"
+          className="calendar-grid animate-fade-in"
           style={{ gridTemplateColumns: `repeat(${numDays}, 1fr)` }}
+          key={`grid-${isSevenDayWeek ? '7day' : '5day'}-${format(currentDate, 'yyyy-MM')}`}
         >
           {days}
           {allDays.map((day, idx) => {
@@ -702,7 +772,7 @@ function App() {
     return (
       <div className="week-view-container animate-fade-in">
         <div className="week-view-header-wrapper">
-          <div className="week-view-header">
+          <div className="week-view-header" style={{ margin: '0 auto' }}>
             <button className="premium-month-btn hover:scale-110 transition-transform" onClick={prevPeriod}>
               <ChevronLeft className="h-5 w-5" />
             </button>
@@ -715,13 +785,6 @@ function App() {
               <ChevronRight className="h-5 w-5" />
             </button>
           </div>
-          <button
-            className="toggle-7day"
-            onClick={() => setIsSevenDayWeek(!isSevenDayWeek)}
-          >
-            <CalendarIcon size={14} />
-            {isSevenDayWeek ? '7-DAY WEEK' : '5-DAY WEEK'}
-          </button>
         </div>
 
         <div className={`week-total-card ${isWeekProfit ? 'week-total-profit' : 'week-total-loss'}`}>
@@ -740,7 +803,7 @@ function App() {
           </div>
         </div>
 
-        <div className="week-days-list">
+        <div className="week-days-list" key={`week-${isSevenDayWeek ? '7day' : '5day'}-${format(weekStart, 'yyyy-MM-dd')}`}>
           {weekDays.map((day, idx) => {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -1258,16 +1321,62 @@ function App() {
                 </div>
 
                 <div className="form-field full-width">
-                  <label className="form-label" htmlFor="notes">Notes (Optional)</label>
-                  <textarea
-                    id="notes"
-                    name="notes"
-                    className="form-textarea"
-                    placeholder="Strategy used, emotions, or mistakes..."
-                    rows="3"
-                    value={formData.notes}
-                    onChange={handleInputChange}
-                  />
+                  <label className="form-label" htmlFor="tags">Tags</label>
+
+                  <div className="tags-input-container">
+                    <div className="tags-input-wrapper">
+                      {formData.tags.map((tag, index) => (
+                        <span
+                          key={index}
+                          className="tag-badge"
+                          style={{ backgroundColor: getTagColor(tag) }}
+                        >
+                          {tag}
+                          <button
+                            type="button"
+                            className="tag-remove"
+                            onClick={() => handleRemoveTag(tag)}
+                          >
+                            <X size={12} />
+                          </button>
+                        </span>
+                      ))}
+                      <input
+                        type="text"
+                        className="tags-input"
+                        placeholder={formData.tags.length === 0 ? "Type to add tags..." : ""}
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value)}
+                        onKeyDown={handleTagInputKeyDown}
+                        onBlur={() => {
+                          if (tagInput.trim()) {
+                            handleAddTag(tagInput);
+                          }
+                        }}
+                      />
+                    </div>
+                    {availableTags.length > 0 && (
+                      <div className="tag-suggestions">
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.375rem' }}>
+                          Quick add:
+                        </div>
+                        {availableTags
+                          .filter(t => !formData.tags.includes(t.name))
+                          .map((tag, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              className="tag-suggestion"
+                              style={{ borderColor: tag.color, color: tag.color }}
+                              onClick={() => handleAddTag(tag.name)}
+                            >
+                              <Tag size={12} />
+                              {tag.name}
+                            </button>
+                          ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
               </form>
@@ -1522,6 +1631,36 @@ function App() {
     );
   };
 
+  const renderAlertModal = () => {
+    if (!alertModal.open) return null;
+
+    return (
+      <div className="modal-overlay" style={{ zIndex: 10000 }}>
+        <div className="modal-content" style={{ maxWidth: '400px', padding: '2rem' }}>
+          <button className="close-modal" onClick={() => setAlertModal({ ...alertModal, open: false })}>
+            <X size={20} />
+          </button>
+
+          <div className="modal-header" style={{ marginBottom: '1.5rem' }}>
+            <h2 className="modal-title" style={{ fontSize: '1.25rem' }}>{alertModal.title}</h2>
+          </div>
+
+          <div style={{ marginBottom: '2rem', color: 'var(--text-primary)', lineHeight: '1.6' }}>
+            {alertModal.message}
+          </div>
+
+          <button
+            className="modal-action-button"
+            onClick={() => setAlertModal({ ...alertModal, open: false })}
+            style={{ width: '100%' }}
+          >
+            OK
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   const renderAllTimeSidebar = () => {
     const allTrades = trades;
     const totalTrades = allTrades.length;
@@ -1619,19 +1758,80 @@ function App() {
       {currentView === 'analyze' ? (
         <Analyze trades={trades} />
       ) : currentView === 'profile' ? (
-        <Profile />
+        <Profile
+          availableTags={availableTags}
+          setAvailableTags={setAvailableTags}
+        />
+      ) : currentView === 'journalEntries' ? (
+        <JournalEntries
+          journalEntries={journalEntries}
+          onViewEntry={handleViewJournalEntry}
+        />
       ) : (
         <>
-          <div className="view-tabs">
-            {['Week', 'Month', 'Year', 'All Time'].map(tab => (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div className="view-tabs" style={{ marginBottom: 0 }}>
+                {['Week', 'Month', 'Year', 'All Time'].map(tab => (
+                  <button
+                    key={tab}
+                    className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
+                    onClick={() => setActiveTab(tab)}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
               <button
-                key={tab}
-                className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab)}
+                className="tab-btn"
+                style={{
+                  marginBottom: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontWeight: '500',
+                  border: '1px solid var(--border-color)',
+                  opacity: (activeTab === 'Year' || activeTab === 'All Time') ? 0.5 : 1,
+                  cursor: (activeTab === 'Year' || activeTab === 'All Time') ? 'not-allowed' : 'pointer'
+                }}
+                onClick={() => {
+                  if (activeTab !== 'Year' && activeTab !== 'All Time') {
+                    setIsSevenDayWeek(!isSevenDayWeek);
+                  }
+                }}
+                disabled={activeTab === 'Year' || activeTab === 'All Time'}
               >
-                {tab}
+                <CalendarIcon size={14} />
+                {isSevenDayWeek ? '7-Day' : '5-Day'}
               </button>
-            ))}
+            </div>
+            <button
+              className="tab-btn"
+              style={{
+                background: 'var(--accent-purple)',
+                border: '1px solid var(--border-color)',
+                marginBottom: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.625rem 1.25rem',
+                fontWeight: '500',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+              }}
+              onClick={() => setCurrentView('journalEntries')}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.15)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
+              }}
+            >
+              <BookOpen size={16} />
+              Journal Entries
+            </button>
           </div>
 
           <main className="dashboard-grid">
@@ -1648,6 +1848,7 @@ function App() {
           {renderModal()}
         </>
       )}
+      {renderAlertModal()}
     </div>
   );
 }
