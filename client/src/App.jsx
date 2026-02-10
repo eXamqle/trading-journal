@@ -7,7 +7,6 @@ import {
   TrendingDown,
   Heart,
   Moon,
-  BarChart3,
   User,
   PlusCircle,
   MessageCircle,
@@ -25,8 +24,7 @@ import {
   Image as ImageIcon,
   Heading1,
   Heading2,
-  Heading3,
-  Download
+  Heading3
 } from 'lucide-react';
 import {
   format,
@@ -538,18 +536,6 @@ function App() {
           </div>
         </div>
         <div className="nav-actions">
-          <div className="nav-link" onClick={() => setCurrentView('calendar')}>
-            <CalendarIcon size={20} />
-            <span>Calendar</span>
-          </div>
-          <div className="nav-link" onClick={() => setCurrentView('journalEntries')}>
-            <BookOpen size={20} />
-            <span>Journal</span>
-          </div>
-          <div className="nav-link" onClick={() => setCurrentView('analyze')}>
-            <BarChart3 size={20} />
-            <span>Analysis</span>
-          </div>
           <div className="profile-dropdown-container">
             <div
               className="user-profile"
@@ -1652,7 +1638,7 @@ function App() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <div className="view-tabs" style={{ marginBottom: 0 }}>
-                {['Week', 'Month', 'Year', 'All Time'].map(tab => (
+                {['Week', 'Month', 'Year', 'Statistics'].map(tab => (
                   <button
                     key={tab}
                     className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
@@ -1671,51 +1657,18 @@ function App() {
                   gap: '0.5rem',
                   fontWeight: '500',
                   border: '1px solid var(--border-color)',
-                  opacity: (activeTab === 'Year' || activeTab === 'All Time') ? 0.5 : 1,
-                  cursor: (activeTab === 'Year' || activeTab === 'All Time') ? 'not-allowed' : 'pointer'
+                  opacity: (activeTab === 'Year' || activeTab === 'Statistics') ? 0.5 : 1,
+                  cursor: (activeTab === 'Year' || activeTab === 'Statistics') ? 'not-allowed' : 'pointer'
                 }}
                 onClick={() => {
-                  if (activeTab !== 'Year' && activeTab !== 'All Time') {
+                  if (activeTab !== 'Year' && activeTab !== 'Statistics') {
                     setIsSevenDayWeek(!isSevenDayWeek);
                   }
                 }}
-                disabled={activeTab === 'Year' || activeTab === 'All Time'}
+                disabled={activeTab === 'Year' || activeTab === 'Statistics'}
               >
                 <CalendarIcon size={14} />
                 {isSevenDayWeek ? '7-Day' : '5-Day'}
-              </button>
-              <button
-                className="tab-btn"
-                style={{
-                  marginBottom: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  fontWeight: '500',
-                  border: '1px solid var(--border-color)'
-                }}
-                onClick={() => setActiveTab('Month')}
-              >
-                This Month
-              </button>
-              <button
-                className="tab-btn"
-                style={{
-                  marginBottom: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  fontWeight: '500',
-                  border: '1px solid var(--border-color)'
-                }}
-                onClick={() => {
-                  // Export functionality - trigger export from Analyze component
-                  const event = new CustomEvent('exportTrades');
-                  window.dispatchEvent(event);
-                }}
-              >
-                <Download size={14} />
-                Export Data
               </button>
             </div>
             <button
@@ -1752,10 +1705,10 @@ function App() {
               {activeTab === 'Month' && renderTopStats()}
               {activeTab === 'Week' ? renderWeekList() :
                activeTab === 'Year' ? renderYearView() :
-               activeTab === 'All Time' ? renderAllTimeView() :
+               activeTab === 'Statistics' ? renderAllTimeView() :
                renderCalendar()}
             </div>
-            {activeTab === 'All Time' ? renderAllTimeSidebar() : renderSidebar()}
+            {activeTab === 'Statistics' ? renderAllTimeSidebar() : renderSidebar()}
           </main>
         </>
       )}

@@ -224,8 +224,6 @@ function Analyze({ trades }) {
         </button>
       </div>
 
-      <h2 className="analyze-period-label">{periodFilter}'s Statistics</h2>
-
       {/* Empty State */}
       {filteredByPeriod.length === 0 && (
         <div className="analyze-empty-state">
@@ -233,20 +231,25 @@ function Analyze({ trades }) {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="analyze-tabs">
-        <button
-          className={`analyze-tab-trigger ${activeTab === 'performance' ? 'active' : ''}`}
-          onClick={() => setActiveTab('performance')}
-        >
-          Performance
-        </button>
-        <button
-          className={`analyze-tab-trigger ${activeTab === 'trades' ? 'active' : ''}`}
-          onClick={() => setActiveTab('trades')}
-        >
-          Trade List
-        </button>
+      {/* Tabs and Statistics Label */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
+        <h2 className="analyze-period-label" style={{ margin: 0 }}>{periodFilter}'s Statistics</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div className="analyze-tabs" style={{ marginBottom: 0 }}>
+            <button
+              className={`analyze-tab-trigger ${activeTab === 'performance' ? 'active' : ''}`}
+              onClick={() => setActiveTab('performance')}
+            >
+              Performance
+            </button>
+            <button
+              className={`analyze-tab-trigger ${activeTab === 'trades' ? 'active' : ''}`}
+              onClick={() => setActiveTab('trades')}
+            >
+              Trade List
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Tab Content */}
