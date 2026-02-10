@@ -15,9 +15,6 @@ import {
   X,
   ListFilter,
   LogOut,
-  Award,
-  Target,
-  ChartColumn,
   CalendarOff,
   BookOpen,
   Bold,
@@ -532,7 +529,7 @@ function App() {
           style={{ cursor: 'pointer' }}
         >
           <div className="logo-icon">
-            <span style={{ fontSize: '24px', fontWeight: 'bold' }}>$$$</span>
+            <span style={{ fontSize: '24px', fontWeight: 'bold' }}>$</span>
           </div>
           <div className="logo-text">
             <h1>Journal & Calendar</h1>
@@ -977,172 +974,6 @@ function App() {
             );
           })}
         </div>
-      </div>
-    );
-  };
-
-  const renderAllTimeView = () => {
-    // Calculate all time statistics
-    const allTrades = trades;
-    const totalTrades = allTrades.length;
-
-    // Calculate total P&L
-    const totalPnL = allTrades.reduce((sum, trade) => {
-      const amount = parseFloat(trade.amount) || 0;
-      const fees = parseFloat(trade.fees) || 0;
-      if (trade.type === 'profit') {
-        return sum + amount - fees;
-      } else if (trade.type === 'loss') {
-        return sum - amount - fees;
-      }
-      return sum - fees; // break-even still has fees
-    }, 0);
-
-    // Calculate win rate
-    const wins = allTrades.filter(t => t.type === 'profit').length;
-    const winRate = totalTrades > 0 ? (wins / totalTrades * 100).toFixed(1) : '0.0';
-
-    // Find best and worst trades
-    const profitTrades = allTrades.filter(t => t.type === 'profit').map(t => parseFloat(t.amount) - parseFloat(t.fees || 0));
-    const lossTrades = allTrades.filter(t => t.type === 'loss').map(t => -(parseFloat(t.amount) + parseFloat(t.fees || 0)));
-
-    const bestTrade = profitTrades.length > 0 ? Math.max(...profitTrades) : 0;
-    const worstTrade = lossTrades.length > 0 ? Math.min(...lossTrades) : 0;
-
-    // Group trades by year
-    const tradesByYear = {};
-    allTrades.forEach(trade => {
-      const year = format(trade.date, 'yyyy');
-      if (!tradesByYear[year]) {
-        tradesByYear[year] = [];
-      }
-      tradesByYear[year].push(trade);
-    });
-
-    // Calculate P&L for each year
-    const yearlyStats = Object.keys(tradesByYear).sort((a, b) => b - a).map(year => {
-      const yearTrades = tradesByYear[year];
-      const yearPnL = yearTrades.reduce((sum, trade) => {
-        const amount = parseFloat(trade.amount) || 0;
-        const fees = parseFloat(trade.fees) || 0;
-        if (trade.type === 'profit') {
-          return sum + amount - fees;
-        } else if (trade.type === 'loss') {
-          return sum - amount - fees;
-        }
-        return sum - fees;
-      }, 0);
-
-      return {
-        year,
-        trades: yearTrades.length,
-        pnl: yearPnL
-      };
-    });
-
-    // Calculate years span
-    const years = Object.keys(tradesByYear).length;
-    const yearsText = years === 1 ? '1 year' : `${years} years`;
-
-    const isProfitable = totalPnL >= 0;
-
-    return (
-      <div className="alltime-view-container animate-fade-in">
-        <div className={`alltime-total-card ${isProfitable ? 'alltime-total-profit' : 'alltime-total-loss'}`}>
-          <div className="alltime-total-icon">
-            {isProfitable ? (
-              <TrendingUp className="h-8 w-8 text-white" />
-            ) : (
-              <TrendingDown className="h-8 w-8 text-white" />
-            )}
-          </div>
-          <div className="alltime-total-content">
-            <p className="alltime-total-label">All Time P&L</p>
-            <p className="alltime-total-amount">
-              {totalPnL >= 0 ? '+' : ''}${totalPnL.toFixed(2)}
-            </p>
-            <p className="alltime-total-sublabel">
-              {totalTrades} {totalTrades === 1 ? 'trade' : 'trades'} across {yearsText}
-            </p>
-          </div>
-        </div>
-
-        <div className="alltime-stats-grid">
-          <div className="alltime-stat-card">
-            <div className="alltime-stat-icon alltime-stat-icon-blue">
-              <Target className="h-5 w-5" />
-            </div>
-            <div className="alltime-stat-content">
-              <span className="alltime-stat-label">Win Rate</span>
-              <span className="alltime-stat-value">{winRate}%</span>
-            </div>
-          </div>
-
-          <div className="alltime-stat-card">
-            <div className="alltime-stat-icon alltime-stat-icon-purple">
-              <ChartColumn className="h-5 w-5" />
-            </div>
-            <div className="alltime-stat-content">
-              <span className="alltime-stat-label">Total Trades</span>
-              <span className="alltime-stat-value">{totalTrades}</span>
-            </div>
-          </div>
-
-          <div className="alltime-stat-card">
-            <div className="alltime-stat-icon alltime-stat-icon-green">
-              <Award className="h-5 w-5" />
-            </div>
-            <div className="alltime-stat-content">
-              <span className="alltime-stat-label">Best Trade</span>
-              <span className="alltime-stat-value text-emerald-400">
-                +${bestTrade.toFixed(2)}
-              </span>
-            </div>
-          </div>
-
-          <div className="alltime-stat-card">
-            <div className="alltime-stat-icon alltime-stat-icon-red">
-              <TrendingDown className="h-5 w-5" />
-            </div>
-            <div className="alltime-stat-content">
-              <span className="alltime-stat-label">Worst Trade</span>
-              <span className="alltime-stat-value text-red-400">
-                ${worstTrade.toFixed(2)}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {yearlyStats.length > 0 && (
-          <div className="alltime-years-section">
-            <h3 className="alltime-section-title">
-              <CalendarIcon className="h-4 w-4" />
-              Yearly Performance
-            </h3>
-            <div className="alltime-years-list">
-              {yearlyStats.map((yearStat, idx) => {
-                const isYearProfit = yearStat.pnl >= 0;
-                return (
-                  <div
-                    key={yearStat.year}
-                    className={`alltime-year-item ${isYearProfit ? 'alltime-year-profit' : 'alltime-year-loss'}`}
-                    style={{ animationDelay: `${idx * 50}ms` }}
-                  >
-                    <div className="alltime-year-left">
-                      <span className="alltime-year-name">{yearStat.year}</span>
-                      <span className="alltime-year-trades">
-                        {yearStat.trades} {yearStat.trades === 1 ? 'trade' : 'trades'}
-                      </span>
-                    </div>
-                    <div className={`alltime-year-total ${isYearProfit ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {yearStat.pnl >= 0 ? '+' : ''}${yearStat.pnl.toFixed(2)}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
     );
   };
@@ -1748,96 +1579,6 @@ function App() {
     );
   };
 
-  const renderAllTimeSidebar = () => {
-    const allTrades = trades;
-    const totalTrades = allTrades.length;
-
-    const wins = allTrades.filter(t => t.type === 'profit').length;
-    const losses = allTrades.filter(t => t.type === 'loss').length;
-    const winRate = totalTrades > 0 ? (wins / totalTrades * 100).toFixed(1) : '0.0';
-
-    // Calculate pie chart values
-    const radius = 70;
-    const circumference = 2 * Math.PI * radius;
-    const winPercentage = totalTrades > 0 ? (wins / totalTrades) : 0;
-    const lossPercentage = totalTrades > 0 ? (losses / totalTrades) : 0;
-
-    return (
-      <aside className="sidebar-section">
-        <div className="info-card">
-          <span className="info-label">Win/Loss Distribution</span>
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem', marginBottom: '1rem' }}>
-            <svg width="180" height="180" viewBox="0 0 180 180">
-              <circle
-                cx="90"
-                cy="90"
-                r={radius}
-                fill="none"
-                stroke="#1e293b"
-                strokeWidth="20"
-              />
-              {totalTrades > 0 && (
-                <>
-                  <circle
-                    cx="90"
-                    cy="90"
-                    r={radius}
-                    fill="none"
-                    stroke="#10b981"
-                    strokeWidth="20"
-                    strokeDasharray={`${winPercentage * circumference} ${circumference}`}
-                    strokeDashoffset={circumference / 4}
-                    transform="rotate(-90 90 90)"
-                  />
-                  <circle
-                    cx="90"
-                    cy="90"
-                    r={radius}
-                    fill="none"
-                    stroke="#ef4444"
-                    strokeWidth="20"
-                    strokeDasharray={`${lossPercentage * circumference} ${circumference}`}
-                    strokeDashoffset={circumference / 4 - winPercentage * circumference}
-                    transform="rotate(-90 90 90)"
-                  />
-                </>
-              )}
-              <text
-                x="90"
-                y="85"
-                textAnchor="middle"
-                fill="var(--text-primary)"
-                fontSize="20"
-                fontWeight="700"
-              >
-                {winRate}%
-              </text>
-              <text
-                x="90"
-                y="105"
-                textAnchor="middle"
-                fill="var(--text-secondary)"
-                fontSize="12"
-              >
-                Win Rate
-              </text>
-            </svg>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '0.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <div style={{ width: '12px', height: '12px', borderRadius: '2px', background: '#10b981' }}></div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Wins: {wins}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <div style={{ width: '12px', height: '12px', borderRadius: '2px', background: '#ef4444' }}></div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Losses: {losses}</span>
-            </div>
-          </div>
-        </div>
-      </aside>
-    );
-  };
-
   return (
     <div className="app-container">
       {renderHeader()}
@@ -1891,6 +1632,38 @@ function App() {
                 <CalendarIcon size={14} />
                 {isSevenDayWeek ? '7-Day' : '5-Day'}
               </button>
+              <button
+                className="tab-btn"
+                style={{
+                  marginBottom: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontWeight: '500',
+                  border: '1px solid var(--border-color)'
+                }}
+                onClick={() => setActiveTab('Month')}
+              >
+                This Month
+              </button>
+              <button
+                className="tab-btn"
+                style={{
+                  marginBottom: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontWeight: '500',
+                  border: '1px solid var(--border-color)'
+                }}
+                onClick={() => {
+                  // Export functionality - trigger export from Analyze component
+                  const event = new CustomEvent('exportTrades');
+                  window.dispatchEvent(event);
+                }}
+              >
+                Export Data
+              </button>
             </div>
             <button
               className="tab-btn"
@@ -1926,10 +1699,10 @@ function App() {
               {activeTab === 'Month' && renderTopStats()}
               {activeTab === 'Week' ? renderWeekList() :
                activeTab === 'Year' ? renderYearView() :
-               activeTab === 'All Time' ? renderAllTimeView() :
+               activeTab === 'Analysis' ? <Analyze trades={trades} /> :
                renderCalendar()}
             </div>
-            {activeTab === 'All Time' ? renderAllTimeSidebar() : renderSidebar()}
+            {activeTab !== 'Analysis' && renderSidebar()}
           </main>
         </>
       )}

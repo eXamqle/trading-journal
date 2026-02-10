@@ -76,7 +76,7 @@ function Login() {
             fontSize: '20px',
             fontWeight: 'bold'
           }}>
-            $$$
+            $
           </div>
           <h1 style={{
             fontSize: '28px',

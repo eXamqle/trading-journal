@@ -18,8 +18,9 @@ function Analyze({ trades }) {
   const [typeOpen, setTypeOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('All Categories');
   const [categoryOpen, setCategoryOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('trades');
+  const [activeTab, setActiveTab] = useState('performance');
   const [alertModal, setAlertModal] = useState({ open: false, message: '', title: 'Notice' });
+  const [hoveredPoint, setHoveredPoint] = useState(null);
 
   const periods = ['This Week', 'This Month', 'Last 30 Days', 'This Year', 'All Time'];
   const types = ['All Types', 'Profit', 'Loss', 'Break Even'];
@@ -232,67 +233,6 @@ function Analyze({ trades }) {
         </div>
       )}
 
-      {/* KPI Cards */}
-      <div className="analyze-kpi-grid">
-        <div className="analyze-kpi-card">
-          <div className="analyze-kpi-header">
-            <span className="analyze-kpi-label">Net Profit</span>
-            <div className="analyze-kpi-icon analyze-kpi-icon-green">
-              <DollarSign size={20} />
-            </div>
-          </div>
-          <div className={`analyze-kpi-value ${kpis.netProfit >= 0 ? 'analyze-kpi-value-profit' : 'analyze-kpi-value-loss'}`}>
-            {kpis.netProfit >= 0 ? '+' : ''}${kpis.netProfit.toFixed(2)}
-          </div>
-          <p className="analyze-kpi-sublabel">
-            {kpis.totalFees > 0 ? `$${kpis.totalFees.toFixed(2)} in fees` : 'No fees recorded'}
-          </p>
-        </div>
-
-        <div className="analyze-kpi-card">
-          <div className="analyze-kpi-header">
-            <span className="analyze-kpi-label">Win Rate</span>
-            <div className="analyze-kpi-icon analyze-kpi-icon-blue">
-              <Activity size={20} />
-            </div>
-          </div>
-          <div className="analyze-kpi-value analyze-kpi-value-blue">
-            {kpis.winRate.toFixed(1)}%
-          </div>
-          <p className="analyze-kpi-sublabel">
-            {kpis.winCount} Wins / {kpis.lossCount} Losses
-          </p>
-        </div>
-
-        <div className="analyze-kpi-card">
-          <div className="analyze-kpi-header">
-            <span className="analyze-kpi-label">Profit Factor</span>
-            <div className="analyze-kpi-icon analyze-kpi-icon-purple">
-              <TrendingUp size={20} />
-            </div>
-          </div>
-          <div className="analyze-kpi-value analyze-kpi-value-purple">
-            {kpis.profitFactor === 0 ? 'N/A' :
-             kpis.profitFactor === Infinity ? '∞' :
-             kpis.profitFactor.toFixed(2)}
-          </div>
-          <p className="analyze-kpi-sublabel">Based on gross P&L</p>
-        </div>
-
-        <div className="analyze-kpi-card">
-          <div className="analyze-kpi-header">
-            <span className="analyze-kpi-label">Total Trades</span>
-            <div className="analyze-kpi-icon analyze-kpi-icon-default">
-              <ChartColumn size={20} />
-            </div>
-          </div>
-          <div className="analyze-kpi-value analyze-kpi-value-default">
-            {kpis.totalTrades}
-          </div>
-          <p className="analyze-kpi-sublabel">{kpis.breakEvenCount} Breakeven</p>
-        </div>
-      </div>
-
       {/* Tabs */}
       <div className="analyze-tabs">
         <button
@@ -312,14 +252,257 @@ function Analyze({ trades }) {
       {/* Tab Content */}
       {activeTab === 'performance' ? (
         <div className="analyze-tab-content">
+          {/* KPI Cards */}
+          <div className="analyze-kpi-grid">
+            <div className="analyze-kpi-card">
+              <div className="analyze-kpi-header">
+                <span className="analyze-kpi-label">Net Profit</span>
+                <div className="analyze-kpi-icon analyze-kpi-icon-green">
+                  <DollarSign size={20} />
+                </div>
+              </div>
+              <div className={`analyze-kpi-value ${kpis.netProfit >= 0 ? 'analyze-kpi-value-profit' : 'analyze-kpi-value-loss'}`}>
+                {kpis.netProfit >= 0 ? '+' : ''}${kpis.netProfit.toFixed(2)}
+              </div>
+              <p className="analyze-kpi-sublabel">
+                {kpis.totalFees > 0 ? `$${kpis.totalFees.toFixed(2)} in fees` : 'No fees recorded'}
+              </p>
+            </div>
+
+            <div className="analyze-kpi-card">
+              <div className="analyze-kpi-header">
+                <span className="analyze-kpi-label">Win Rate</span>
+                <div className="analyze-kpi-icon analyze-kpi-icon-blue">
+                  <Activity size={20} />
+                </div>
+              </div>
+              <div className="analyze-kpi-value analyze-kpi-value-blue">
+                {kpis.winRate.toFixed(1)}%
+              </div>
+              <p className="analyze-kpi-sublabel">
+                {kpis.winCount} Wins / {kpis.lossCount} Losses
+              </p>
+            </div>
+
+            <div className="analyze-kpi-card">
+              <div className="analyze-kpi-header">
+                <span className="analyze-kpi-label">Profit Factor</span>
+                <div className="analyze-kpi-icon analyze-kpi-icon-purple">
+                  <TrendingUp size={20} />
+                </div>
+              </div>
+              <div className="analyze-kpi-value analyze-kpi-value-purple">
+                {kpis.profitFactor === 0 ? 'N/A' :
+                 kpis.profitFactor === Infinity ? '∞' :
+                 kpis.profitFactor.toFixed(2)}
+              </div>
+              <p className="analyze-kpi-sublabel">Based on gross P&L</p>
+            </div>
+
+            <div className="analyze-kpi-card">
+              <div className="analyze-kpi-header">
+                <span className="analyze-kpi-label">Total Trades</span>
+                <div className="analyze-kpi-icon analyze-kpi-icon-default">
+                  <ChartColumn size={20} />
+                </div>
+              </div>
+              <div className="analyze-kpi-value analyze-kpi-value-default">
+                {kpis.totalTrades}
+              </div>
+              <p className="analyze-kpi-sublabel">{kpis.breakEvenCount} Breakeven</p>
+            </div>
+          </div>
+
           <div className="analyze-card">
             <div className="analyze-card-header">
-              <h3>Performance Charts</h3>
+              <h3>Equity Curve</h3>
             </div>
-            <div className="analyze-card-body">
-              <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '3rem' }}>
-                Performance charts coming soon...
-              </p>
+            <div className="analyze-card-body" style={{ padding: '1.5rem' }}>
+              {(() => {
+                const sortedTrades = [...filteredByPeriod].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+                if (sortedTrades.length === 0) {
+                  return (
+                    <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '3rem 0' }}>
+                      No trades available for the selected period
+                    </p>
+                  );
+                }
+
+                // Calculate cumulative equity
+                let cumulative = 0;
+                const dataPoints = [{ x: 0, y: 0, date: null, label: 'Start' }];
+
+                sortedTrades.forEach((trade, index) => {
+                  const amount = parseFloat(trade.amount) || 0;
+                  const fees = parseFloat(trade.fees) || 0;
+                  const netPL = trade.type === 'profit' ? amount - fees :
+                                trade.type === 'loss' ? -(amount + fees) : -fees;
+                  cumulative += netPL;
+                  dataPoints.push({
+                    x: index + 1,
+                    y: cumulative,
+                    date: trade.date,
+                    symbol: trade.symbol,
+                    netPL
+                  });
+                });
+
+                const maxY = Math.max(...dataPoints.map(p => p.y));
+                const minY = Math.min(...dataPoints.map(p => p.y));
+                const range = maxY - minY || 100;
+                const padding = range * 0.15;
+
+                const width = 800;
+                const height = 400;
+                const marginLeft = 60;
+                const marginRight = 20;
+                const marginTop = 20;
+                const marginBottom = 40;
+                const chartWidth = width - marginLeft - marginRight;
+                const chartHeight = height - marginTop - marginBottom;
+
+                const xScale = (x) => marginLeft + (x / (dataPoints.length - 1)) * chartWidth;
+                const yScale = (y) => height - marginBottom - ((y - (minY - padding)) / (range + 2 * padding)) * chartHeight;
+
+                const pathData = dataPoints.map((p, i) =>
+                  `${i === 0 ? 'M' : 'L'} ${xScale(p.x)} ${yScale(p.y)}`
+                ).join(' ');
+
+                const areaData = `M ${marginLeft} ${height - marginBottom} L ${pathData.substring(2)} L ${xScale(dataPoints[dataPoints.length - 1].x)} ${height - marginBottom} Z`;
+
+                return (
+                  <div style={{ position: 'relative' }}>
+                    <svg
+                      width="100%"
+                      height={height}
+                      viewBox={`0 0 ${width} ${height}`}
+                      style={{ display: 'block' }}
+                    >
+                      <defs>
+                        <linearGradient id="areaGradient" x1="0" x2="0" y1="0" y2="1">
+                          <stop offset="0%" stopColor="var(--accent-purple)" stopOpacity="0.2" />
+                          <stop offset="100%" stopColor="var(--accent-purple)" stopOpacity="0.02" />
+                        </linearGradient>
+                      </defs>
+
+                      {/* Grid lines */}
+                      {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
+                        const y = height - marginBottom - ratio * chartHeight;
+                        const value = (minY - padding) + ratio * (range + 2 * padding);
+                        return (
+                          <g key={i}>
+                            <line
+                              x1={marginLeft}
+                              y1={y}
+                              x2={width - marginRight}
+                              y2={y}
+                              stroke="var(--border-color)"
+                              strokeWidth="1"
+                              opacity="0.5"
+                            />
+                            <text
+                              x={marginLeft - 10}
+                              y={y}
+                              textAnchor="end"
+                              dominantBaseline="middle"
+                              fill="var(--text-secondary)"
+                              fontSize="12"
+                            >
+                              ${value.toFixed(0)}
+                            </text>
+                          </g>
+                        );
+                      })}
+
+                      {/* Area fill */}
+                      <path d={areaData} fill="url(#areaGradient)" />
+
+                      {/* Line */}
+                      <path
+                        d={pathData}
+                        fill="none"
+                        stroke="var(--accent-purple)"
+                        strokeWidth="4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        style={{
+                          filter: 'drop-shadow(0 2px 4px rgba(139, 92, 246, 0.3))'
+                        }}
+                      />
+
+                      {/* Data points */}
+                      {dataPoints.map((point, i) => (
+                        <circle
+                          key={i}
+                          cx={xScale(point.x)}
+                          cy={yScale(point.y)}
+                          r={hoveredPoint === i ? 8 : 5}
+                          fill="var(--bg-color)"
+                          stroke="var(--accent-purple)"
+                          strokeWidth="3"
+                          style={{
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            filter: hoveredPoint === i ? 'drop-shadow(0 0 8px var(--accent-purple))' : 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))'
+                          }}
+                          onMouseEnter={() => setHoveredPoint(i)}
+                          onMouseLeave={() => setHoveredPoint(null)}
+                        />
+                      ))}
+
+                      {/* X-axis */}
+                      <line
+                        x1={marginLeft}
+                        y1={height - marginBottom}
+                        x2={width - marginRight}
+                        y2={height - marginBottom}
+                        stroke="var(--border-color)"
+                        strokeWidth="1"
+                      />
+
+                      {/* Y-axis */}
+                      <line
+                        x1={marginLeft}
+                        y1={marginTop}
+                        x2={marginLeft}
+                        y2={height - marginBottom}
+                        stroke="var(--border-color)"
+                        strokeWidth="1"
+                      />
+                    </svg>
+
+                    {/* Tooltip */}
+                    {hoveredPoint !== null && dataPoints[hoveredPoint].date && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '1rem',
+                        right: '1rem',
+                        background: 'var(--bg-color)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '0.5rem',
+                        padding: '0.75rem',
+                        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                        pointerEvents: 'none',
+                        animation: 'fadeIn 0.2s ease-out'
+                      }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                          {format(new Date(dataPoints[hoveredPoint].date), 'MMM d, yyyy')}
+                        </div>
+                        <div style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+                          {dataPoints[hoveredPoint].symbol}
+                        </div>
+                        <div style={{ fontSize: '0.875rem', fontWeight: '600', color: dataPoints[hoveredPoint].netPL >= 0 ? '#10b981' : '#ef4444' }}>
+                          {dataPoints[hoveredPoint].netPL >= 0 ? '+' : ''}${dataPoints[hoveredPoint].netPL.toFixed(2)}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)' }}>
+                          Total: {dataPoints[hoveredPoint].y >= 0 ? '+' : ''}${dataPoints[hoveredPoint].y.toFixed(2)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>

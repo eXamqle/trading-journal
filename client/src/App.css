@@ -1,5 +1,5 @@
 .app-container {
-  max-width: 1600px;
+  max-width: 1800px;
   margin: 0 auto;
   padding: 0 16px;
 }
@@ -75,8 +75,8 @@
 /* Dashboard Layout */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 1fr 260px;
-  gap: 16px;
+  grid-template-columns: 1fr 270px;
+  gap: 18px;
 }
 
 @media (max-width: 1024px) {
@@ -115,8 +115,8 @@
 .top-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 14px;
+  margin-bottom: 14px;
 }
 
 .stat-card-gradient {
@@ -157,10 +157,10 @@
   justify-content: space-between;
   align-items: center;
   background: var(--bg-secondary);
-  padding: 12px 20px;
+  padding: 12px 18px;
   border-radius: 10px;
   margin-bottom: 2px;
-  gap: 16px;
+  gap: 14px;
 }
 
 .calendar-nav {
@@ -218,17 +218,17 @@
 }
 
 .weekday {
-  padding: 15px;
+  padding: 16px;
   text-align: center;
   color: var(--text-secondary);
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-weight: 600;
   background: var(--bg-secondary);
 }
 
 .day-cell {
-  height: 85px;
-  padding: 6px;
+  height: 100px;
+  padding: 8px;
   background: var(--bg-secondary);
   position: relative;
   cursor: pointer;
