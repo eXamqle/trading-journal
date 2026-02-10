@@ -1,295 +1,176 @@
-# Trading Journal & Calendar 📊💰
+# Trading Journal & Calendar 📊
 
-A modern, feature-rich **full-stack** trading journal application with SQL database backend, user authentication, and persistent data storage. Track, analyze, and improve your trading performance with secure cloud-based storage.
+A full-stack trading journal with SQL database, authentication, and rich journaling features. Track trades, write detailed journals, and analyze your trading performance.
 
 ## ✨ Features
 
-### 📅 Calendar Views
-- **Month View**: Traditional calendar grid with 5-day or 7-day week options
-- **Week View**: Detailed weekly breakdown with daily trade summaries
-- **Year View**: Annual overview with mini-calendars for each month
-- **All Time View**: Complete historical data access
+### 📅 Calendar & Views
+- **Multiple Views**: Month (5/7-day), Week, and Year views
+- **Visual Indicators**: P&L display on calendar, journal entry indicators
+- **Quick Access**: Click any date to add trades or journal entries
 
 ### 📈 Trade Management
-- **Quick Entry Modal**: Add trades with a single click on any date
-- **Trade Types**: Track profits, losses, and break-even trades
-- **Categories**: Organize trades by market type (Forex, Stocks, Crypto, Options, Indices, Other)
-- **Details**: Record symbol, amount, fees, and personal notes for each trade
-- **Trade History**: View all entries for any specific date
+- **Trade Entry**: Track profits, losses, and break-even trades
+- **Categories**: Stocks, Options, Indices
+- **Tags System**: Organize trades with customizable colored tags
+- **Trade Details**: Symbol, amount, fees, and tags
+- **Existing Trades**: Collapsible view with delete functionality
+- **Delete Trades**: Subtle delete option with confirmation
 
-### 📊 Analytics Dashboard
-- **Key Performance Indicators (KPIs)**:
-  - Net Profit with fee tracking
-  - Win Rate percentage with W/L breakdown
-  - Profit Factor (gross profit/loss ratio)
-  - Total trade count with breakeven trades
-- **Time Period Filters**: This Week, This Month, Last 30 Days, This Year, All Time
-- **Trade List Table**: Searchable and filterable list of all trades
-- **Advanced Filters**:
-  - Symbol search
-  - Type filter (Profit/Loss/Break Even)
-  - Category filter
-- **Data Export**: Export trade data to CSV format
+### 📝 Rich Journal Editor
+- **WYSIWYG Editor**: Full formatting toolbar (bold, italic, underline, headings, lists)
+- **Image Support**: Paste screenshots directly (Ctrl+V) or upload images
+- **Unified Entry**: Add both trade and journal in one session
+- **Journal List**: View all entries with search, filter, and pagination
+- **Delete Entries**: Remove journal entries without affecting trades
+- **Image Indicators**: Visual indicator for entries with images
 
-### 👤 User Profile
-- **Account Settings**: Manage name and email
-- **Security**: Change password with validation
-- **Tabbed Interface**: Organized settings for easy navigation
+### 📊 Analytics & Statistics
+- **All-Time Stats**: Net P&L, win rate, total trades
+- **Journaling Stats**: Entry count, average words per entry
+- **Period Stats**: Weekly, monthly, and yearly breakdowns
+- **Win/Loss Tracking**: Detailed performance metrics
 
-### 🎨 UI/UX Features
-- Dark theme optimized for extended use
-- Responsive design for all screen sizes
-- Smooth animations and transitions
-- Intuitive navigation
-- Color-coded trade results
-- Interactive dropdowns and modals
+### 👤 User Management
+- **Authentication**: Secure JWT-based login/register
+- **Profile Settings**: Manage account and password
+- **Multi-User**: Isolated data per user
+
+### 🎨 UI/UX
+- **Dark Theme**: Optimized for extended trading sessions
+- **Responsive**: Works on all screen sizes
+- **Smooth Animations**: Polished interactions
+- **Color-Coded**: Green for profits, red for losses
 
 ## 🛠️ Tech Stack
 
-### Frontend
-- **Framework**: React 19.2.0
-- **Date Utilities**: date-fns 4.1.0
-- **Icons**: lucide-react 0.563.0
-- **Build Tool**: Vite 7.2.4
-- **HTTP Client**: Axios 1.6.5
-- **Styling**: Custom CSS with CSS Variables
-- **Language**: JavaScript (ES6+)
+**Frontend**: React 19, Vite, date-fns, Axios, Lucide Icons
+**Backend**: Node.js, Express, SQLite (better-sqlite3)
+**Auth**: JWT, bcryptjs
+**Styling**: Custom CSS with CSS Variables
 
-### Backend
-- **Runtime**: Node.js
-- **Framework**: Express 4.18.2
-- **Database**: SQLite (better-sqlite3 9.2.2)
-- **Authentication**: JWT (jsonwebtoken 9.0.2)
-- **Security**: bcryptjs 2.4.3, CORS 2.8.5
-- **Environment**: dotenv 16.3.1
+## 📦 Quick Start
 
-## 📦 Installation
+```bash
+# Install dependencies
+npm install
+cd client && npm install
+cd ../server && npm install
+cd ..
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd trading-journal
-   ```
+# Start both servers
+npm run dev
+```
 
-2. **Install dependencies**
-   ```bash
-   # Install root dependencies
-   npm install
-
-   # Install client & server dependencies
-   cd client && npm install
-   cd ../server && npm install
-   cd ..
-   ```
-
-3. **Start both servers**
-   ```bash
-   npm run dev
-   ```
-   This starts:
-   - Frontend at `http://localhost:5173`
-   - Backend at `http://localhost:5000`
-
-4. **Login with default account**
-   ```
-   Email: john@example.com
-   Password: password123
-   ```
+**Access**: `http://localhost:5173`
+**Login**: `john@example.com` / `password123`
 
 ## 🚀 Usage
 
-### Adding a Trade
+### Add Trade & Journal Entry
+1. Click any calendar date
+2. Add trade details (symbol, amount, category, tags)
+3. Switch to "Journal" tab to write your thoughts
+4. Click "Save Entry" to save both
 
-1. Navigate to any calendar view (Week/Month/Year)
-2. Click on a date to open the trade entry modal
-3. Select trade type (Profit/Loss/Break Even)
-4. Fill in trade details:
-   - Symbol (e.g., BTCUSDT, AAPL)
-   - Amount in dollars
-   - Category (market type)
-   - Fees (optional)
-   - Notes (optional)
-5. Click "Add Entry" to save
+### View Journal Entries
+1. Click "Journal Entries" button
+2. Search, filter, or browse entries
+3. Click any entry to view/edit
+4. Delete entries or trades as needed
 
-### Viewing Analytics
-
-1. Click the "Analyze" button in the header
-2. Select a time period from the dropdown
-3. View your KPIs at a glance
-4. Use filters to narrow down specific trades
-5. Export data using the "Export Data" button
-
-### Managing Profile
-
-1. Click on your name (John Doe) in the header
-2. Select "Profile" from the dropdown
-3. Switch between "Account" and "Security" tabs
-4. Update your information as needed
+### Analyze Performance
+1. Click "Statistics" tab
+2. View all-time or period-specific stats
+3. Track win rate and P&L trends
 
 ## 📁 Project Structure
 
 ```
 trading-journal/
-├── client/                 # Frontend React application
+├── client/             # React frontend (Vite)
+│   └── src/
+│       ├── api/        # API clients
+│       ├── contexts/   # Auth context
+│       ├── App.jsx     # Main component
+│       ├── Analyze.jsx # Analytics
+│       ├── Profile.jsx # User profile
+│       └── JournalEntries.jsx  # Journal list
+├── server/             # Express backend
 │   ├── src/
-│   │   ├── api/           # API client utilities
-│   │   ├── contexts/      # React contexts (Auth)
-│   │   ├── components/    # React components (Login)
-│   │   ├── App.jsx        # Main app component
-│   │   ├── App.css        # Global styles
-│   │   ├── Analyze.jsx    # Analytics dashboard
-│   │   ├── Profile.jsx    # User profile
-│   │   └── main.jsx       # Entry point
-│   ├── public/           # Static assets
-│   └── package.json      # Frontend dependencies
-│
-├── server/                 # Backend Express application
-│   ├── src/
-│   │   ├── config/
-│   │   │   └── database.js       # SQLite configuration
-│   │   ├── routes/
-│   │   │   ├── auth.js          # Authentication API
-│   │   │   ├── trades.js        # Trades CRUD API
-│   │   │   └── journal.js       # Journal API
-│   │   ├── middleware/
-│   │   │   └── auth.js          # JWT authentication
-│   │   └── server.js            # Express app
-│   ├── database/
-│   │   └── trading-journal.db   # SQLite database
-│   ├── .env              # Environment variables
-│   └── package.json      # Backend dependencies
-│
-└── package.json           # Root workspace configuration
+│   │   ├── routes/     # API routes (auth, trades, journal)
+│   │   ├── middleware/ # JWT auth
+│   │   └── server.js   # Express app
+│   └── database/
+│       └── trading-journal.db  # SQLite database
+└── package.json        # Root workspace
 ```
 
-## 🎨 Key Components
+## 🔑 Key Features
 
-### Calendar Views
-- **Month Calendar**: Grid-based calendar with daily trade indicators
-- **Week List**: Vertical list showing each day with trade summaries
-- **Year Grid**: 12 mini-calendars showing annual overview
+- ✅ SQLite database with persistent storage
+- ✅ JWT authentication with password hashing
+- ✅ Rich text journal with image support
+- ✅ Customizable tag system
+- ✅ Unified trade + journal entry
+- ✅ Delete trades/journals independently
+- ✅ Search and filter journal entries
+- ✅ All-time and period statistics
+- ✅ Multi-user support with data isolation
+- ✅ REST API with CORS protection
 
-### Trade Modal
-- Dual tabs: "New Entry" and "History"
-- Visual trade type selection (Profit/Loss/Break Even)
-- Form validation and error handling
-- Responsive design
+## 🎨 Color Scheme
 
-### Analytics Dashboard
-- Real-time KPI calculations
-- Multiple filtering options
-- Interactive data table
-- CSV export functionality
+- **Profit Green**: `#10b981`
+- **Loss Red**: `#ef4444`
+- **Accent Blue**: `#3b82f6`
+- **Accent Purple**: `#8b5cf6`
 
-### Profile Settings
-- Account information management
-- Password change with validation
-- Tabbed interface for better organization
+## 📊 Database Tables
 
-## 🔧 Available Scripts
+- **users**: Account credentials (hashed passwords)
+- **trades**: Trading entries with tags
+- **journal_entries**: Rich text journal content
+- **tags**: Customizable colored tags
 
-### Root Directory
-```bash
-# Start both frontend and backend
-npm run dev
+## 🔒 Security
 
-# Start only frontend
-npm run dev:client
+- JWT token authentication (24hr expiry)
+- bcrypt password hashing
+- SQL injection prevention (prepared statements)
+- CORS protection
+- User data isolation
 
-# Start only backend
-npm run dev:server
+## 📝 API Endpoints
 
-# Build frontend for production
-npm run build
 ```
+POST   /api/auth/register    # Create account
+POST   /api/auth/login       # Login
+GET    /api/auth/profile     # Get user profile
+PUT    /api/auth/profile     # Update profile
 
-### Client Directory (cd client/)
-```bash
-# Start Vite dev server
-npm run dev
+GET    /api/trades           # Get all trades
+POST   /api/trades           # Create trade
+PUT    /api/trades/:id       # Update trade
+DELETE /api/trades/:id       # Delete trade
 
-# Build for production
-npm run build
+GET    /api/journal          # Get all journals
+GET    /api/journal/:date    # Get journal by date
+PUT    /api/journal/:date    # Save journal
+DELETE /api/journal/:date    # Delete journal
 
-# Preview production build
-npm run preview
-
-# Run ESLint
-npm run lint
+GET    /api/tags             # Get all tags
+POST   /api/tags             # Create tag
 ```
-
-### Server Directory (cd server/)
-```bash
-# Start Express server with auto-reload
-npm run dev
-
-# Start Express server (production)
-npm start
-```
-
-## ✅ Completed Features
-
-- [x] **Database integration** - SQLite with persistent storage
-- [x] **User authentication** - JWT-based login/register system
-- [x] **Multi-user support** - Each user has isolated data
-- [x] **Password hashing** - Secure bcrypt encryption
-- [x] **REST API** - Complete backend API for all operations
-- [x] **Journal entries** - Rich text with formatting and images
-
-## 🎯 Future Enhancements
-
-- [ ] Performance charts and graphs
-- [ ] Advanced statistics (Sharpe ratio, drawdown, etc.)
-- [ ] Trading strategy templates
-- [ ] Multi-currency support
-- [ ] Mobile app version
-- [ ] Dark/Light theme toggle
-- [ ] Backup and restore functionality
-- [ ] Real-time sync across devices
-
-## 🌈 Color Scheme
-
-- **Accent Green**: `#10b981` - Profits, positive values
-- **Accent Red**: `#ef4444` - Losses, negative values
-- **Accent Blue**: `#3b82f6` - Win rate, interactive elements
-- **Accent Purple**: `#8b5cf6` - Profit factor
-- **Background**: Dark theme optimized for trading
-
-## 📊 Data Storage & Security
-
-### Database
-The application uses **SQLite** for persistent storage with three main tables:
-- **users** - User accounts with hashed passwords
-- **trades** - All trading entries with full details
-- **journal_entries** - Rich text journal content per date
-
-### Security Features
-- ✅ **JWT Authentication** - Secure token-based auth
-- ✅ **Password Hashing** - bcrypt with salt rounds
-- ✅ **CORS Protection** - Restricted to frontend origin
-- ✅ **SQL Injection Prevention** - Prepared statements
-- ✅ **User Isolation** - Users only access their own data
-- ✅ **Token Expiration** - 24-hour JWT tokens
-
-### API Endpoints
-- **Auth**: `/api/auth/*` - Login, register, profile management
-- **Trades**: `/api/trades/*` - CRUD operations for trades
-- **Journal**: `/api/journal/*` - CRUD operations for journal entries
-
-All endpoints (except login/register) require Bearer token authentication.
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Pull requests welcome! Feel free to open issues for bugs or feature requests.
 
 ## 📝 License
 
-This project is open source and available under the [MIT License](LICENSE).
-
-## 📧 Contact
-
-For questions or feedback, please open an issue on GitHub.
+MIT License - Open source for traders, by traders.
 
 ---
 
-**Built with ❤️ for traders by traders**
+**Built by traders with ❤️ for better trading performance**
