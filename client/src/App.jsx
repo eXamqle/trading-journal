@@ -1516,6 +1516,7 @@ function App() {
         <JournalEntries
           journalEntries={journalEntries}
           onViewEntry={handleViewJournalEntry}
+          trades={trades}
         />
       ) : (
         <>
