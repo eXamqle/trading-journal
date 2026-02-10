@@ -5,12 +5,14 @@ import {
   BookOpen,
   Target,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  X
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
 function JournalEntries({ journalEntries, onViewEntry, trades = [] }) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const entriesPerPage = 10;
 
@@ -60,17 +62,30 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [] }) {
       });
   }, [journalEntries, trades]);
 
-  // Filter entries based on search query
+  // Filter entries based on search query and date filter
   const filteredEntries = useMemo(() => {
-    if (!searchQuery.trim()) return entriesArray;
+    let filtered = entriesArray;
 
-    const query = searchQuery.toLowerCase();
-    return entriesArray.filter(entry => {
-      const dateStr = format(parseISO(entry.date), 'MMM d, yyyy').toLowerCase();
-      const content = entry.textContent.toLowerCase();
-      return dateStr.includes(query) || content.includes(query);
-    });
-  }, [entriesArray, searchQuery]);
+    // Apply text search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(entry => {
+        const dateStr = format(parseISO(entry.date), 'MMM d, yyyy').toLowerCase();
+        const content = entry.textContent.toLowerCase();
+        // Also search in ticker symbols and tags
+        const tickers = entry.trades.map(t => t.symbol?.toLowerCase() || '').join(' ');
+        const tags = entry.trades.flatMap(t => t.tags?.map(tag => tag.name.toLowerCase()) || []).join(' ');
+        return dateStr.includes(query) || content.includes(query) || tickers.includes(query) || tags.includes(query);
+      });
+    }
+
+    // Apply date filter
+    if (dateFilter) {
+      filtered = filtered.filter(entry => entry.date === dateFilter);
+    }
+
+    return filtered;
+  }, [entriesArray, searchQuery, dateFilter]);
 
   // Sort entries by date (most recent first)
   const sortedEntries = useMemo(() => {
@@ -85,10 +100,10 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [] }) {
   const endIndex = startIndex + entriesPerPage;
   const paginatedEntries = sortedEntries.slice(startIndex, endIndex);
 
-  // Reset to page 1 when search changes
+  // Reset to page 1 when search or date filter changes
   useMemo(() => {
     setCurrentPage(1);
-  }, [searchQuery]);
+  }, [searchQuery, dateFilter]);
 
   const getPreviewText = (text, maxLength = 120) => {
     if (text.length <= maxLength) return text;
@@ -122,34 +137,63 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [] }) {
 
   return (
     <>
-      <div className="nav-container">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div className="journal-entries-icon" style={{ width: '2.5rem', height: '2.5rem', fontSize: '1rem' }}>
-              <BookOpen size={20} />
-            </div>
-            <div>
-              <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Journal Entries</h2>
-              <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                {entriesArray.length} {entriesArray.length === 1 ? 'entry' : 'entries'} total
-              </p>
-            </div>
-          </div>
-          <div className="journal-entries-search">
-            <Search size={16} className="journal-search-icon" />
-            <input
-              type="text"
-              className="journal-search-input"
-              placeholder="Search entries..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-        </div>
-      </div>
-
       <main className="dashboard-grid">
         <div className="main-content">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div className="journal-entries-icon" style={{ width: '2.5rem', height: '2.5rem', fontSize: '1rem' }}>
+                <BookOpen size={20} strokeWidth={2} color="#94a3b8" />
+              </div>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Journal Entries</h2>
+                <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                  {entriesArray.length} {entriesArray.length === 1 ? 'entry' : 'entries'} total
+                </p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="date"
+                  className="form-input"
+                  style={{ paddingRight: dateFilter ? '2.5rem' : '0.75rem', minWidth: '180px' }}
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                />
+                {dateFilter && (
+                  <button
+                    onClick={() => setDateFilter('')}
+                    style={{
+                      position: 'absolute',
+                      right: '0.5rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      padding: '0.25rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+              <div className="journal-entries-search">
+                <Search size={16} className="journal-search-icon" />
+                <input
+                  type="text"
+                  className="journal-search-input"
+                  placeholder="Search entries, tickers, tags..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
           <div className="journal-entries-main-card">
             {sortedEntries.length === 0 ? (
               <div className="journal-empty-state">
@@ -174,6 +218,18 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [] }) {
                   {paginatedEntries.map((entry, index) => {
                     const hasTrades = entry.tradeCount > 0;
                     const isProfitable = entry.pnl > 0;
+
+                    // Get unique tickers from trades
+                    const tickers = [...new Set(entry.trades.map(t => t.symbol).filter(Boolean))];
+
+                    // Get unique tags from all trades
+                    const allTags = entry.trades.flatMap(t => t.tags || []);
+                    const uniqueTags = allTags.reduce((acc, tag) => {
+                      if (!acc.find(t => t.name === tag.name)) {
+                        acc.push(tag);
+                      }
+                      return acc;
+                    }, []);
 
                     return (
                       <div
@@ -206,8 +262,56 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [] }) {
                           <div className="journal-entry-trades-summary">
                             <Target size={14} />
                             <span>{entry.tradeCount} {entry.tradeCount === 1 ? 'trade' : 'trades'}</span>
-                            {entry.trades.some(t => t.tags && t.tags.length > 0) && (
-                              <span className="journal-entry-has-tags">📌</span>
+                            {tickers.length > 0 && (
+                              <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                                • {tickers.slice(0, 3).join(', ')}{tickers.length > 3 ? ` +${tickers.length - 3}` : ''}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {uniqueTags.length > 0 && (
+                          <div style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: '0.375rem',
+                            marginTop: '0.5rem',
+                            paddingTop: '0.5rem',
+                            borderTop: '1px solid var(--border-color)'
+                          }}>
+                            {uniqueTags.slice(0, 5).map((tag, idx) => (
+                              <span
+                                key={idx}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.25rem',
+                                  padding: '0.25rem 0.5rem',
+                                  borderRadius: '999px',
+                                  fontSize: '0.75rem',
+                                  background: 'var(--bg-secondary)',
+                                  border: '1px solid var(--border-color)',
+                                  color: 'var(--text-secondary)'
+                                }}
+                              >
+                                <div style={{
+                                  width: '8px',
+                                  height: '8px',
+                                  borderRadius: '2px',
+                                  background: tag.color,
+                                  flexShrink: 0
+                                }} />
+                                {tag.name}
+                              </span>
+                            ))}
+                            {uniqueTags.length > 5 && (
+                              <span style={{
+                                padding: '0.25rem 0.5rem',
+                                fontSize: '0.75rem',
+                                color: 'var(--text-secondary)'
+                              }}>
+                                +{uniqueTags.length - 5} more
+                              </span>
                             )}
                           </div>
                         )}

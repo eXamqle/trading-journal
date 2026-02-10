@@ -39,7 +39,22 @@ router.get('/', (req, res) => {
 
     const trades = db.prepare(query).all(...params);
 
-    res.json({ trades });
+    // Fetch tags for each trade
+    const tradesWithTags = trades.map(trade => {
+      const tags = db.prepare(`
+        SELECT t.id, t.name, t.color
+        FROM tags t
+        INNER JOIN trade_tags tt ON t.id = tt.tag_id
+        WHERE tt.trade_id = ?
+      `).all(trade.id);
+
+      return {
+        ...trade,
+        tags
+      };
+    });
+
+    res.json({ trades: tradesWithTags });
   } catch (error) {
     console.error('Get trades error:', error);
     res.status(500).json({ message: 'Failed to fetch trades' });
@@ -49,7 +64,7 @@ router.get('/', (req, res) => {
 // Create new trade
 router.post('/', (req, res) => {
   try {
-    const { date, type, symbol, amount, category, fees, notes } = req.body;
+    const { date, type, symbol, amount, category, fees, notes, tags } = req.body;
 
     // Validation
     if (!date || !type || !symbol || !amount || !category) {
@@ -78,9 +93,46 @@ router.post('/', (req, res) => {
       notes || ''
     );
 
-    const trade = db.prepare('SELECT * FROM trades WHERE id = ?').get(result.lastInsertRowid);
+    const tradeId = result.lastInsertRowid;
 
-    res.status(201).json({ trade });
+    // Handle tags if provided
+    if (tags && Array.isArray(tags) && tags.length > 0) {
+      const insertTradeTag = db.prepare('INSERT INTO trade_tags (trade_id, tag_id) VALUES (?, ?)');
+
+      for (const tagName of tags) {
+        // Find or create the tag
+        let tag = db.prepare('SELECT id FROM tags WHERE user_id = ? AND LOWER(name) = LOWER(?)').get(req.userId, tagName);
+
+        if (!tag) {
+          // Create new tag with a random color
+          const colors = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6'];
+          const randomColor = colors[Math.floor(Math.random() * colors.length)];
+          const tagResult = db.prepare('INSERT INTO tags (user_id, name, color) VALUES (?, ?, ?)').run(req.userId, tagName, randomColor);
+          tag = { id: tagResult.lastInsertRowid };
+        }
+
+        // Link trade to tag
+        try {
+          insertTradeTag.run(tradeId, tag.id);
+        } catch (err) {
+          // Ignore duplicate key errors
+          if (!err.message.includes('UNIQUE constraint failed')) {
+            throw err;
+          }
+        }
+      }
+    }
+
+    // Fetch the trade with tags
+    const trade = db.prepare('SELECT * FROM trades WHERE id = ?').get(tradeId);
+    const tradeTags = db.prepare(`
+      SELECT t.id, t.name, t.color
+      FROM tags t
+      INNER JOIN trade_tags tt ON t.id = tt.tag_id
+      WHERE tt.trade_id = ?
+    `).all(tradeId);
+
+    res.status(201).json({ trade: { ...trade, tags: tradeTags } });
   } catch (error) {
     console.error('Create trade error:', error);
     res.status(500).json({ message: 'Failed to create trade' });
@@ -91,10 +143,10 @@ router.post('/', (req, res) => {
 router.put('/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const { date, type, symbol, amount, category, fees, notes } = req.body;
+    const { date, type, symbol, amount, category, fees, notes, tags } = req.body;
 
     // Check if trade exists and belongs to user
-    const existingTrade = db.prepare('SELECT id FROM trades WHERE id = ? AND user_id = ?').get(id, req.userId);
+    const existingTrade = db.prepare('SELECT * FROM trades WHERE id = ? AND user_id = ?').get(id, req.userId);
     if (!existingTrade) {
       return res.status(404).json({ message: 'Trade not found' });
     }
@@ -129,9 +181,50 @@ router.put('/:id', (req, res) => {
       req.userId
     );
 
-    const trade = db.prepare('SELECT * FROM trades WHERE id = ?').get(id);
+    // Update tags if provided
+    if (tags !== undefined && Array.isArray(tags)) {
+      // Remove existing tag associations
+      db.prepare('DELETE FROM trade_tags WHERE trade_id = ?').run(id);
 
-    res.json({ trade });
+      // Add new tag associations
+      if (tags.length > 0) {
+        const insertTradeTag = db.prepare('INSERT INTO trade_tags (trade_id, tag_id) VALUES (?, ?)');
+
+        for (const tagName of tags) {
+          // Find or create the tag
+          let tag = db.prepare('SELECT id FROM tags WHERE user_id = ? AND LOWER(name) = LOWER(?)').get(req.userId, tagName);
+
+          if (!tag) {
+            // Create new tag with a random color
+            const colors = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6'];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            const tagResult = db.prepare('INSERT INTO tags (user_id, name, color) VALUES (?, ?, ?)').run(req.userId, tagName, randomColor);
+            tag = { id: tagResult.lastInsertRowid };
+          }
+
+          // Link trade to tag
+          try {
+            insertTradeTag.run(id, tag.id);
+          } catch (err) {
+            // Ignore duplicate key errors
+            if (!err.message.includes('UNIQUE constraint failed')) {
+              throw err;
+            }
+          }
+        }
+      }
+    }
+
+    // Fetch the trade with tags
+    const trade = db.prepare('SELECT * FROM trades WHERE id = ?').get(id);
+    const tradeTags = db.prepare(`
+      SELECT t.id, t.name, t.color
+      FROM tags t
+      INNER JOIN trade_tags tt ON t.id = tt.tag_id
+      WHERE tt.trade_id = ?
+    `).all(id);
+
+    res.json({ trade: { ...trade, tags: tradeTags } });
   } catch (error) {
     console.error('Update trade error:', error);
     res.status(500).json({ message: 'Failed to update trade' });
