@@ -1261,6 +1261,13 @@
   padding: 2rem 1rem;
 }
 
+/* Analyze in main-content (All Time view) */
+.main-content .analyze-container {
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
 .analyze-controls {
   display: flex;
   align-items: center;

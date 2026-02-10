@@ -25,7 +25,8 @@ import {
   Image as ImageIcon,
   Heading1,
   Heading2,
-  Heading3
+  Heading3,
+  Download
 } from 'lucide-react';
 import {
   format,
@@ -978,6 +979,57 @@ function App() {
     );
   };
 
+  const renderAllTimeView = () => {
+    return <Analyze trades={trades} />;
+  };
+
+  const renderAllTimeSidebar = () => {
+    const allTrades = trades;
+    const totalTrades = allTrades.length;
+
+    const wins = allTrades.filter(t => t.type === 'profit').length;
+    const losses = allTrades.filter(t => t.type === 'loss').length;
+    const winRate = totalTrades > 0 ? (wins / totalTrades * 100).toFixed(1) : '0.0';
+
+    // Calculate total P&L
+    const totalPnL = allTrades.reduce((sum, trade) => {
+      const amount = parseFloat(trade.amount) || 0;
+      const fees = parseFloat(trade.fees) || 0;
+      if (trade.type === 'profit') {
+        return sum + amount - fees;
+      } else if (trade.type === 'loss') {
+        return sum - amount - fees;
+      }
+      return sum - fees;
+    }, 0);
+
+    return (
+      <aside className="sidebar-section">
+        <h2 className="sidebar-title">All Time Statistics</h2>
+
+        <div className="info-card">
+          <span className="info-label">Total P&L</span>
+          <div className={`info-value ${totalPnL >= 0 ? 'positive' : 'negative'}`}>
+            {totalPnL >= 0 ? '+' : ''}${totalPnL.toFixed(2)}
+          </div>
+          <div className="info-subtext">Net Profit/Loss</div>
+        </div>
+
+        <div className="info-card">
+          <span className="info-label">Win Rate</span>
+          <div className="info-value">{winRate}%</div>
+          <div className="info-subtext">{wins}W / {losses}L</div>
+        </div>
+
+        <div className="info-card">
+          <span className="info-label">Total Trades</span>
+          <div className="info-value">{totalTrades}</div>
+          <div className="info-subtext">All Time</div>
+        </div>
+      </aside>
+    );
+  };
+
   const renderModal = () => {
     if (!selectedDate) return null;
 
@@ -1662,6 +1714,7 @@ function App() {
                   window.dispatchEvent(event);
                 }}
               >
+                <Download size={14} />
                 Export Data
               </button>
             </div>
@@ -1699,10 +1752,10 @@ function App() {
               {activeTab === 'Month' && renderTopStats()}
               {activeTab === 'Week' ? renderWeekList() :
                activeTab === 'Year' ? renderYearView() :
-               activeTab === 'Analysis' ? <Analyze trades={trades} /> :
+               activeTab === 'All Time' ? renderAllTimeView() :
                renderCalendar()}
             </div>
-            {activeTab !== 'Analysis' && renderSidebar()}
+            {activeTab === 'All Time' ? renderAllTimeSidebar() : renderSidebar()}
           </main>
         </>
       )}
