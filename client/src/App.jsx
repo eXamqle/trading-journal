@@ -15,7 +15,6 @@ import {
   ListFilter,
   LogOut,
   CalendarOff,
-  BookOpen,
   Bold,
   Italic,
   Underline,
@@ -24,7 +23,9 @@ import {
   Image as ImageIcon,
   Heading1,
   Heading2,
-  Heading3
+  Heading3,
+  Edit as EditIcon,
+  FileText
 } from 'lucide-react';
 import {
   format,
@@ -77,8 +78,11 @@ function App() {
   const [journalContent, setJournalContent] = useState('');
   const [journalEntries, setJournalEntries] = useState({}); // Store journal entries by date
   const [viewingJournal, setViewingJournal] = useState(false); // Track if viewing journal
+  const [readerModalOpen, setReaderModalOpen] = useState(false); // Track reader modal state
+  const [journalOnlyMode, setJournalOnlyMode] = useState(false); // Track if modal is in journal-only mode
   const [loading, setLoading] = useState(false);
   const [alertModal, setAlertModal] = useState({ open: false, message: '', title: 'Notice' });
+  const [confirmModal, setConfirmModal] = useState({ open: false, message: '', title: 'Confirm', onConfirm: null });
   const [formData, setFormData] = useState({
     symbol: '',
     amount: '',
@@ -139,6 +143,7 @@ function App() {
 
   const editorRef = useRef(null);
   const imageInputRef = useRef(null);
+  const editorInitialized = useRef(false);
   const [activeFormats, setActiveFormats] = useState({
     bold: false,
     italic: false,
@@ -243,8 +248,88 @@ function App() {
 
     setSelectedDate(date);
     setJournalContent(existingJournal);
+    setReaderModalOpen(true);
+  };
+
+  const handleAddJournal = () => {
+    const today = new Date();
+    const dateKey = format(today, 'yyyy-MM-dd');
+    const existingJournal = journalEntries[dateKey] || '';
+
+    setSelectedDate(today);
+    setJournalContent(existingJournal);
+    setModalTab('journal');
+    setJournalOnlyMode(true);
+    setViewingJournal(false);
+  };
+
+  const handleCloseReader = () => {
+    setReaderModalOpen(false);
+    setSelectedDate(null);
+  };
+
+  const handleEditJournalFromReader = () => {
+    setReaderModalOpen(false);
     setViewingJournal(false);
     setModalTab('journal');
+
+    // Load trade data if there are trades for this date
+    if (selectedDate) {
+      const dayTrades = getTradesForDate(selectedDate);
+      if (dayTrades.length > 0) {
+        // Populate form with the first trade's data
+        const trade = dayTrades[0];
+        setTradeType(trade.type);
+
+        // Extract tag names, handling both string and object formats
+        const tagNames = trade.tags
+          ? trade.tags.map(t => typeof t === 'string' ? t : (t.name || t))
+          : [];
+
+        setFormData({
+          symbol: trade.symbol || '',
+          amount: trade.amount || '',
+          category: trade.category || '',
+          fees: trade.fees || '',
+          tags: tagNames
+        });
+      }
+    }
+  };
+
+  const handleDeleteJournal = (dateString) => {
+    setConfirmModal({
+      open: true,
+      title: 'Delete Journal Entry',
+      message: 'Are you sure you want to delete this journal entry? This action cannot be undone.',
+      onConfirm: async () => {
+        const dateKey = typeof dateString === 'string' && dateString.includes('-')
+          ? dateString
+          : format(dateString, 'yyyy-MM-dd');
+
+        try {
+          await journalAPI.delete(dateKey);
+          setJournalEntries(prev => {
+            const newEntries = { ...prev };
+            delete newEntries[dateKey];
+            return newEntries;
+          });
+          setReaderModalOpen(false);
+          if (selectedDate) {
+            setSelectedDate(null);
+          }
+          setConfirmModal({ open: false, message: '', title: 'Confirm', onConfirm: null });
+        } catch (error) {
+          console.error('Failed to delete journal entry:', error);
+          setConfirmModal({ open: false, message: '', title: 'Confirm', onConfirm: null });
+          setAlertModal({
+            open: true,
+            message: 'Failed to delete journal entry. Please try again.',
+            title: 'Error'
+          });
+        }
+      }
+    });
   };
 
   const closeModal = async () => {
@@ -268,8 +353,10 @@ function App() {
     setTradeType('profit');
     setJournalContent('');
     setViewingJournal(false);
+    setJournalOnlyMode(false);
     setTagsOpen(false);
     setTagSearchQuery('');
+    editorInitialized.current = false;
     setFormData({
       symbol: '',
       amount: '',
@@ -420,12 +507,20 @@ function App() {
     }
   };
 
-  // Set initial content only once
+  // Reset editor initialization flag when switching tabs
   useEffect(() => {
-    if (editorRef.current && selectedDate && journalContent === '') {
-      editorRef.current.innerHTML = journalContent;
+    if (modalTab !== 'journal') {
+      editorInitialized.current = false;
     }
-  }, [selectedDate]);
+  }, [modalTab]);
+
+  // Set editor content only when modal first opens
+  useEffect(() => {
+    if (editorRef.current && selectedDate && modalTab === 'journal' && !editorInitialized.current) {
+      editorRef.current.innerHTML = journalContent;
+      editorInitialized.current = true;
+    }
+  }, [selectedDate, journalContent, modalTab]);
 
   // Disable body scroll when modal is open
   useEffect(() => {
@@ -672,7 +767,11 @@ function App() {
                     {dayPnL >= 0 ? '+' : ''}${Math.abs(dayPnL).toFixed(0)}
                   </span>
                 )}
-                {hasJournal && <span className="journal-indicator">📝</span>}
+                {hasJournal && (
+                  <span className="journal-indicator" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <FileText size={16} strokeWidth={1.5} color="#e2e8f0" />
+                  </span>
+                )}
               </div>
             );
           })}
@@ -739,7 +838,12 @@ function App() {
                   </div>
                   <div className="week-day-info">
                     <span className="week-day-name">{format(day, 'EEEE')}</span>
-                    {hasJournal && <span className="journal-badge">📝 Journal</span>}
+                    {hasJournal && (
+                      <span className="journal-badge" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <FileText size={14} strokeWidth={1.5} color="#e2e8f0" />
+                        Journal
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="week-day-right">
@@ -881,7 +985,7 @@ function App() {
 
 
   const renderModal = () => {
-    if (!selectedDate) return null;
+    if (!selectedDate || readerModalOpen) return null;
 
     return (
       <div className="modal-overlay">
@@ -895,23 +999,25 @@ function App() {
             <p className="modal-subtitle" style={{ textAlign: 'left' }}>Trade Management Ritual</p>
           </div>
 
-          <div className="modal-body">
-            <div className="modal-tabs">
-              <button
-                className={`modal-tab ${modalTab === 'add' ? 'active' : ''}`}
-                onClick={() => setModalTab('add')}
-              >
-                <PlusCircle size={14} />
-                New Entry
-              </button>
-              <button
-                className={`modal-tab ${modalTab === 'journal' ? 'active' : ''}`}
-                onClick={() => setModalTab('journal')}
-              >
-                <BookOpen size={14} />
-                Journal
-              </button>
-            </div>
+          <div className="modal-body" style={{ padding: '1.5rem 1.75rem' }}>
+            {!journalOnlyMode && (
+              <div className="modal-tabs">
+                <button
+                  className={`modal-tab ${modalTab === 'add' ? 'active' : ''}`}
+                  onClick={() => setModalTab('add')}
+                >
+                  <PlusCircle size={14} />
+                  New Entry
+                </button>
+                <button
+                  className={`modal-tab ${modalTab === 'journal' ? 'active' : ''}`}
+                  onClick={() => setModalTab('journal')}
+                >
+                  <FileText size={14} />
+                  Journal
+                </button>
+              </div>
+            )}
 
             {viewingJournal ? (
               <div className="journal-view-container" style={{ padding: '1rem 0' }}>
@@ -1333,22 +1439,50 @@ function App() {
 
             {/* Persistent action button */}
             {!viewingJournal && (
-              <button
-                type="button"
-                className="modal-action-button"
-                onClick={() => {
-                  if (modalTab === 'add') {
-                    // Trigger form submit for add tab
-                    document.querySelector('.modal-content form')?.requestSubmit();
-                  } else if (modalTab === 'journal') {
-                    // Save journal and close modal
-                    closeModal();
-                  }
-                }}
-              >
-                <PlusCircle size={20} />
-                {modalTab === 'add' ? 'Add Entry' : 'Save Journal'}
-              </button>
+              <div style={{ paddingTop: '1.5rem' }}>
+                <button
+                  type="button"
+                  style={{
+                    width: '100%',
+                    background: 'var(--accent-blue)',
+                    border: 'none',
+                    color: 'white',
+                    padding: '0.625rem 1.25rem',
+                    borderRadius: '0.5rem',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    transition: 'all 0.2s',
+                    boxShadow: '0 2px 8px rgba(59, 130, 246, 0.2)'
+                  }}
+                  onClick={() => {
+                    if (modalTab === 'add') {
+                      // Trigger form submit for add tab
+                      document.querySelector('.modal-content form')?.requestSubmit();
+                    } else if (modalTab === 'journal') {
+                      // Save journal and close modal
+                      closeModal();
+                    }
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#2563eb';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'var(--accent-blue)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.2)';
+                  }}
+                >
+                  <PlusCircle size={16} />
+                  {modalTab === 'add' ? 'Add Entry' : 'Save Journal'}
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -1471,6 +1605,167 @@ function App() {
     );
   };
 
+  const renderReaderModal = () => {
+    if (!readerModalOpen || !selectedDate) return null;
+
+    const hasContent = journalContent && journalContent.trim() !== '';
+
+    return (
+      <div
+        className="modal-overlay"
+        style={{ zIndex: 9999 }}
+        onClick={handleCloseReader}
+      >
+        <div
+          className="modal-content"
+          style={{ maxWidth: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button className="close-modal" onClick={handleCloseReader}>
+            <X size={20} />
+          </button>
+
+          <div className="modal-header" style={{ textAlign: 'left', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+              <FileText size={24} color="#6366f1" />
+              <h2 className="modal-title" style={{ textAlign: 'left', margin: 0, fontSize: '1.25rem' }}>
+                {format(selectedDate, 'EEEE, MMMM d, yyyy')}
+              </h2>
+            </div>
+            <p className="modal-subtitle" style={{ textAlign: 'left', margin: 0 }}>
+              Journal Entry
+            </p>
+          </div>
+
+          <div className="modal-body" style={{ padding: '1.5rem 1.75rem', overflow: 'hidden', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+            {hasContent ? (
+              <div
+                className="journal-view-content"
+                dangerouslySetInnerHTML={{ __html: journalContent }}
+                style={{
+                  flex: 1,
+                  overflowY: 'auto',
+                  padding: '1.25rem',
+                  background: 'var(--bg-secondary)',
+                  borderRadius: '0.75rem',
+                  border: '1px solid var(--border-color)',
+                  lineHeight: '1.8',
+                  fontSize: '0.9375rem',
+                  marginBottom: '1rem'
+                }}
+              />
+            ) : (
+              <div style={{
+                textAlign: 'center',
+                padding: '3rem 1.5rem',
+                background: 'rgba(148, 163, 184, 0.05)',
+                borderRadius: '0.75rem',
+                border: '1px dashed var(--border-color)',
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '1rem'
+              }}>
+                <FileText size={48} style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }} />
+                <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  No Journal Entry
+                </h3>
+                <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                  This date doesn't have a journal entry yet.
+                </p>
+              </div>
+            )}
+
+            <div style={{ flexShrink: 0, paddingTop: '0.5rem' }}>
+              <button
+                onClick={handleEditJournalFromReader}
+                style={{
+                  width: '100%',
+                  background: 'var(--accent-blue)',
+                  border: 'none',
+                  color: 'white',
+                  padding: '0.625rem 1.25rem',
+                  borderRadius: '0.5rem',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 2px 8px rgba(59, 130, 246, 0.2)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#2563eb';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'var(--accent-blue)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.2)';
+                }}
+              >
+                <EditIcon size={16} />
+                {hasContent ? 'Edit' : 'Write'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderConfirmModal = () => {
+    if (!confirmModal.open) return null;
+
+    return (
+      <div className="modal-overlay" style={{ zIndex: 10001 }}>
+        <div className="modal-content" style={{ maxWidth: '400px', padding: '2rem' }}>
+          <button className="close-modal" onClick={() => setConfirmModal({ open: false, message: '', title: 'Confirm', onConfirm: null })}>
+            <X size={20} />
+          </button>
+
+          <div className="modal-header" style={{ marginBottom: '1.5rem' }}>
+            <h2 className="modal-title" style={{ fontSize: '1.25rem' }}>{confirmModal.title}</h2>
+          </div>
+
+          <div style={{ marginBottom: '2rem', color: 'var(--text-primary)', lineHeight: '1.6' }}>
+            {confirmModal.message}
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button
+              className="modal-action-button"
+              onClick={() => setConfirmModal({ open: false, message: '', title: 'Confirm', onConfirm: null })}
+              style={{
+                flex: 1,
+                background: 'var(--bg-secondary)',
+                color: 'var(--text-primary)'
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              className="modal-action-button"
+              onClick={() => confirmModal.onConfirm && confirmModal.onConfirm()}
+              style={{
+                flex: 1,
+                background: '#ef4444',
+                borderColor: '#ef4444'
+              }}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderAlertModal = () => {
     if (!alertModal.open) return null;
 
@@ -1516,6 +1811,8 @@ function App() {
         <JournalEntries
           journalEntries={journalEntries}
           onViewEntry={handleViewJournalEntry}
+          onAddJournal={handleAddJournal}
+          onDeleteEntry={handleDeleteJournal}
           trades={trades}
         />
       ) : (
@@ -1557,7 +1854,7 @@ function App() {
                 style={{ marginBottom: 0 }}
                 onClick={() => setCurrentView('journalEntries')}
               >
-                <BookOpen size={16} />
+                <FileText size={16} />
                 Journal Entries
               </button>
             </div>
@@ -1578,6 +1875,8 @@ function App() {
         </>
       )}
       {renderModal()}
+      {renderReaderModal()}
+      {renderConfirmModal()}
       {renderAlertModal()}
     </div>
   );

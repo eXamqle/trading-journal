@@ -2,15 +2,18 @@ import React, { useState, useMemo } from 'react';
 import {
   Search,
   Calendar as CalendarIcon,
-  BookOpen,
   Target,
   ChevronLeft,
   ChevronRight,
-  X
+  X,
+  PlusCircle,
+  FileText,
+  Trash2,
+  Image as ImageIcon
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
-function JournalEntries({ journalEntries, onViewEntry, trades = [] }) {
+function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal, onDeleteEntry }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -142,16 +145,26 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [] }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', gap: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <div className="journal-entries-icon" style={{ width: '2.5rem', height: '2.5rem', fontSize: '1rem' }}>
-                <BookOpen size={20} strokeWidth={2} color="#94a3b8" />
+                <FileText size={20} strokeWidth={2} color="#94a3b8" />
               </div>
               <div>
-                <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Journal Entries</h2>
+                <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Journal</h2>
                 <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
                   {entriesArray.length} {entriesArray.length === 1 ? 'entry' : 'entries'} total
                 </p>
               </div>
             </div>
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <div className="journal-entries-search">
+                <Search size={16} className="journal-search-icon" />
+                <input
+                  type="text"
+                  className="journal-search-input"
+                  placeholder="Search entries, tickers, tags..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
               <div style={{ position: 'relative' }}>
                 <input
                   type="date"
@@ -182,23 +195,30 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [] }) {
                   </button>
                 )}
               </div>
-              <div className="journal-entries-search">
-                <Search size={16} className="journal-search-icon" />
-                <input
-                  type="text"
-                  className="journal-search-input"
-                  placeholder="Search entries, tickers, tags..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
+              <button
+                onClick={onAddJournal}
+                className="form-input hover:scale-110 transition-transform"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  minWidth: '140px',
+                  fontWeight: 500
+                }}
+              >
+                <PlusCircle size={16} />
+                Add Journal
+              </button>
             </div>
           </div>
           <div className="journal-entries-main-card">
             {sortedEntries.length === 0 ? (
               <div className="journal-empty-state">
                 <div className="journal-empty-icon">
-                  <BookOpen size={40} />
+                  <FileText size={40} />
                 </div>
                 {entriesArray.length === 0 ? (
                   <>
@@ -218,6 +238,7 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [] }) {
                   {paginatedEntries.map((entry, index) => {
                     const hasTrades = entry.tradeCount > 0;
                     const isProfitable = entry.pnl > 0;
+                    const hasImages = entry.content.includes('<img');
 
                     // Get unique tickers from trades
                     const tickers = [...new Set(entry.trades.map(t => t.symbol).filter(Boolean))];
@@ -243,6 +264,11 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [] }) {
                             <CalendarIcon size={16} />
                             <span className="journal-entry-day">{format(parseISO(entry.date), 'EEEE')}</span>
                             <span className="journal-entry-date-full">{format(parseISO(entry.date), 'MMM d, yyyy')}</span>
+                            {hasImages && (
+                              <span style={{ display: 'flex', alignItems: 'center', color: 'var(--text-secondary)', opacity: 0.7 }}>
+                                <ImageIcon size={14} />
+                              </span>
+                            )}
                           </div>
                           <div className="journal-entry-badges">
                             <span className="journal-entry-word-badge">{entry.wordCount}w</span>
@@ -273,46 +299,123 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [] }) {
                         {uniqueTags.length > 0 && (
                           <div style={{
                             display: 'flex',
-                            flexWrap: 'wrap',
-                            gap: '0.375rem',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '0.5rem',
                             marginTop: '0.5rem',
                             paddingTop: '0.5rem',
                             borderTop: '1px solid var(--border-color)'
                           }}>
-                            {uniqueTags.slice(0, 5).map((tag, idx) => (
-                              <span
-                                key={idx}
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '0.25rem',
+                            <div style={{
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              gap: '0.375rem',
+                              flex: 1
+                            }}>
+                              {uniqueTags.slice(0, 5).map((tag, idx) => (
+                                <span
+                                  key={idx}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    padding: '0.25rem 0.5rem',
+                                    borderRadius: '999px',
+                                    fontSize: '0.75rem',
+                                    background: 'var(--bg-secondary)',
+                                    border: '1px solid var(--border-color)',
+                                    color: 'var(--text-secondary)'
+                                  }}
+                                >
+                                  <div style={{
+                                    width: '8px',
+                                    height: '8px',
+                                    borderRadius: '2px',
+                                    background: tag.color,
+                                    flexShrink: 0
+                                  }} />
+                                  {tag.name}
+                                </span>
+                              ))}
+                              {uniqueTags.length > 5 && (
+                                <span style={{
                                   padding: '0.25rem 0.5rem',
-                                  borderRadius: '999px',
                                   fontSize: '0.75rem',
-                                  background: 'var(--bg-secondary)',
-                                  border: '1px solid var(--border-color)',
                                   color: 'var(--text-secondary)'
-                                }}
-                              >
-                                <div style={{
-                                  width: '8px',
-                                  height: '8px',
-                                  borderRadius: '2px',
-                                  background: tag.color,
-                                  flexShrink: 0
-                                }} />
-                                {tag.name}
-                              </span>
-                            ))}
-                            {uniqueTags.length > 5 && (
-                              <span style={{
-                                padding: '0.25rem 0.5rem',
-                                fontSize: '0.75rem',
-                                color: 'var(--text-secondary)'
-                              }}>
-                                +{uniqueTags.length - 5} more
-                              </span>
-                            )}
+                                }}>
+                                  +{uniqueTags.length - 5} more
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteEntry(entry.date);
+                              }}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--text-secondary)',
+                                cursor: 'pointer',
+                                padding: '0.25rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                opacity: 0.6,
+                                transition: 'opacity 0.2s, color 0.2s'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.opacity = '1';
+                                e.currentTarget.style.color = '#ef4444';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.opacity = '0.6';
+                                e.currentTarget.style.color = 'var(--text-secondary)';
+                              }}
+                              title="Delete journal entry"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        )}
+
+                        {uniqueTags.length === 0 && (
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                            marginTop: '0.5rem',
+                            paddingTop: '0.5rem',
+                            borderTop: '1px solid var(--border-color)'
+                          }}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteEntry(entry.date);
+                              }}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--text-secondary)',
+                                cursor: 'pointer',
+                                padding: '0.25rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                opacity: 0.6,
+                                transition: 'opacity 0.2s, color 0.2s'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.opacity = '1';
+                                e.currentTarget.style.color = '#ef4444';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.opacity = '0.6';
+                                e.currentTarget.style.color = 'var(--text-secondary)';
+                              }}
+                              title="Delete journal entry"
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </div>
                         )}
                       </div>
