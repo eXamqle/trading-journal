@@ -975,19 +975,55 @@ function App() {
 
     const wins = allTrades.filter(t => t.type === 'profit').length;
     const losses = allTrades.filter(t => t.type === 'loss').length;
+    const breakEven = allTrades.filter(t => t.type === 'break-even').length;
     const winRate = totalTrades > 0 ? (wins / totalTrades * 100).toFixed(1) : '0.0';
 
-    // Calculate total P&L
-    const totalPnL = allTrades.reduce((sum, trade) => {
+    // Calculate total P&L and other stats
+    let totalPnL = 0;
+    let totalWinAmount = 0;
+    let totalLossAmount = 0;
+    let totalFees = 0;
+
+    allTrades.forEach(trade => {
       const amount = parseFloat(trade.amount) || 0;
       const fees = parseFloat(trade.fees) || 0;
+      totalFees += fees;
+
       if (trade.type === 'profit') {
-        return sum + amount - fees;
+        totalPnL += amount - fees;
+        totalWinAmount += amount;
       } else if (trade.type === 'loss') {
-        return sum - amount - fees;
+        totalPnL -= amount + fees;
+        totalLossAmount += amount;
+      } else {
+        totalPnL -= fees;
       }
-      return sum - fees;
-    }, 0);
+    });
+
+    const avgWin = wins > 0 ? (totalWinAmount / wins) : 0;
+    const avgLoss = losses > 0 ? (totalLossAmount / losses) : 0;
+    const profitFactor = totalLossAmount > 0 ? (totalWinAmount / totalLossAmount) : (totalWinAmount > 0 ? Infinity : 0);
+
+    // Calculate best and worst days
+    const dailyPnL = {};
+    allTrades.forEach(trade => {
+      const dateKey = format(new Date(trade.date), 'yyyy-MM-dd');
+      const amount = parseFloat(trade.amount) || 0;
+      const fees = parseFloat(trade.fees) || 0;
+      let pnl = 0;
+      if (trade.type === 'profit') {
+        pnl = amount - fees;
+      } else if (trade.type === 'loss') {
+        pnl = -(amount + fees);
+      } else {
+        pnl = -fees;
+      }
+      dailyPnL[dateKey] = (dailyPnL[dateKey] || 0) + pnl;
+    });
+
+    const dailyValues = Object.values(dailyPnL);
+    const bestDay = dailyValues.length > 0 ? Math.max(...dailyValues) : 0;
+    const worstDay = dailyValues.length > 0 ? Math.min(...dailyValues) : 0;
 
     return (
       <aside className="sidebar-section">
@@ -1004,13 +1040,61 @@ function App() {
         <div className="info-card">
           <span className="info-label">Win Rate</span>
           <div className="info-value">{winRate}%</div>
-          <div className="info-subtext">{wins}W / {losses}L</div>
+          <div className="info-subtext">{wins}W / {losses}L / {breakEven}BE</div>
         </div>
 
         <div className="info-card">
           <span className="info-label">Total Trades</span>
           <div className="info-value">{totalTrades}</div>
-          <div className="info-subtext">All Time</div>
+          <div className="info-subtext">All Time Activity</div>
+        </div>
+
+        <div className="info-card">
+          <span className="info-label">Profit Factor</span>
+          <div className="info-value">
+            {profitFactor === 0 ? 'N/A' : profitFactor === Infinity ? '∞' : profitFactor.toFixed(2)}
+          </div>
+          <div className="info-subtext">Risk/Reward Ratio</div>
+        </div>
+
+        <div className="info-card">
+          <span className="info-label">Daily Performance</span>
+          <div className="perf-row">
+            <span className="perf-label">Best Day</span>
+            <span className={`perf-value ${bestDay >= 0 ? 'positive' : 'negative'}`}>
+              {bestDay >= 0 ? '+' : ''}${bestDay.toFixed(2)}
+            </span>
+          </div>
+          <div className="perf-row">
+            <span className="perf-label">Worst Day</span>
+            <span className={`perf-value ${worstDay >= 0 ? 'positive' : 'negative'}`}>
+              {worstDay >= 0 ? '+' : ''}${worstDay.toFixed(2)}
+            </span>
+          </div>
+        </div>
+
+        <div className="info-card">
+          <span className="info-label">Average Stats</span>
+          <div className="perf-row">
+            <span className="perf-label">Avg Win</span>
+            <span className="perf-value positive">
+              +${avgWin.toFixed(2)}
+            </span>
+          </div>
+          <div className="perf-row">
+            <span className="perf-label">Avg Loss</span>
+            <span className="perf-value negative">
+              -${avgLoss.toFixed(2)}
+            </span>
+          </div>
+        </div>
+
+        <div className="info-card">
+          <span className="info-label">Total Fees</span>
+          <div className="info-value negative">
+            ${totalFees.toFixed(2)}
+          </div>
+          <div className="info-subtext">Trading Costs</div>
         </div>
       </aside>
     );

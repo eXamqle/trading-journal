@@ -188,42 +188,6 @@ function Analyze({ trades }) {
 
   return (
     <main className="analyze-container">
-      {/* Controls */}
-      <div className="analyze-controls">
-        <div className="dropdown-container">
-          <button
-            type="button"
-            className="analyze-dropdown-trigger"
-            onClick={() => setPeriodOpen(!periodOpen)}
-          >
-            <span>{periodFilter}</span>
-            <ChevronDown size={16} />
-          </button>
-          {periodOpen && (
-            <div className="dropdown-menu">
-              {periods.map((period) => (
-                <button
-                  key={period}
-                  type="button"
-                  className="dropdown-item"
-                  onClick={() => {
-                    setPeriodFilter(period);
-                    setPeriodOpen(false);
-                  }}
-                >
-                  {period}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <button className="analyze-export-btn" onClick={handleExport}>
-          <Download size={16} />
-          Export Data
-        </button>
-      </div>
-
       {/* Empty State */}
       {filteredByPeriod.length === 0 && (
         <div className="analyze-empty-state">
@@ -231,24 +195,58 @@ function Analyze({ trades }) {
         </div>
       )}
 
-      {/* Tabs and Statistics Label */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
-        <h2 className="analyze-period-label" style={{ margin: 0 }}>{periodFilter}'s Statistics</h2>
+      {/* Statistics Label and Controls */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', gap: '1rem', flexWrap: 'wrap' }}>
+        <div className="analyze-tabs" style={{ marginBottom: 0 }}>
+          <button
+            className={`analyze-tab-trigger ${activeTab === 'performance' ? 'active' : ''}`}
+            onClick={() => setActiveTab('performance')}
+          >
+            Performance
+          </button>
+          <button
+            className={`analyze-tab-trigger ${activeTab === 'trades' ? 'active' : ''}`}
+            onClick={() => setActiveTab('trades')}
+          >
+            Trade List
+          </button>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <div className="analyze-tabs" style={{ marginBottom: 0 }}>
+          <h2 className="analyze-period-label" style={{ margin: 0, fontSize: '1.125rem', fontWeight: '600' }}>
+            {periodFilter} Statistics
+          </h2>
+          <div className="dropdown-container">
             <button
-              className={`analyze-tab-trigger ${activeTab === 'performance' ? 'active' : ''}`}
-              onClick={() => setActiveTab('performance')}
+              type="button"
+              className="analyze-dropdown-trigger"
+              onClick={() => setPeriodOpen(!periodOpen)}
             >
-              Performance
+              <span>{periodFilter}</span>
+              <ChevronDown size={16} />
             </button>
-            <button
-              className={`analyze-tab-trigger ${activeTab === 'trades' ? 'active' : ''}`}
-              onClick={() => setActiveTab('trades')}
-            >
-              Trade List
-            </button>
+            {periodOpen && (
+              <div className="dropdown-menu">
+                {periods.map((period) => (
+                  <button
+                    key={period}
+                    type="button"
+                    className="dropdown-item"
+                    onClick={() => {
+                      setPeriodFilter(period);
+                      setPeriodOpen(false);
+                    }}
+                  >
+                    {period}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+
+          <button className="analyze-export-btn" onClick={handleExport}>
+            <Download size={16} />
+            Export Data
+          </button>
         </div>
       </div>
 
@@ -261,7 +259,7 @@ function Analyze({ trades }) {
               <div className="analyze-kpi-header">
                 <span className="analyze-kpi-label">Net Profit</span>
                 <div className="analyze-kpi-icon analyze-kpi-icon-green">
-                  <DollarSign size={20} />
+                  <DollarSign size={18} />
                 </div>
               </div>
               <div className={`analyze-kpi-value ${kpis.netProfit >= 0 ? 'analyze-kpi-value-profit' : 'analyze-kpi-value-loss'}`}>
@@ -276,7 +274,7 @@ function Analyze({ trades }) {
               <div className="analyze-kpi-header">
                 <span className="analyze-kpi-label">Win Rate</span>
                 <div className="analyze-kpi-icon analyze-kpi-icon-blue">
-                  <Activity size={20} />
+                  <Activity size={18} />
                 </div>
               </div>
               <div className="analyze-kpi-value analyze-kpi-value-blue">
@@ -291,7 +289,7 @@ function Analyze({ trades }) {
               <div className="analyze-kpi-header">
                 <span className="analyze-kpi-label">Profit Factor</span>
                 <div className="analyze-kpi-icon analyze-kpi-icon-purple">
-                  <TrendingUp size={20} />
+                  <TrendingUp size={18} />
                 </div>
               </div>
               <div className="analyze-kpi-value analyze-kpi-value-purple">
@@ -306,7 +304,7 @@ function Analyze({ trades }) {
               <div className="analyze-kpi-header">
                 <span className="analyze-kpi-label">Total Trades</span>
                 <div className="analyze-kpi-icon analyze-kpi-icon-default">
-                  <ChartColumn size={20} />
+                  <ChartColumn size={18} />
                 </div>
               </div>
               <div className="analyze-kpi-value analyze-kpi-value-default">
@@ -317,16 +315,16 @@ function Analyze({ trades }) {
           </div>
 
           <div className="analyze-card">
-            <div className="analyze-card-header">
-              <h3>Equity Curve</h3>
+            <div className="analyze-card-header" style={{ padding: '0.75rem 1rem' }}>
+              <h3 style={{ fontSize: '0.875rem', fontWeight: '600', margin: 0 }}>Equity Curve</h3>
             </div>
-            <div className="analyze-card-body" style={{ padding: '1.5rem' }}>
+            <div className="analyze-card-body" style={{ padding: '0.5rem 1rem 1rem' }}>
               {(() => {
                 const sortedTrades = [...filteredByPeriod].sort((a, b) => new Date(a.date) - new Date(b.date));
 
                 if (sortedTrades.length === 0) {
                   return (
-                    <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '3rem 0' }}>
+                    <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem 0' }}>
                       No trades available for the selected period
                     </p>
                   );
@@ -354,14 +352,14 @@ function Analyze({ trades }) {
                 const maxY = Math.max(...dataPoints.map(p => p.y));
                 const minY = Math.min(...dataPoints.map(p => p.y));
                 const range = maxY - minY || 100;
-                const padding = range * 0.15;
+                const padding = range * 0.1;
 
-                const width = 800;
-                const height = 400;
+                const width = 1000;
+                const height = 320;
                 const marginLeft = 60;
                 const marginRight = 20;
-                const marginTop = 20;
-                const marginBottom = 40;
+                const marginTop = 15;
+                const marginBottom = 30;
                 const chartWidth = width - marginLeft - marginRight;
                 const chartHeight = height - marginTop - marginBottom;
 
@@ -384,8 +382,8 @@ function Analyze({ trades }) {
                     >
                       <defs>
                         <linearGradient id="areaGradient" x1="0" x2="0" y1="0" y2="1">
-                          <stop offset="0%" stopColor="var(--accent-purple)" stopOpacity="0.2" />
-                          <stop offset="100%" stopColor="var(--accent-purple)" stopOpacity="0.02" />
+                          <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
+                          <stop offset="100%" stopColor="#10b981" stopOpacity="0.05" />
                         </linearGradient>
                       </defs>
 
@@ -425,12 +423,12 @@ function Analyze({ trades }) {
                       <path
                         d={pathData}
                         fill="none"
-                        stroke="var(--accent-purple)"
-                        strokeWidth="4"
+                        stroke="#10b981"
+                        strokeWidth="3"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         style={{
-                          filter: 'drop-shadow(0 2px 4px rgba(139, 92, 246, 0.3))'
+                          filter: 'drop-shadow(0 2px 6px rgba(16, 185, 129, 0.5))'
                         }}
                       />
 
@@ -440,14 +438,14 @@ function Analyze({ trades }) {
                           key={i}
                           cx={xScale(point.x)}
                           cy={yScale(point.y)}
-                          r={hoveredPoint === i ? 8 : 5}
+                          r={hoveredPoint === i ? 7 : 4}
                           fill="var(--bg-color)"
-                          stroke="var(--accent-purple)"
-                          strokeWidth="3"
+                          stroke="#10b981"
+                          strokeWidth="2.5"
                           style={{
                             cursor: 'pointer',
                             transition: 'all 0.2s ease',
-                            filter: hoveredPoint === i ? 'drop-shadow(0 0 8px var(--accent-purple))' : 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))'
+                            filter: hoveredPoint === i ? 'drop-shadow(0 0 10px #10b981)' : 'drop-shadow(0 2px 4px rgba(16, 185, 129, 0.3))'
                           }}
                           onMouseEnter={() => setHoveredPoint(i)}
                           onMouseLeave={() => setHoveredPoint(null)}
@@ -463,6 +461,37 @@ function Analyze({ trades }) {
                         stroke="var(--border-color)"
                         strokeWidth="1"
                       />
+
+                      {/* Month labels */}
+                      {(() => {
+                        const monthLabels = [];
+                        const seenMonths = new Set();
+                        dataPoints.forEach((point, i) => {
+                          if (point.date) {
+                            const date = new Date(point.date);
+                            const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+                            if (!seenMonths.has(monthKey)) {
+                              seenMonths.add(monthKey);
+                              monthLabels.push({
+                                x: xScale(point.x),
+                                label: format(date, 'MMM yyyy')
+                              });
+                            }
+                          }
+                        });
+                        return monthLabels.map((label, i) => (
+                          <text
+                            key={i}
+                            x={label.x}
+                            y={height - marginBottom + 20}
+                            textAnchor="middle"
+                            fill="var(--text-secondary)"
+                            fontSize="11"
+                          >
+                            {label.label}
+                          </text>
+                        ));
+                      })()}
 
                       {/* Y-axis */}
                       <line
