@@ -556,8 +556,8 @@ function Analyze({ trades }) {
                     >
                       <defs>
                         <linearGradient id="areaGradient" x1="0" x2="0" y1="0" y2="1">
-                          <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
-                          <stop offset="100%" stopColor="#10b981" stopOpacity="0.05" />
+                          <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />
+                          <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.05" />
                         </linearGradient>
                       </defs>
 
@@ -597,12 +597,12 @@ function Analyze({ trades }) {
                       <path
                         d={pathData}
                         fill="none"
-                        stroke="#10b981"
+                        stroke="#3b82f6"
                         strokeWidth="3"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         style={{
-                          filter: 'drop-shadow(0 2px 6px rgba(16, 185, 129, 0.5))'
+                          filter: 'drop-shadow(0 2px 6px rgba(59, 130, 246, 0.5))'
                         }}
                       />
 
@@ -614,12 +614,12 @@ function Analyze({ trades }) {
                           cy={yScale(point.y)}
                           r={hoveredPoint === i ? 7 : 4}
                           fill="var(--bg-color)"
-                          stroke="#10b981"
+                          stroke="#3b82f6"
                           strokeWidth="2.5"
                           style={{
                             cursor: 'pointer',
                             transition: 'all 0.2s ease',
-                            filter: hoveredPoint === i ? 'drop-shadow(0 0 10px #10b981)' : 'drop-shadow(0 2px 4px rgba(16, 185, 129, 0.3))'
+                            filter: hoveredPoint === i ? 'drop-shadow(0 0 10px #3b82f6)' : 'drop-shadow(0 2px 4px rgba(59, 130, 246, 0.3))'
                           }}
                           onMouseEnter={() => setHoveredPoint(i)}
                           onMouseLeave={() => setHoveredPoint(null)}

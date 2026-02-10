@@ -623,7 +623,7 @@ function App() {
     });
 
     return (
-      <div className="month-view-container animate-fade-in">
+      <div key="month-view" className="month-view-container animate-fade-in">
         <div className="month-view-header-wrapper">
           <div className="month-view-header" style={{ margin: '0 auto' }}>
             <button className="premium-month-btn hover:scale-110 transition-transform" onClick={prevPeriod}>
@@ -695,7 +695,7 @@ function App() {
     }
 
     return (
-      <div className="week-view-container animate-fade-in">
+      <div key="week-view" className="week-view-container animate-fade-in">
         <div className="week-view-header-wrapper">
           <div className="week-view-header" style={{ margin: '0 auto' }}>
             <button className="premium-month-btn hover:scale-110 transition-transform" onClick={prevPeriod}>
@@ -827,7 +827,7 @@ function App() {
     };
 
     return (
-      <div className="year-view-container animate-fade-in">
+      <div key="year-view" className="year-view-container animate-fade-in">
         <div className="year-view-header-wrapper">
           <div className="year-view-header">
             <button className="premium-month-btn hover:scale-110 transition-transform" onClick={prevPeriod}>
@@ -1550,20 +1550,15 @@ function App() {
                   <CalendarIcon size={16} />
                   {isSevenDayWeek ? '7-Day' : '5-Day'}
                 </button>
-                <button
-                  className="tab-btn tab-btn-outlined"
-                  style={{
-                    marginBottom: 0,
-                    background: 'var(--accent-purple)',
-                    borderColor: 'var(--accent-purple)',
-                    color: 'white'
-                  }}
-                  onClick={() => setCurrentView('journalEntries')}
-                >
-                  <BookOpen size={16} />
-                  Journal Entries
-                </button>
               </div>
+              <button
+                className="tab-btn tab-btn-outlined tab-btn-journal"
+                style={{ marginBottom: 0 }}
+                onClick={() => setCurrentView('journalEntries')}
+              >
+                <BookOpen size={16} />
+                Journal Entries
+              </button>
             </div>
           </div>
 
