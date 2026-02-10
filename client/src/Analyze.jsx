@@ -3,15 +3,18 @@ import {
   DollarSign,
   Activity,
   TrendingUp,
+  TrendingDown,
   ChartColumn,
   Download,
   ChevronDown,
-  X
+  ChevronUp,
+  X,
+  Calendar as CalendarIcon
 } from 'lucide-react';
 import { format } from 'date-fns';
 
 function Analyze({ trades }) {
-  const [periodFilter, setPeriodFilter] = useState('This Month');
+  const [periodFilter, setPeriodFilter] = useState('All Time');
   const [periodOpen, setPeriodOpen] = useState(false);
   const [symbolFilter, setSymbolFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('All Types');
@@ -21,8 +24,12 @@ function Analyze({ trades }) {
   const [activeTab, setActiveTab] = useState('performance');
   const [alertModal, setAlertModal] = useState({ open: false, message: '', title: 'Notice' });
   const [hoveredPoint, setHoveredPoint] = useState(null);
+  const [customDateModal, setCustomDateModal] = useState(false);
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
-  const periods = ['This Week', 'This Month', 'Last 30 Days', 'This Year', 'All Time'];
+  const periods = ['This Week', 'This Month', 'Last 30 Days', 'This Year', 'All Time', 'Custom Range'];
   const types = ['All Types', 'Profit', 'Loss', 'Break Even'];
   const categories = ['All Categories', 'Stocks', 'Options', 'Indices'];
 
@@ -52,16 +59,23 @@ function Analyze({ trades }) {
         case 'This Year': {
           return tradeDate.getFullYear() === now.getFullYear();
         }
+        case 'Custom Range': {
+          if (!customStartDate || !customEndDate) return true;
+          const startDate = new Date(customStartDate);
+          const endDate = new Date(customEndDate);
+          endDate.setHours(23, 59, 59, 999);
+          return tradeDate >= startDate && tradeDate <= endDate;
+        }
         case 'All Time':
         default:
           return true;
       }
     });
-  }, [trades, periodFilter]);
+  }, [trades, periodFilter, customStartDate, customEndDate]);
 
   // Filter trades based on symbol, type, and category
   const filteredTrades = useMemo(() => {
-    return filteredByPeriod.filter(trade => {
+    let filtered = filteredByPeriod.filter(trade => {
       const matchesSymbol = !symbolFilter ||
         trade.symbol.toLowerCase().includes(symbolFilter.toLowerCase());
 
@@ -73,7 +87,59 @@ function Analyze({ trades }) {
 
       return matchesSymbol && matchesType && matchesCategory;
     });
-  }, [filteredByPeriod, symbolFilter, typeFilter, categoryFilter]);
+
+    // Apply sorting
+    if (sortConfig.key) {
+      filtered = [...filtered].sort((a, b) => {
+        let aValue, bValue;
+
+        switch(sortConfig.key) {
+          case 'date':
+            aValue = new Date(a.date).getTime();
+            bValue = new Date(b.date).getTime();
+            break;
+          case 'symbol':
+            aValue = a.symbol.toLowerCase();
+            bValue = b.symbol.toLowerCase();
+            break;
+          case 'type':
+            aValue = a.type;
+            bValue = b.type;
+            break;
+          case 'category':
+            aValue = a.category;
+            bValue = b.category;
+            break;
+          case 'amount':
+            aValue = parseFloat(a.amount) || 0;
+            bValue = parseFloat(b.amount) || 0;
+            break;
+          case 'fees':
+            aValue = parseFloat(a.fees) || 0;
+            bValue = parseFloat(b.fees) || 0;
+            break;
+          case 'netPL':
+            const calcNetPL = (trade) => {
+              const amount = parseFloat(trade.amount) || 0;
+              const fees = parseFloat(trade.fees) || 0;
+              return trade.type === 'profit' ? amount - fees :
+                     trade.type === 'loss' ? -(amount + fees) : -fees;
+            };
+            aValue = calcNetPL(a);
+            bValue = calcNetPL(b);
+            break;
+          default:
+            return 0;
+        }
+
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [filteredByPeriod, symbolFilter, typeFilter, categoryFilter, sortConfig]);
 
   // Calculate KPIs
   const kpis = useMemo(() => {
@@ -85,26 +151,47 @@ function Analyze({ trades }) {
     let winCount = 0;
     let lossCount = 0;
     let breakEvenCount = 0;
+    let totalWinAmount = 0;
+    let totalLossAmount = 0;
+
+    // Calculate daily P&L for best/worst day
+    const dailyPnL = {};
 
     filteredByPeriod.forEach(trade => {
       const amount = parseFloat(trade.amount) || 0;
       const fees = parseFloat(trade.fees) || 0;
       totalFees += fees;
 
+      const dateKey = format(new Date(trade.date), 'yyyy-MM-dd');
+      let pnl = 0;
+
       if (trade.type === 'profit') {
         totalProfit += amount;
+        totalWinAmount += amount;
         winCount++;
+        pnl = amount - fees;
       } else if (trade.type === 'loss') {
         totalLoss += amount;
+        totalLossAmount += amount;
         lossCount++;
+        pnl = -(amount + fees);
       } else if (trade.type === 'break-even') {
         breakEvenCount++;
+        pnl = -fees;
       }
+
+      dailyPnL[dateKey] = (dailyPnL[dateKey] || 0) + pnl;
     });
 
     const netProfit = totalProfit - totalLoss - totalFees;
     const winRate = totalTrades > 0 ? (winCount / totalTrades) * 100 : 0;
     const profitFactor = totalLoss > 0 ? totalProfit / totalLoss : totalProfit > 0 ? Infinity : 0;
+    const avgWin = winCount > 0 ? (totalWinAmount / winCount) : 0;
+    const avgLoss = lossCount > 0 ? (totalLossAmount / lossCount) : 0;
+
+    const dailyValues = Object.values(dailyPnL);
+    const bestDay = dailyValues.length > 0 ? Math.max(...dailyValues) : 0;
+    const worstDay = dailyValues.length > 0 ? Math.min(...dailyValues) : 0;
 
     return {
       netProfit,
@@ -114,9 +201,40 @@ function Analyze({ trades }) {
       lossCount,
       profitFactor,
       totalTrades,
-      breakEvenCount
+      breakEvenCount,
+      avgWin,
+      avgLoss,
+      bestDay,
+      worstDay
     };
   }, [filteredByPeriod]);
+
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getSortIcon = (key) => {
+    if (sortConfig.key !== key) return null;
+    return sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />;
+  };
+
+  const handleCustomDateApply = () => {
+    if (!customStartDate || !customEndDate) {
+      setAlertModal({ open: true, message: 'Please select both start and end dates.', title: 'Invalid Date Range' });
+      return;
+    }
+    if (new Date(customStartDate) > new Date(customEndDate)) {
+      setAlertModal({ open: true, message: 'Start date must be before end date.', title: 'Invalid Date Range' });
+      return;
+    }
+    setCustomDateModal(false);
+    setPeriodFilter('Custom Range');
+  };
 
   const handleExport = () => {
     if (filteredTrades.length === 0) {
@@ -187,68 +305,72 @@ function Analyze({ trades }) {
   };
 
   return (
-    <main className="analyze-container">
-      {/* Empty State */}
-      {filteredByPeriod.length === 0 && (
-        <div className="analyze-empty-state">
-          <p>No trades found for the selected date range. Try selecting a different period or add trades on the calendar.</p>
-        </div>
-      )}
+    <div className="analyze-container">
+      <main className="dashboard-grid full-width">
+        <div className="main-content">
+          {/* Empty State */}
+          {filteredByPeriod.length === 0 && (
+            <div className="analyze-empty-state">
+              <p>No trades found for the selected date range. Try selecting a different period or add trades on the calendar.</p>
+            </div>
+          )}
 
-      {/* Statistics Label and Controls */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', gap: '1rem', flexWrap: 'wrap' }}>
-        <div className="analyze-tabs" style={{ marginBottom: 0 }}>
-          <button
-            className={`analyze-tab-trigger ${activeTab === 'performance' ? 'active' : ''}`}
-            onClick={() => setActiveTab('performance')}
-          >
-            Performance
-          </button>
-          <button
-            className={`analyze-tab-trigger ${activeTab === 'trades' ? 'active' : ''}`}
-            onClick={() => setActiveTab('trades')}
-          >
-            Trade List
-          </button>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <h2 className="analyze-period-label" style={{ margin: 0, fontSize: '1.125rem', fontWeight: '600' }}>
-            {periodFilter} Statistics
-          </h2>
-          <div className="dropdown-container">
-            <button
-              type="button"
-              className="analyze-dropdown-trigger"
-              onClick={() => setPeriodOpen(!periodOpen)}
-            >
-              <span>{periodFilter}</span>
-              <ChevronDown size={16} />
-            </button>
-            {periodOpen && (
-              <div className="dropdown-menu">
-                {periods.map((period) => (
-                  <button
-                    key={period}
-                    type="button"
-                    className="dropdown-item"
-                    onClick={() => {
-                      setPeriodFilter(period);
-                      setPeriodOpen(false);
-                    }}
-                  >
-                    {period}
-                  </button>
-                ))}
+          {/* Controls */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', gap: '1rem', flexWrap: 'wrap' }}>
+            <div className="analyze-tabs" style={{ marginBottom: 0 }}>
+              <button
+                className={`analyze-tab-trigger ${activeTab === 'performance' ? 'active' : ''}`}
+                onClick={() => setActiveTab('performance')}
+              >
+                Performance
+              </button>
+              <button
+                className={`analyze-tab-trigger ${activeTab === 'trades' ? 'active' : ''}`}
+                onClick={() => setActiveTab('trades')}
+              >
+                Trade List
+              </button>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div className="dropdown-container">
+                <button
+                  type="button"
+                  className="analyze-dropdown-trigger"
+                  onClick={() => setPeriodOpen(!periodOpen)}
+                >
+                  <span>{periodFilter}</span>
+                  <ChevronDown size={16} />
+                </button>
+                {periodOpen && (
+                  <div className="dropdown-menu">
+                    {periods.map((period) => (
+                      <button
+                        key={period}
+                        type="button"
+                        className="dropdown-item"
+                        onClick={() => {
+                          if (period === 'Custom Range') {
+                            setCustomDateModal(true);
+                            setPeriodOpen(false);
+                          } else {
+                            setPeriodFilter(period);
+                            setPeriodOpen(false);
+                          }
+                        }}
+                      >
+                        {period}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          <button className="analyze-export-btn" onClick={handleExport}>
-            <Download size={16} />
-            Export Data
-          </button>
-        </div>
-      </div>
+              <button className="analyze-export-btn" onClick={handleExport}>
+                <Download size={16} />
+                Export Data
+              </button>
+            </div>
+          </div>
 
       {/* Tab Content */}
       {activeTab === 'performance' ? (
@@ -257,7 +379,7 @@ function Analyze({ trades }) {
           <div className="analyze-kpi-grid">
             <div className="analyze-kpi-card">
               <div className="analyze-kpi-header">
-                <span className="analyze-kpi-label">Net Profit</span>
+                <span className="analyze-kpi-label">Net P&L</span>
                 <div className="analyze-kpi-icon analyze-kpi-icon-green">
                   <DollarSign size={18} />
                 </div>
@@ -281,7 +403,7 @@ function Analyze({ trades }) {
                 {kpis.winRate.toFixed(1)}%
               </div>
               <p className="analyze-kpi-sublabel">
-                {kpis.winCount} Wins / {kpis.lossCount} Losses
+                {kpis.winCount}W / {kpis.lossCount}L / {kpis.breakEvenCount}BE
               </p>
             </div>
 
@@ -297,7 +419,7 @@ function Analyze({ trades }) {
                  kpis.profitFactor === Infinity ? '∞' :
                  kpis.profitFactor.toFixed(2)}
               </div>
-              <p className="analyze-kpi-sublabel">Based on gross P&L</p>
+              <p className="analyze-kpi-sublabel">Risk/Reward Ratio</p>
             </div>
 
             <div className="analyze-kpi-card">
@@ -310,7 +432,59 @@ function Analyze({ trades }) {
               <div className="analyze-kpi-value analyze-kpi-value-default">
                 {kpis.totalTrades}
               </div>
-              <p className="analyze-kpi-sublabel">{kpis.breakEvenCount} Breakeven</p>
+              <p className="analyze-kpi-sublabel">Total executed trades</p>
+            </div>
+
+            <div className="analyze-kpi-card">
+              <div className="analyze-kpi-header">
+                <span className="analyze-kpi-label">Best Day</span>
+                <div className="analyze-kpi-icon analyze-kpi-icon-green">
+                  <TrendingUp size={18} />
+                </div>
+              </div>
+              <div className={`analyze-kpi-value ${kpis.bestDay >= 0 ? 'analyze-kpi-value-profit' : 'analyze-kpi-value-loss'}`}>
+                {kpis.bestDay >= 0 ? '+' : ''}${kpis.bestDay.toFixed(2)}
+              </div>
+              <p className="analyze-kpi-sublabel">Highest daily P&L</p>
+            </div>
+
+            <div className="analyze-kpi-card">
+              <div className="analyze-kpi-header">
+                <span className="analyze-kpi-label">Worst Day</span>
+                <div className="analyze-kpi-icon analyze-kpi-icon-default">
+                  <TrendingDown size={18} />
+                </div>
+              </div>
+              <div className={`analyze-kpi-value ${kpis.worstDay >= 0 ? 'analyze-kpi-value-profit' : 'analyze-kpi-value-loss'}`}>
+                {kpis.worstDay >= 0 ? '+' : ''}${kpis.worstDay.toFixed(2)}
+              </div>
+              <p className="analyze-kpi-sublabel">Lowest daily P&L</p>
+            </div>
+
+            <div className="analyze-kpi-card">
+              <div className="analyze-kpi-header">
+                <span className="analyze-kpi-label">Avg Win</span>
+                <div className="analyze-kpi-icon analyze-kpi-icon-green">
+                  <TrendingUp size={18} />
+                </div>
+              </div>
+              <div className="analyze-kpi-value analyze-kpi-value-profit">
+                +${kpis.avgWin.toFixed(2)}
+              </div>
+              <p className="analyze-kpi-sublabel">Average winning trade</p>
+            </div>
+
+            <div className="analyze-kpi-card">
+              <div className="analyze-kpi-header">
+                <span className="analyze-kpi-label">Avg Loss</span>
+                <div className="analyze-kpi-icon analyze-kpi-icon-default">
+                  <TrendingDown size={18} />
+                </div>
+              </div>
+              <div className="analyze-kpi-value analyze-kpi-value-loss">
+                -${kpis.avgLoss.toFixed(2)}
+              </div>
+              <p className="analyze-kpi-sublabel">Average losing trade</p>
             </div>
           </div>
 
@@ -614,13 +788,41 @@ function Analyze({ trades }) {
                   <thead>
                     <tr>
                       <th>#</th>
-                      <th>Date</th>
-                      <th>Symbol</th>
-                      <th>Type</th>
-                      <th>Category</th>
-                      <th className="text-right">Amount</th>
-                      <th className="text-right">Fees</th>
-                      <th className="text-right">Net P/L</th>
+                      <th onClick={() => handleSort('date')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          Date {getSortIcon('date')}
+                        </div>
+                      </th>
+                      <th onClick={() => handleSort('symbol')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          Symbol {getSortIcon('symbol')}
+                        </div>
+                      </th>
+                      <th onClick={() => handleSort('type')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          Type {getSortIcon('type')}
+                        </div>
+                      </th>
+                      <th onClick={() => handleSort('category')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          Category {getSortIcon('category')}
+                        </div>
+                      </th>
+                      <th className="text-right" onClick={() => handleSort('amount')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.25rem' }}>
+                          Amount {getSortIcon('amount')}
+                        </div>
+                      </th>
+                      <th className="text-right" onClick={() => handleSort('fees')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.25rem' }}>
+                          Fees {getSortIcon('fees')}
+                        </div>
+                      </th>
+                      <th className="text-right" onClick={() => handleSort('netPL')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.25rem' }}>
+                          Net P/L {getSortIcon('netPL')}
+                        </div>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -665,8 +867,73 @@ function Analyze({ trades }) {
           </div>
         </div>
       )}
+        </div>
+      </main>
+
       {renderAlertModal()}
-    </main>
+
+      {/* Custom Date Range Modal */}
+      {customDateModal && (
+        <div className="modal-overlay" style={{ zIndex: 10000 }}>
+          <div className="modal-content" style={{ maxWidth: '450px', padding: '2rem' }}>
+            <button className="close-modal" onClick={() => setCustomDateModal(false)}>
+              <X size={20} />
+            </button>
+
+            <div className="modal-header" style={{ marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', justifyContent: 'center' }}>
+                <CalendarIcon size={24} style={{ color: 'var(--accent-blue)' }} />
+                <h2 className="modal-title" style={{ fontSize: '1.25rem' }}>Custom Date Range</h2>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '2rem' }}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: 'var(--text-primary)' }}>
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="form-input"
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500', color: 'var(--text-primary)' }}>
+                  End Date
+                </label>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="form-input"
+                  style={{ width: '100%' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                className="modal-action-button"
+                onClick={handleCustomDateApply}
+                style={{ flex: 1 }}
+              >
+                Apply
+              </button>
+              <button
+                className="modal-action-button"
+                onClick={() => setCustomDateModal(false)}
+                style={{ flex: 1, background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
