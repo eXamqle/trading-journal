@@ -40,7 +40,6 @@ import {
   startOfWeek,
   endOfWeek,
   startOfYear,
-  endOfYear,
   isSameMonth,
   isSameDay,
   addDays,
@@ -278,8 +277,19 @@ function App() {
     setSelectedDate(today);
     setJournalContent(existingJournal);
     setModalTab('journal');
-    setJournalOnlyMode(true);
+    setJournalOnlyMode(false);
     setViewingJournal(false);
+    setTradesExpanded(false);
+
+    // Reset form data
+    setFormData({
+      symbol: '',
+      amount: '',
+      category: '',
+      fees: '',
+      tags: []
+    });
+    setTradeType('profit');
   };
 
   const handleCloseReader = () => {
