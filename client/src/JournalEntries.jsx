@@ -119,24 +119,35 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
 
   // Calculate statistics
   const stats = useMemo(() => {
-    const totalTrades = entriesArray.reduce((sum, entry) => sum + entry.tradeCount, 0);
-    const totalPnL = entriesArray.reduce((sum, entry) => sum + entry.pnl, 0);
-    const avgWordsPerEntry = entriesArray.length > 0
-      ? Math.round(entriesArray.reduce((sum, entry) => sum + entry.wordCount, 0) / entriesArray.length)
+    // All-time trading statistics (from all trades, not just journal entries)
+    const totalTrades = trades.length;
+    const totalPnL = calculatePnL(trades);
+
+    // Calculate win rate from all trades
+    const profitTrades = trades.filter(t => t.type === 'profit').length;
+    const lossTrades = trades.filter(t => t.type === 'loss').length;
+    const winRate = totalTrades > 0 ? ((profitTrades / totalTrades) * 100).toFixed(1) : '0.0';
+
+    // Journaling statistics (only from journal entries)
+    const totalEntries = entriesArray.length;
+    const avgWordsPerEntry = totalEntries > 0
+      ? Math.round(entriesArray.reduce((sum, entry) => sum + entry.wordCount, 0) / totalEntries)
       : 0;
 
+    // Days with journal entries that were profitable
     const profitableDays = entriesArray.filter(entry => entry.pnl > 0).length;
-    const winRate = entriesArray.length > 0 ? ((profitableDays / entriesArray.length) * 100).toFixed(1) : '0.0';
 
     return {
-      totalEntries: entriesArray.length,
+      totalEntries,
       totalTrades,
       totalPnL,
       avgWordsPerEntry,
       profitableDays,
-      winRate
+      winRate,
+      profitTrades,
+      lossTrades
     };
-  }, [entriesArray]);
+  }, [entriesArray, trades]);
 
   return (
     <>
@@ -466,25 +477,25 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
             <div className={`info-value ${stats.totalPnL >= 0 ? 'positive' : 'negative'}`}>
               {stats.totalPnL >= 0 ? '+' : ''}${stats.totalPnL.toFixed(2)}
             </div>
-            <div className="info-subtext">Across all entries</div>
+            <div className="info-subtext">All-time trading</div>
           </div>
 
           <div className="info-card">
             <span className="info-label">Win Rate</span>
             <div className="info-value">{stats.winRate}%</div>
-            <div className="info-subtext">{stats.profitableDays} profitable days</div>
+            <div className="info-subtext">{stats.profitTrades}W / {stats.lossTrades}L</div>
           </div>
 
           <div className="info-card">
             <span className="info-label">Total Trades</span>
             <div className="info-value">{stats.totalTrades}</div>
-            <div className="info-subtext">{stats.totalEntries} journal entries</div>
+            <div className="info-subtext">All-time</div>
           </div>
 
           <div className="info-card">
-            <span className="info-label">Avg Words</span>
-            <div className="info-value">{stats.avgWordsPerEntry}</div>
-            <div className="info-subtext">Per entry</div>
+            <span className="info-label">Journal Entries</span>
+            <div className="info-value">{stats.totalEntries}</div>
+            <div className="info-subtext">{stats.avgWordsPerEntry} avg words</div>
           </div>
         </aside>
       </main>

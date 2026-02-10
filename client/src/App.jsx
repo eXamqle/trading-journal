@@ -90,6 +90,7 @@ function App() {
     fees: '',
     tags: []
   });
+  const [tradesExpanded, setTradesExpanded] = useState(false);
 
   // Tags management
   const [availableTags, setAvailableTags] = useState([]);
@@ -231,12 +232,30 @@ function App() {
       setSelectedDate(date);
       setJournalContent(existingJournal);
 
+      // Reset journal-only mode when opening from calendar
+      setJournalOnlyMode(false);
+
+      // Reset trades expanded state
+      setTradesExpanded(false);
+
+      // Reset form data when opening from calendar (for new entries)
+      setFormData({
+        symbol: '',
+        amount: '',
+        category: '',
+        fees: '',
+        tags: []
+      });
+      setTradeType('profit');
+
       // If forceViewMode is true and there's a journal entry, open in view mode
       if (forceViewMode && existingJournal) {
         setViewingJournal(true);
         setModalTab('journal');
       } else {
+        // Open in edit mode on 'add' tab for new entries
         setViewingJournal(false);
+        setModalTab('add');
       }
     }
   };
@@ -332,6 +351,29 @@ function App() {
     });
   };
 
+  const handleDeleteTrade = (tradeId) => {
+    setConfirmModal({
+      open: true,
+      title: 'Delete Trade',
+      message: 'Are you sure you want to delete this trade? This action cannot be undone.',
+      onConfirm: async () => {
+        try {
+          await tradesAPI.delete(tradeId);
+          setTrades(prev => prev.filter(t => t.id !== tradeId));
+          setConfirmModal({ open: false, message: '', title: 'Confirm', onConfirm: null });
+        } catch (error) {
+          console.error('Failed to delete trade:', error);
+          setConfirmModal({ open: false, message: '', title: 'Confirm', onConfirm: null });
+          setAlertModal({
+            open: true,
+            message: 'Failed to delete trade. Please try again.',
+            title: 'Error'
+          });
+        }
+      }
+    });
+  };
+
   const closeModal = async () => {
     // Save journal content before closing
     if (selectedDate && journalContent) {
@@ -354,6 +396,7 @@ function App() {
     setJournalContent('');
     setViewingJournal(false);
     setJournalOnlyMode(false);
+    setTradesExpanded(false);
     setTagsOpen(false);
     setTagSearchQuery('');
     editorInitialized.current = false;
@@ -573,40 +616,72 @@ function App() {
     return tag ? tag.color : '#64748b';
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSaveEntry = async () => {
 
-    // Validate category is selected
-    if (!formData.category) {
+    // Validate category is selected if any trade fields are filled
+    const hasTradeData = formData.symbol || formData.amount || formData.category;
+    if (hasTradeData && !formData.category) {
       setAlertModal({ open: true, message: 'Please select a category before adding a trade.', title: 'Validation Error' });
       return;
     }
 
     try {
-      const tradeData = {
-        date: selectedDate.toISOString(),
-        type: tradeType,
-        symbol: formData.symbol,
-        amount: formData.amount,
-        category: formData.category,
-        fees: formData.fees || '0',
-        tags: formData.tags
-      };
+      let tradeCreated = false;
+      let journalSaved = false;
 
-      const { data } = await tradesAPI.create(tradeData);
-      // Convert date string to Date object
-      const tradeWithDate = {
-        ...data.trade,
-        date: new Date(data.trade.date)
-      };
-      setTrades(prevTrades => [...prevTrades, tradeWithDate]);
-      closeModal();
+      // Save trade if form is filled
+      if (formData.symbol && formData.amount && formData.category) {
+        const tradeData = {
+          date: selectedDate.toISOString(),
+          type: tradeType,
+          symbol: formData.symbol,
+          amount: formData.amount,
+          category: formData.category,
+          fees: formData.fees || '0',
+          tags: formData.tags
+        };
+
+        const { data } = await tradesAPI.create(tradeData);
+        const tradeWithDate = {
+          ...data.trade,
+          date: new Date(data.trade.date)
+        };
+        setTrades(prevTrades => [...prevTrades, tradeWithDate]);
+        tradeCreated = true;
+      }
+
+      // Save journal if there's content
+      if (journalContent && journalContent.trim() !== '') {
+        const dateKey = format(selectedDate, 'yyyy-MM-dd');
+        await journalAPI.saveEntry(dateKey, journalContent);
+        setJournalEntries(prev => ({
+          ...prev,
+          [dateKey]: journalContent
+        }));
+        journalSaved = true;
+      }
+
+      // Show appropriate success message
+      if (tradeCreated && journalSaved) {
+        // Both saved successfully
+        closeModal();
+      } else if (tradeCreated) {
+        closeModal();
+      } else if (journalSaved) {
+        closeModal();
+      } else {
+        setAlertModal({
+          open: true,
+          message: 'Please add either a trade or journal entry.',
+          title: 'No Data to Save'
+        });
+      }
     } catch (error) {
-      console.error('Failed to create trade:', error);
+      console.error('Failed to save entry:', error);
       setAlertModal({
         open: true,
         message: error.response?.data?.message || 'An unexpected error occurred. Please try again.',
-        title: 'Failed to Create Trade'
+        title: 'Failed to Save'
       });
     }
   };
@@ -1004,14 +1079,20 @@ function App() {
               <div className="modal-tabs">
                 <button
                   className={`modal-tab ${modalTab === 'add' ? 'active' : ''}`}
-                  onClick={() => setModalTab('add')}
+                  onClick={() => {
+                    setModalTab('add');
+                    setViewingJournal(false);
+                  }}
                 >
                   <PlusCircle size={14} />
                   New Entry
                 </button>
                 <button
                   className={`modal-tab ${modalTab === 'journal' ? 'active' : ''}`}
-                  onClick={() => setModalTab('journal')}
+                  onClick={() => {
+                    setModalTab('journal');
+                    setViewingJournal(false);
+                  }}
                 >
                   <FileText size={14} />
                   Journal
@@ -1028,7 +1109,150 @@ function App() {
                 />
               </div>
             ) : modalTab === 'add' ? (
-              <form onSubmit={handleSubmit}>
+              <>
+                {/* Show existing trades for this date */}
+                {selectedDate && getTradesForDate(selectedDate).length > 0 && (() => {
+                  const dayTrades = getTradesForDate(selectedDate);
+                  const totalPnL = calculatePnL(dayTrades);
+
+                  return (
+                    <div style={{
+                      marginBottom: '1.5rem',
+                      padding: '0.75rem 1rem',
+                      background: 'var(--bg-secondary)',
+                      borderRadius: '0.5rem',
+                      border: '1px solid var(--border-color)'
+                    }}>
+                      <button
+                        onClick={() => setTradesExpanded(!tradesExpanded)}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: 0
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <span style={{
+                            fontSize: '0.8125rem',
+                            fontWeight: 600,
+                            color: 'var(--text-primary)'
+                          }}>
+                            Existing Trades ({dayTrades.length})
+                          </span>
+                          <span style={{
+                            fontSize: '0.8125rem',
+                            fontWeight: 600,
+                            color: totalPnL >= 0 ? '#10b981' : '#ef4444'
+                          }}>
+                            {totalPnL >= 0 ? '+' : ''}${totalPnL.toFixed(2)}
+                          </span>
+                        </div>
+                        <ChevronRight
+                          size={16}
+                          style={{
+                            color: 'var(--text-secondary)',
+                            transform: tradesExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.2s'
+                          }}
+                        />
+                      </button>
+
+                      {tradesExpanded && (
+                        <div style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.375rem',
+                          marginTop: '0.75rem',
+                          paddingTop: '0.75rem',
+                          borderTop: '1px solid var(--border-color)'
+                        }}>
+                          {dayTrades.map((trade) => {
+                            const amount = parseFloat(trade.amount) || 0;
+                            const fees = parseFloat(trade.fees) || 0;
+                            const pnl = trade.type === 'profit' ? amount - fees : -(amount + fees);
+
+                            return (
+                              <div
+                                key={trade.id}
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  padding: '0.375rem 0.5rem',
+                                  background: 'var(--bg-primary)',
+                                  borderRadius: '0.25rem',
+                                  border: '1px solid var(--border-color)'
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                                  <span style={{
+                                    fontWeight: 600,
+                                    fontSize: '0.8125rem',
+                                    color: 'var(--text-primary)'
+                                  }}>
+                                    {trade.symbol}
+                                  </span>
+                                  <span style={{
+                                    fontSize: '0.75rem',
+                                    color: 'var(--text-secondary)',
+                                    textTransform: 'capitalize'
+                                  }}>
+                                    {trade.category}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: '0.8125rem',
+                                      fontWeight: 600,
+                                      color: pnl >= 0 ? '#10b981' : '#ef4444'
+                                    }}
+                                  >
+                                    {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteTrade(trade.id);
+                                  }}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: 'var(--text-secondary)',
+                                    cursor: 'pointer',
+                                    padding: '0.25rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    opacity: 0.6,
+                                    transition: 'opacity 0.2s, color 0.2s'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.opacity = '1';
+                                    e.currentTarget.style.color = '#ef4444';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.opacity = '0.6';
+                                    e.currentTarget.style.color = 'var(--text-secondary)';
+                                  }}
+                                  title="Delete trade"
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                <form onSubmit={(e) => { e.preventDefault(); handleSaveEntry(); }}>
                 <div className="form-field full-width">
                   <label className="form-label">Trade Result</label>
                   <div className="trade-type-grid">
@@ -1306,6 +1530,7 @@ function App() {
                 </div>
 
               </form>
+              </>
             ) : modalTab === 'journal' ? (
               <div className="journal-editor-container">
                 <div className="journal-toolbar">
@@ -1459,15 +1684,7 @@ function App() {
                     transition: 'all 0.2s',
                     boxShadow: '0 2px 8px rgba(59, 130, 246, 0.2)'
                   }}
-                  onClick={() => {
-                    if (modalTab === 'add') {
-                      // Trigger form submit for add tab
-                      document.querySelector('.modal-content form')?.requestSubmit();
-                    } else if (modalTab === 'journal') {
-                      // Save journal and close modal
-                      closeModal();
-                    }
-                  }}
+                  onClick={handleSaveEntry}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = '#2563eb';
                     e.currentTarget.style.transform = 'translateY(-1px)';
@@ -1480,7 +1697,7 @@ function App() {
                   }}
                 >
                   <PlusCircle size={16} />
-                  {modalTab === 'add' ? 'Add Entry' : 'Save Journal'}
+                  Save Entry
                 </button>
               </div>
             )}
