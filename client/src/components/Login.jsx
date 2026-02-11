@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Lock, Mail, User } from 'lucide-react';
+import { Lock, Mail, User, BookOpen } from 'lucide-react';
 
 function Login() {
   const [isLogin, setIsLogin] = useState(true);
@@ -73,10 +73,11 @@ function Login() {
             color: 'white',
             padding: '8px',
             borderRadius: '8px',
-            fontSize: '20px',
-            fontWeight: 'bold'
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
           }}>
-            $
+            <BookOpen size={24} strokeWidth={2.5} />
           </div>
           <h1 style={{
             fontSize: '28px',

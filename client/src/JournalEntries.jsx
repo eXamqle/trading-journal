@@ -12,8 +12,10 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import { useCurrency } from './contexts/CurrencyContext';
 
 function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal, onDeleteEntry }) {
+  const { symbol } = useCurrency();
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -288,7 +290,7 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                             <span className="journal-entry-word-badge">{entry.wordCount}w</span>
                             {hasTrades && (
                               <span className={`journal-entry-pnl-badge ${isProfitable ? 'profit' : 'loss'}`}>
-                                {entry.pnl >= 0 ? '+' : '-'}${Math.abs(entry.pnl).toFixed(0)}
+                                {entry.pnl >= 0 ? '+' : '-'}{symbol}{Math.abs(entry.pnl).toFixed(2)}
                               </span>
                             )}
                           </div>
@@ -478,7 +480,7 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
           <div className="info-card">
             <span className="info-label">Total P&L</span>
             <div className={`info-value ${stats.totalPnL >= 0 ? 'positive' : 'negative'}`}>
-              {stats.totalPnL >= 0 ? '+' : '-'}${Math.abs(stats.totalPnL).toFixed(2)}
+              {stats.totalPnL >= 0 ? '+' : '-'}{symbol}{Math.abs(stats.totalPnL).toFixed(2)}
             </div>
             <div className="info-subtext">All-time trading</div>
           </div>

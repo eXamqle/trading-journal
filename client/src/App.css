@@ -564,15 +564,19 @@
 
 @keyframes saveSuccess {
   0% {
-    transform: scale(1);
+    transform: translate(-50%, -50%) scale(0.9);
+    opacity: 0;
+  }
+  20% {
+    transform: translate(-50%, -50%) scale(1);
     opacity: 1;
   }
-  50% {
-    transform: scale(0.95);
-    opacity: 0.8;
+  80% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
   }
   100% {
-    transform: scale(1);
+    transform: translate(-50%, -50%) scale(0.9);
     opacity: 0;
   }
 }
@@ -1534,9 +1538,20 @@
   border: 1px solid var(--border-color);
   border-radius: 0.65rem;
   padding: 0.875rem;
-  transition: all 0.2s;
   backdrop-filter: blur(10px);
+  animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  opacity: 0;
+  will-change: transform, opacity;
 }
+
+.analyze-kpi-card:nth-child(1) { animation-delay: 0s !important; }
+.analyze-kpi-card:nth-child(2) { animation-delay: 0.08s !important; }
+.analyze-kpi-card:nth-child(3) { animation-delay: 0.16s !important; }
+.analyze-kpi-card:nth-child(4) { animation-delay: 0.24s !important; }
+.analyze-kpi-card:nth-child(5) { animation-delay: 0.32s !important; }
+.analyze-kpi-card:nth-child(6) { animation-delay: 0.4s !important; }
+.analyze-kpi-card:nth-child(7) { animation-delay: 0.48s !important; }
+.analyze-kpi-card:nth-child(8) { animation-delay: 0.56s !important; }
 
 .analyze-kpi-card:hover {
   transform: translateY(-2px);
@@ -1656,7 +1671,7 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 0.75rem;
-  overflow: hidden;
+  overflow: visible;
   backdrop-filter: blur(10px);
   transition: all 0.2s;
 }

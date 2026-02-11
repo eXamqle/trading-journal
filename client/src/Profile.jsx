@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { User, Shield, Tag, Plus, X } from 'lucide-react';
+import { User, Shield, Tag, Plus, X, Settings } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
+import { useCurrency } from './contexts/CurrencyContext';
 import { authAPI } from './api/auth';
 import { tagsAPI } from './api/tags';
 import ColorPicker from './ColorPicker';
 
 function Profile({ availableTags, setAvailableTags }) {
   const { user, updateUser } = useAuth();
+  const { currency, setCurrency } = useCurrency();
   const [activeTab, setActiveTab] = useState('account');
   const [accountData, setAccountData] = useState({
     name: '',
@@ -114,7 +116,6 @@ function Profile({ availableTags, setAvailableTags }) {
       setAvailableTags([...availableTags, { name: data.tag.name, color: data.tag.color, id: data.tag.id }]);
       setNewTagName('');
       setNewTagColor('#3b82f6');
-      setAlertModal({ open: true, message: 'Tag created successfully!', title: 'Success' });
     } catch (error) {
       setAlertModal({
         open: true,
@@ -124,28 +125,18 @@ function Profile({ availableTags, setAvailableTags }) {
     }
   };
 
-  const handleDeleteTag = (index) => {
+  const handleDeleteTag = async (index) => {
     const tag = availableTags[index];
-    setConfirmModal({
-      open: true,
-      message: 'Are you sure you want to delete this tag? This action cannot be undone.',
-      title: 'Delete Tag',
-      onConfirm: async () => {
-        try {
-          await tagsAPI.delete(tag.id);
-          setAvailableTags(availableTags.filter((_, i) => i !== index));
-          setConfirmModal({ ...confirmModal, open: false });
-          setAlertModal({ open: true, message: 'Tag deleted successfully!', title: 'Success' });
-        } catch (error) {
-          setConfirmModal({ ...confirmModal, open: false });
-          setAlertModal({
-            open: true,
-            message: error.response?.data?.message || 'Failed to delete tag. Please try again.',
-            title: 'Error'
-          });
-        }
-      }
-    });
+    try {
+      await tagsAPI.delete(tag.id);
+      setAvailableTags(availableTags.filter((_, i) => i !== index));
+    } catch (error) {
+      setAlertModal({
+        open: true,
+        message: error.response?.data?.message || 'Failed to delete tag. Please try again.',
+        title: 'Error'
+      });
+    }
   };
 
   const handleUpdateTagColor = async (index, newColor) => {
@@ -167,7 +158,7 @@ function Profile({ availableTags, setAvailableTags }) {
   return (
     <div className="profile-container">
       <div className="profile-tabs-wrapper">
-        <div className="profile-tabs" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+        <div className="profile-tabs" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr' }}>
           <button
             className={`profile-tab-button ${activeTab === 'account' ? 'active' : ''}`}
             onClick={() => setActiveTab('account')}
@@ -184,6 +175,15 @@ function Profile({ availableTags, setAvailableTags }) {
             <div className="profile-tab-content">
               <Shield size={16} />
               <span>Security</span>
+            </div>
+          </button>
+          <button
+            className={`profile-tab-button ${activeTab === 'preferences' ? 'active' : ''}`}
+            onClick={() => setActiveTab('preferences')}
+          >
+            <div className="profile-tab-content">
+              <Settings size={16} />
+              <span>Preferences</span>
             </div>
           </button>
           <button
@@ -275,6 +275,77 @@ function Profile({ availableTags, setAvailableTags }) {
                 <button className="profile-update-button" onClick={handleUpdatePassword}>
                   Update Password
                 </button>
+              </div>
+            </div>
+          </div>
+        ) : activeTab === 'preferences' ? (
+          <div className="profile-tab-panel">
+            <div className="profile-card">
+              <div className="profile-card-header">
+                <h3>Preferences</h3>
+                <p>Customize your trading journal experience</p>
+              </div>
+              <div className="profile-card-body">
+                <div className="profile-form-field">
+                  <label htmlFor="currency">Currency</label>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+                    Choose your preferred currency symbol for displaying P&L and amounts
+                  </p>
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => setCurrency('USD')}
+                      style={{
+                        flex: 1,
+                        padding: '1rem',
+                        border: `2px solid ${currency === 'USD' ? 'var(--accent-blue)' : 'var(--border-color)'}`,
+                        background: currency === 'USD' ? 'rgba(59, 130, 246, 0.1)' : 'var(--bg-color)',
+                        borderRadius: '0.5rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                      }}
+                    >
+                      <span style={{ fontSize: '2rem', fontWeight: '600' }}>$</span>
+                      <span style={{
+                        fontSize: '0.875rem',
+                        fontWeight: '500',
+                        color: currency === 'USD' ? 'var(--accent-blue)' : 'var(--text-primary)'
+                      }}>
+                        USD (Dollar)
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCurrency('EUR')}
+                      style={{
+                        flex: 1,
+                        padding: '1rem',
+                        border: `2px solid ${currency === 'EUR' ? 'var(--accent-blue)' : 'var(--border-color)'}`,
+                        background: currency === 'EUR' ? 'rgba(59, 130, 246, 0.1)' : 'var(--bg-color)',
+                        borderRadius: '0.5rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                      }}
+                    >
+                      <span style={{ fontSize: '2rem', fontWeight: '600' }}>€</span>
+                      <span style={{
+                        fontSize: '0.875rem',
+                        fontWeight: '500',
+                        color: currency === 'EUR' ? 'var(--accent-blue)' : 'var(--text-primary)'
+                      }}>
+                        EUR (Euro)
+                      </span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

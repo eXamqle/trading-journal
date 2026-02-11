@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   DollarSign,
   Activity,
@@ -12,8 +12,10 @@ import {
   Calendar as CalendarIcon
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { useCurrency } from './contexts/CurrencyContext';
 
 function Analyze({ trades, onEditTrade, onDeleteTrade }) {
+  const { symbol } = useCurrency();
   const [periodFilter, setPeriodFilter] = useState('All Time');
   const [periodOpen, setPeriodOpen] = useState(false);
   const [symbolFilter, setSymbolFilter] = useState('');
@@ -28,10 +30,42 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPageOpen, setRowsPerPageOpen] = useState(false);
 
-  const periods = ['This Week', 'This Month', 'Last 30 Days', 'This Year', 'All Time', 'Custom Range'];
+  // Refs for dropdown containers
+  const periodDropdownRef = useRef(null);
+  const typeDropdownRef = useRef(null);
+  const categoryDropdownRef = useRef(null);
+  const rowsPerPageDropdownRef = useRef(null);
+
+  const periods = ['Custom Range', 'This Week', 'This Month', 'Last 30 Days', 'This Year', 'All Time'];
   const types = ['All Types', 'Profit', 'Loss', 'Break Even'];
   const categories = ['All Categories', 'Crypto', 'Forex', 'Futures', 'Options', 'Stocks'];
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (periodDropdownRef.current && !periodDropdownRef.current.contains(event.target)) {
+        setPeriodOpen(false);
+      }
+      if (typeDropdownRef.current && !typeDropdownRef.current.contains(event.target)) {
+        setTypeOpen(false);
+      }
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target)) {
+        setCategoryOpen(false);
+      }
+      if (rowsPerPageDropdownRef.current && !rowsPerPageDropdownRef.current.contains(event.target)) {
+        setRowsPerPageOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Filter trades based on period
   const filteredByPeriod = useMemo(() => {
@@ -140,6 +174,20 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
 
     return filtered;
   }, [filteredByPeriod, symbolFilter, typeFilter, categoryFilter, sortConfig]);
+
+  // Pagination logic
+  const paginatedTrades = useMemo(() => {
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    const endIndex = startIndex + rowsPerPage;
+    return filteredTrades.slice(startIndex, endIndex);
+  }, [filteredTrades, currentPage, rowsPerPage]);
+
+  const totalPages = Math.ceil(filteredTrades.length / rowsPerPage);
+
+  // Reset to page 1 when filters change
+  useMemo(() => {
+    setCurrentPage(1);
+  }, [symbolFilter, typeFilter, categoryFilter, periodFilter, customStartDate, customEndDate, rowsPerPage]);
 
   // Calculate KPIs
   const kpis = useMemo(() => {
@@ -334,7 +382,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
               </button>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <div className="dropdown-container">
+              <div className="dropdown-container" ref={periodDropdownRef}>
                 <button
                   type="button"
                   className="analyze-dropdown-trigger"
@@ -390,11 +438,11 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                   <DollarSign size={18} />
                 </div>
               </div>
-              <div className={`analyze-kpi-value ${kpis.netProfit >= 0 ? 'analyze-kpi-value-profit' : 'analyze-kpi-value-loss'}`}>
-                {kpis.netProfit >= 0 ? '+' : '-'}${Math.abs(kpis.netProfit).toFixed(2)}
+              <div className={`analyze-kpi-value ${Math.abs(kpis.netProfit) < 0.01 ? 'analyze-kpi-value-default' : (kpis.netProfit >= 0 ? 'analyze-kpi-value-profit' : 'analyze-kpi-value-loss')}`}>
+                {Math.abs(kpis.netProfit) < 0.01 ? '' : (kpis.netProfit >= 0 ? '+' : '-')}{symbol}{Math.abs(kpis.netProfit).toFixed(2)}
               </div>
               <p className="analyze-kpi-sublabel">
-                {kpis.totalFees > 0 ? `$${kpis.totalFees.toFixed(2)} in fees` : 'No fees recorded'}
+                {kpis.totalFees > 0 ? `${symbol}${kpis.totalFees.toFixed(2)} in fees` : 'No fees recorded'}
               </p>
             </div>
 
@@ -448,8 +496,8 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                   <TrendingUp size={18} />
                 </div>
               </div>
-              <div className={`analyze-kpi-value ${kpis.bestDay >= 0 ? 'analyze-kpi-value-profit' : 'analyze-kpi-value-loss'}`}>
-                {kpis.bestDay >= 0 ? '+' : '-'}${Math.abs(kpis.bestDay).toFixed(2)}
+              <div className={`analyze-kpi-value ${Math.abs(kpis.bestDay) < 0.01 ? 'analyze-kpi-value-default' : (kpis.bestDay >= 0 ? 'analyze-kpi-value-profit' : 'analyze-kpi-value-loss')}`}>
+                {Math.abs(kpis.bestDay) < 0.01 ? '' : (kpis.bestDay >= 0 ? '+' : '-')}{symbol}{Math.abs(kpis.bestDay).toFixed(2)}
               </div>
               <p className="analyze-kpi-sublabel">Highest daily P&L</p>
             </div>
@@ -461,8 +509,8 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                   <TrendingDown size={18} />
                 </div>
               </div>
-              <div className={`analyze-kpi-value ${kpis.worstDay >= 0 ? 'analyze-kpi-value-profit' : 'analyze-kpi-value-loss'}`}>
-                {kpis.worstDay >= 0 ? '+' : '-'}${Math.abs(kpis.worstDay).toFixed(2)}
+              <div className={`analyze-kpi-value ${Math.abs(kpis.worstDay) < 0.01 ? 'analyze-kpi-value-default' : (kpis.worstDay >= 0 ? 'analyze-kpi-value-profit' : 'analyze-kpi-value-loss')}`}>
+                {Math.abs(kpis.worstDay) < 0.01 ? '' : (kpis.worstDay >= 0 ? '+' : '-')}{symbol}{Math.abs(kpis.worstDay).toFixed(2)}
               </div>
               <p className="analyze-kpi-sublabel">Lowest daily P&L</p>
             </div>
@@ -474,8 +522,8 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                   <TrendingUp size={18} />
                 </div>
               </div>
-              <div className="analyze-kpi-value analyze-kpi-value-profit">
-                +${kpis.avgWin.toFixed(2)}
+              <div className={`analyze-kpi-value ${Math.abs(kpis.avgWin) < 0.01 ? 'analyze-kpi-value-default' : 'analyze-kpi-value-profit'}`}>
+                {Math.abs(kpis.avgWin) < 0.01 ? '' : '+'}{symbol}{kpis.avgWin.toFixed(2)}
               </div>
               <p className="analyze-kpi-sublabel">Average winning trade</p>
             </div>
@@ -487,8 +535,8 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                   <TrendingDown size={18} />
                 </div>
               </div>
-              <div className="analyze-kpi-value analyze-kpi-value-loss">
-                -${kpis.avgLoss.toFixed(2)}
+              <div className={`analyze-kpi-value ${Math.abs(kpis.avgLoss) < 0.01 ? 'analyze-kpi-value-default' : 'analyze-kpi-value-loss'}`}>
+                {Math.abs(kpis.avgLoss) < 0.01 ? '' : '-'}{symbol}{kpis.avgLoss.toFixed(2)}
               </div>
               <p className="analyze-kpi-sublabel">Average losing trade</p>
             </div>
@@ -496,11 +544,30 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
 
           <div className="analyze-card">
             <div className="analyze-card-header" style={{ padding: '0.75rem 1rem' }}>
-              <h3 style={{ fontSize: '0.875rem', fontWeight: '600', margin: 0 }}>Equity Curve</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <h3 style={{ fontSize: '0.875rem', fontWeight: '600', margin: 0 }}>Equity Curve</h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '500' }}>
+                  {periodFilter}
+                  {periodFilter === 'Custom Range' && customStartDate && customEndDate &&
+                    ` (${format(new Date(customStartDate), 'MMM d')} - ${format(new Date(customEndDate), 'MMM d, yyyy')})`
+                  }
+                </span>
+              </div>
             </div>
             <div className="analyze-card-body" style={{ padding: '0.5rem 1rem 1rem' }}>
               {(() => {
-                const sortedTrades = [...filteredByPeriod].sort((a, b) => new Date(a.date) - new Date(b.date));
+                const sortedTrades = [...filteredByPeriod].sort((a, b) => {
+                  const dateA = new Date(a.date);
+                  const dateB = new Date(b.date);
+
+                  // Primary sort: by trade date
+                  if (dateA.getTime() !== dateB.getTime()) {
+                    return dateA - dateB;
+                  }
+
+                  // Secondary sort: by ID for trades on the same date
+                  return a.id - b.id;
+                });
 
                 if (sortedTrades.length === 0) {
                   return (
@@ -512,7 +579,12 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
 
                 // Calculate cumulative equity
                 let cumulative = 0;
-                const dataPoints = [{ x: 0, y: 0, date: null, label: 'Start' }];
+                const dataPoints = [];
+
+                // Start at 0 on the first trading day
+                if (sortedTrades.length > 0) {
+                  dataPoints.push({ x: 0, y: 0, date: sortedTrades[0].date, label: 'Start' });
+                }
 
                 sortedTrades.forEach((trade, index) => {
                   const amount = parseFloat(trade.amount) || 0;
@@ -529,13 +601,41 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                   });
                 });
 
-                const maxY = Math.max(...dataPoints.map(p => p.y));
-                const minY = Math.min(...dataPoints.map(p => p.y));
+                const maxY = Math.max(...dataPoints.map(p => p.y), 0);
+                const minY = Math.min(...dataPoints.map(p => p.y), 0);
                 const range = maxY - minY || 100;
                 const padding = range * 0.1;
 
+                // Calculate nice Y-axis ticks
+                const getNiceTicks = (min, max, count = 6) => {
+                  const rawStep = (max - min) / (count - 1);
+                  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+                  const normalizedStep = rawStep / magnitude;
+
+                  let niceStep;
+                  if (normalizedStep <= 1) niceStep = 1;
+                  else if (normalizedStep <= 2) niceStep = 2;
+                  else if (normalizedStep <= 5) niceStep = 5;
+                  else niceStep = 10;
+
+                  const step = niceStep * magnitude;
+                  const niceMin = Math.floor(min / step) * step;
+                  const niceMax = Math.ceil(max / step) * step;
+
+                  const ticks = [];
+                  for (let i = niceMin; i <= niceMax; i += step) {
+                    ticks.push(i);
+                  }
+                  return ticks;
+                };
+
+                const yTicks = getNiceTicks(minY - padding, maxY + padding);
+                const displayMinY = Math.min(...yTicks);
+                const displayMaxY = Math.max(...yTicks);
+                const displayRange = displayMaxY - displayMinY;
+
                 const width = 1000;
-                const height = 320;
+                const height = 280;
                 const marginLeft = 60;
                 const marginRight = 20;
                 const marginTop = 15;
@@ -544,7 +644,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                 const chartHeight = height - marginTop - marginBottom;
 
                 const xScale = (x) => marginLeft + (x / (dataPoints.length - 1)) * chartWidth;
-                const yScale = (y) => height - marginBottom - ((y - (minY - padding)) / (range + 2 * padding)) * chartHeight;
+                const yScale = (y) => height - marginBottom - ((y - displayMinY) / displayRange) * chartHeight;
 
                 const pathData = dataPoints.map((p, i) =>
                   `${i === 0 ? 'M' : 'L'} ${xScale(p.x)} ${yScale(p.y)}`
@@ -568,9 +668,8 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                       </defs>
 
                       {/* Grid lines */}
-                      {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
-                        const y = height - marginBottom - ratio * chartHeight;
-                        const value = (minY - padding) + ratio * (range + 2 * padding);
+                      {yTicks.map((value, i) => {
+                        const y = yScale(value);
                         return (
                           <g key={i}>
                             <line
@@ -590,7 +689,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                               fill="var(--text-secondary)"
                               fontSize="12"
                             >
-                              ${value.toFixed(0)}
+                              {value >= 0 ? '' : '-'}{symbol}{Math.abs(value).toFixed(0)}
                             </text>
                           </g>
                         );
@@ -685,7 +784,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                     </svg>
 
                     {/* Tooltip */}
-                    {hoveredPoint !== null && dataPoints[hoveredPoint].date && (
+                    {hoveredPoint !== null && hoveredPoint > 0 && dataPoints[hoveredPoint] && (
                       <div style={{
                         position: 'absolute',
                         top: '1rem',
@@ -705,10 +804,10 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                           {dataPoints[hoveredPoint].symbol}
                         </div>
                         <div style={{ fontSize: '0.875rem', fontWeight: '600', color: dataPoints[hoveredPoint].netPL >= 0 ? '#10b981' : '#ef4444' }}>
-                          {dataPoints[hoveredPoint].netPL >= 0 ? '+' : '-'}${Math.abs(dataPoints[hoveredPoint].netPL).toFixed(2)}
+                          {dataPoints[hoveredPoint].netPL >= 0 ? '+' : '-'}{symbol}{Math.abs(dataPoints[hoveredPoint].netPL).toFixed(2)}
                         </div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)' }}>
-                          Total: {dataPoints[hoveredPoint].y >= 0 ? '+' : '-'}${Math.abs(dataPoints[hoveredPoint].y).toFixed(2)}
+                          Total: {dataPoints[hoveredPoint].y >= 0 ? '+' : '-'}{symbol}{Math.abs(dataPoints[hoveredPoint].y).toFixed(2)}
                         </div>
                       </div>
                     )}
@@ -722,7 +821,15 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
         <div className="analyze-tab-content">
           <div className="analyze-card">
             <div className="analyze-card-header">
-              <h3>Recent Trades</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginRight: '1rem' }}>
+                <h3 style={{ margin: 0 }}>All Trades</h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '500' }}>
+                  {periodFilter}
+                  {periodFilter === 'Custom Range' && customStartDate && customEndDate &&
+                    ` (${format(new Date(customStartDate), 'MMM d')} - ${format(new Date(customEndDate), 'MMM d, yyyy')})`
+                  }
+                </span>
+              </div>
               <div className="analyze-filters">
                 <input
                   className="analyze-filter-input"
@@ -731,7 +838,40 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                   onChange={(e) => setSymbolFilter(e.target.value)}
                 />
 
-                <div className="dropdown-container">
+                <div className="dropdown-container" ref={rowsPerPageDropdownRef}>
+                  <button
+                    type="button"
+                    className="analyze-filter-dropdown"
+                    onClick={() => {
+                      setRowsPerPageOpen(!rowsPerPageOpen);
+                      setTypeOpen(false);
+                      setPeriodOpen(false);
+                      setCategoryOpen(false);
+                    }}
+                  >
+                    <span>{rowsPerPage} rows</span>
+                    <ChevronDown size={16} />
+                  </button>
+                  {rowsPerPageOpen && (
+                    <div className="dropdown-menu">
+                      {[10, 20, 50, 100].map((size) => (
+                        <button
+                          key={size}
+                          type="button"
+                          className="dropdown-item"
+                          onClick={() => {
+                            setRowsPerPage(size);
+                            setRowsPerPageOpen(false);
+                          }}
+                        >
+                          {size} rows
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="dropdown-container" ref={typeDropdownRef}>
                   <button
                     type="button"
                     className="analyze-filter-dropdown"
@@ -763,7 +903,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                   )}
                 </div>
 
-                <div className="dropdown-container">
+                <div className="dropdown-container" ref={categoryDropdownRef}>
                   <button
                     type="button"
                     className="analyze-filter-dropdown"
@@ -848,7 +988,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                         </td>
                       </tr>
                     ) : (
-                      filteredTrades.map((trade, index) => {
+                      paginatedTrades.map((trade, index) => {
                         const amount = parseFloat(trade.amount) || 0;
                         const fees = parseFloat(trade.fees) || 0;
                         const netPL = trade.type === 'profit' ? Math.abs(amount) - fees :
@@ -860,7 +1000,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                             onClick={() => onEditTrade && onEditTrade(trade)}
                             style={{ cursor: onEditTrade ? 'pointer' : 'default' }}
                           >
-                            <td>{index + 1}</td>
+                            <td>{(currentPage - 1) * rowsPerPage + index + 1}</td>
                             <td>{format(new Date(trade.date), 'MMM d, yyyy')}</td>
                             <td><strong>{trade.symbol}</strong></td>
                             <td>
@@ -870,10 +1010,10 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                               </span>
                             </td>
                             <td>{trade.category}</td>
-                            <td className="text-right">${amount.toFixed(2)}</td>
-                            <td className="text-right">${fees.toFixed(2)}</td>
+                            <td className="text-right">{symbol}{amount.toFixed(2)}</td>
+                            <td className="text-right">{symbol}{fees.toFixed(2)}</td>
                             <td className={`text-right ${netPL >= 0 ? 'text-profit' : 'text-loss'}`}>
-                              {netPL >= 0 ? '+' : '-'}${Math.abs(netPL).toFixed(2)}
+                              {netPL >= 0 ? '+' : '-'}{symbol}{Math.abs(netPL).toFixed(2)}
                             </td>
                             <td style={{ textAlign: 'center' }}>
                               {onDeleteTrade && (
@@ -915,6 +1055,148 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                   </tbody>
                 </table>
               </div>
+
+              {/* Pagination Controls */}
+              {filteredTrades.length > 0 && totalPages > 1 && (
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '1rem',
+                  borderTop: '1px solid var(--border-color)'
+                }}>
+                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                    Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredTrades.length)} of {filteredTrades.length} trades
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      style={{
+                        padding: '0.5rem 0.75rem',
+                        background: currentPage === 1 ? 'var(--bg-secondary)' : 'var(--bg-color)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '0.375rem',
+                        color: currentPage === 1 ? 'var(--text-secondary)' : 'var(--text-primary)',
+                        cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                        fontSize: '0.875rem',
+                        fontWeight: '500',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      Previous
+                    </button>
+
+                    <div style={{ display: 'flex', gap: '0.25rem' }}>
+                      {(() => {
+                        const pages = [];
+                        const maxVisiblePages = 5;
+                        let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+                        if (endPage - startPage < maxVisiblePages - 1) {
+                          startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                        }
+
+                        if (startPage > 1) {
+                          pages.push(
+                            <button
+                              key={1}
+                              onClick={() => setCurrentPage(1)}
+                              style={{
+                                padding: '0.5rem 0.75rem',
+                                background: 'var(--bg-color)',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '0.375rem',
+                                color: 'var(--text-primary)',
+                                cursor: 'pointer',
+                                fontSize: '0.875rem',
+                                fontWeight: '500',
+                                minWidth: '2.5rem',
+                                transition: 'all 0.2s'
+                              }}
+                            >
+                              1
+                            </button>
+                          );
+                          if (startPage > 2) {
+                            pages.push(<span key="ellipsis1" style={{ padding: '0 0.25rem', color: 'var(--text-secondary)' }}>...</span>);
+                          }
+                        }
+
+                        for (let i = startPage; i <= endPage; i++) {
+                          pages.push(
+                            <button
+                              key={i}
+                              onClick={() => setCurrentPage(i)}
+                              style={{
+                                padding: '0.5rem 0.75rem',
+                                background: currentPage === i ? 'var(--accent-blue)' : 'var(--bg-color)',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '0.375rem',
+                                color: currentPage === i ? '#fff' : 'var(--text-primary)',
+                                cursor: 'pointer',
+                                fontSize: '0.875rem',
+                                fontWeight: '500',
+                                minWidth: '2.5rem',
+                                transition: 'all 0.2s'
+                              }}
+                            >
+                              {i}
+                            </button>
+                          );
+                        }
+
+                        if (endPage < totalPages) {
+                          if (endPage < totalPages - 1) {
+                            pages.push(<span key="ellipsis2" style={{ padding: '0 0.25rem', color: 'var(--text-secondary)' }}>...</span>);
+                          }
+                          pages.push(
+                            <button
+                              key={totalPages}
+                              onClick={() => setCurrentPage(totalPages)}
+                              style={{
+                                padding: '0.5rem 0.75rem',
+                                background: 'var(--bg-color)',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '0.375rem',
+                                color: 'var(--text-primary)',
+                                cursor: 'pointer',
+                                fontSize: '0.875rem',
+                                fontWeight: '500',
+                                minWidth: '2.5rem',
+                                transition: 'all 0.2s'
+                              }}
+                            >
+                              {totalPages}
+                            </button>
+                          );
+                        }
+
+                        return pages;
+                      })()}
+                    </div>
+
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      style={{
+                        padding: '0.5rem 0.75rem',
+                        background: currentPage === totalPages ? 'var(--bg-secondary)' : 'var(--bg-color)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '0.375rem',
+                        color: currentPage === totalPages ? 'var(--text-secondary)' : 'var(--text-primary)',
+                        cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                        fontSize: '0.875rem',
+                        fontWeight: '500',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -969,17 +1251,17 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
             <div style={{ display: 'flex', gap: '0.75rem' }}>
               <button
                 className="modal-action-button"
-                onClick={handleCustomDateApply}
-                style={{ flex: 1 }}
-              >
-                Apply
-              </button>
-              <button
-                className="modal-action-button"
                 onClick={() => setCustomDateModal(false)}
                 style={{ flex: 1, background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
               >
                 Cancel
+              </button>
+              <button
+                className="modal-action-button"
+                onClick={handleCustomDateApply}
+                style={{ flex: 1 }}
+              >
+                Apply
               </button>
             </div>
           </div>

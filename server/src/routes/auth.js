@@ -66,7 +66,8 @@ router.post('/register', (req, res) => {
       user: {
         id: userId,
         name,
-        email
+        email,
+        currency: 'USD'
       },
       token
     });
@@ -106,7 +107,8 @@ router.post('/login', (req, res) => {
       user: {
         id: user.id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        currency: user.currency || 'USD'
       },
       token
     });
@@ -119,7 +121,7 @@ router.post('/login', (req, res) => {
 // Get current user profile
 router.get('/me', authenticateToken, (req, res) => {
   try {
-    const user = db.prepare('SELECT id, name, email, created_at FROM users WHERE id = ?').get(req.userId);
+    const user = db.prepare('SELECT id, name, email, currency, created_at FROM users WHERE id = ?').get(req.userId);
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -154,7 +156,7 @@ router.put('/profile', authenticateToken, (req, res) => {
       WHERE id = ?
     `).run(name, email, req.userId);
 
-    const user = db.prepare('SELECT id, name, email FROM users WHERE id = ?').get(req.userId);
+    const user = db.prepare('SELECT id, name, email, currency FROM users WHERE id = ?').get(req.userId);
     res.json(user);
   } catch (error) {
     console.error('Update profile error:', error);
@@ -195,6 +197,30 @@ router.put('/password', authenticateToken, (req, res) => {
   } catch (error) {
     console.error('Update password error:', error);
     res.status(500).json({ message: 'Failed to update password' });
+  }
+});
+
+// Update currency preference
+router.put('/currency', authenticateToken, (req, res) => {
+  try {
+    const { currency } = req.body;
+
+    if (!currency || !['USD', 'EUR'].includes(currency)) {
+      return res.status(400).json({ message: 'Valid currency is required (USD or EUR)' });
+    }
+
+    // Update currency
+    db.prepare(`
+      UPDATE users
+      SET currency = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(currency, req.userId);
+
+    const user = db.prepare('SELECT id, name, email, currency FROM users WHERE id = ?').get(req.userId);
+    res.json(user);
+  } catch (error) {
+    console.error('Update currency error:', error);
+    res.status(500).json({ message: 'Failed to update currency' });
   }
 });
 

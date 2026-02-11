@@ -54,13 +54,16 @@ import './App.css';
 import Analyze from './Analyze';
 import Profile from './Profile';
 import JournalEntries from './JournalEntries';
+import AddTagModal from './AddTagModal';
 import { useAuth } from './contexts/AuthContext';
+import { useCurrency } from './contexts/CurrencyContext';
 import { tradesAPI } from './api/trades';
 import { journalAPI } from './api/journal';
 import { tagsAPI } from './api/tags';
 
 function App() {
   const { user, logout } = useAuth();
+  const { symbol } = useCurrency();
   const [currentDate, setCurrentDate] = useState(() => {
     try {
       const saved = localStorage.getItem('currentDate');
@@ -118,6 +121,7 @@ function App() {
 
   // Tags management
   const [availableTags, setAvailableTags] = useState([]);
+  const [showAddTagModal, setShowAddTagModal] = useState(false);
 
   // Load trades, journal entries, and tags on mount
   useEffect(() => {
@@ -858,12 +862,6 @@ function App() {
         ...prev,
         tags: [...prev.tags, trimmedTag]
       }));
-      // Add to available tags if new
-      if (!availableTags.find(t => t.name === trimmedTag)) {
-        const colors = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6'];
-        const randomColor = colors[Math.floor(Math.random() * colors.length)];
-        setAvailableTags(prev => [...prev, { name: trimmedTag, color: randomColor }]);
-      }
     }
   };
 
@@ -872,6 +870,26 @@ function App() {
       ...prev,
       tags: prev.tags.filter(tag => tag !== tagToRemove)
     }));
+  };
+
+  const handleSaveNewTag = async (tagData) => {
+    try {
+      // Save to backend
+      const { data } = await tagsAPI.create(tagData);
+      const newTag = { name: data.tag.name, color: data.tag.color, id: data.tag.id };
+
+      // Add to available tags
+      setAvailableTags(prev => [...prev, newTag]);
+
+      // Automatically add to current trade
+      handleAddTag(newTag.name);
+
+      // Close modal
+      setShowAddTagModal(false);
+    } catch (error) {
+      console.error('Failed to create tag:', error);
+      alert('Failed to create tag. Please try again.');
+    }
   };
 
   const handleSaveEntry = async () => {
@@ -899,19 +917,19 @@ function App() {
       const fees = parseFloat(formData.fees) || 0;
       const netResult = amount - fees;
 
-      if (tradeType === 'profit' && netResult <= 0.01) {
+      if (tradeType === 'profit' && netResult <= 0) {
         setAlertModal({
           open: true,
-          message: 'Profit result requires: Amount - Fees > $0.01\n\nCurrent net: $' + netResult.toFixed(2),
+          message: `Profit result requires: Amount - Fees > ${symbol}0\n\nCurrent net: ${symbol}${netResult.toFixed(2)}`,
           title: 'Invalid Trade Result'
         });
         return;
       }
 
-      if (tradeType === 'loss' && netResult >= -0.01) {
+      if (tradeType === 'loss' && netResult >= 0) {
         setAlertModal({
           open: true,
-          message: 'Loss result requires: Amount - Fees < -$0.01 (fees must exceed amount)\n\nCurrent net: $' + netResult.toFixed(2),
+          message: `Loss result requires: Amount - Fees < ${symbol}0 (fees must exceed amount)\n\nCurrent net: ${symbol}${netResult.toFixed(2)}`,
           title: 'Invalid Trade Result'
         });
         return;
@@ -920,7 +938,7 @@ function App() {
       if (tradeType === 'break-even' && Math.abs(netResult) >= 0.01) {
         setAlertModal({
           open: true,
-          message: 'Breakeven result requires: Amount - Fees = $0.00\n\nCurrent net: $' + netResult.toFixed(2),
+          message: `Breakeven result requires: Amount - Fees = ${symbol}0.00\n\nCurrent net: ${symbol}${netResult.toFixed(2)}`,
           title: 'Invalid Trade Result'
         });
         return;
@@ -980,13 +998,26 @@ function App() {
 
       // Show appropriate success message
       if (tradeCreated || journalSaved) {
-        // Show success animation
-        setShowSaveSuccess(true);
-        // Close modal after animation
+        // Reset form data immediately to prevent double-counting in UI
+        setFormData({
+          symbol: '',
+          amount: '',
+          category: '',
+          fees: '',
+          tags: []
+        });
+        setTradeType('profit');
+
+        // Close modal first
+        closeModal();
+
+        // Then show success notification
         setTimeout(() => {
-          setShowSaveSuccess(false);
-          closeModal();
-        }, 800);
+          setShowSaveSuccess(true);
+          setTimeout(() => {
+            setShowSaveSuccess(false);
+          }, 2500);
+        }, 100);
       } else {
         setAlertModal({
           open: true,
@@ -996,6 +1027,7 @@ function App() {
       }
     } catch (error) {
       console.error('Failed to save entry:', error);
+      // On error, modal stays open and shows error
       setAlertModal({
         open: true,
         message: error.response?.data?.message || 'An unexpected error occurred. Please try again.',
@@ -1009,10 +1041,7 @@ function App() {
       <header className="header">
         <div
           className="logo-section"
-          onClick={() => {
-            setCurrentView('calendar');
-            setActiveTab('Month');
-          }}
+          onClick={() => setCurrentView('calendar')}
           style={{ cursor: 'pointer' }}
         >
           <div className="logo-icon" style={{ width: '3rem', height: '3rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '0.75rem' }}>
@@ -1167,8 +1196,8 @@ function App() {
               >
                 <span className="day-number">{format(day, 'd')}</span>
                 {hasTrades && (
-                  <span className={`day-pnl ${dayPnL >= 0 ? 'profit' : 'loss'}`}>
-                    {dayPnL >= 0 ? '+' : ''}${Math.abs(dayPnL).toFixed(0)}
+                  <span className={`day-pnl ${Math.abs(dayPnL) < 0.01 ? '' : (dayPnL >= 0 ? 'profit' : 'loss')}`}>
+                    {Math.abs(dayPnL) < 0.01 ? '' : (dayPnL >= 0 ? '+' : '-')}{symbol}{Math.abs(dayPnL).toFixed(2)}
                   </span>
                 )}
                 {hasJournal && (
@@ -1266,8 +1295,8 @@ function App() {
                 </div>
                 <div className="week-day-right">
                   {hasTrades ? (
-                    <span className={dayPnL >= 0 ? 'text-emerald-400' : 'text-red-400'} style={{ fontWeight: '600' }}>
-                      {dayPnL >= 0 ? '+' : '-'}${Math.abs(dayPnL).toFixed(2)}
+                    <span className={Math.abs(dayPnL) < 0.01 ? 'text-slate-400' : (dayPnL >= 0 ? 'text-emerald-400' : 'text-red-400')} style={{ fontWeight: '600' }}>
+                      {Math.abs(dayPnL) < 0.01 ? '' : (dayPnL >= 0 ? '+' : '-')}{symbol}{Math.abs(dayPnL).toFixed(2)}
                     </span>
                   ) : (
                     <span className="week-day-empty">—</span>
@@ -1312,7 +1341,7 @@ function App() {
         const hasTrades = dayTrades.length > 0;
 
         const title = hasTrades
-          ? `${format(date, 'MMM d')}: ${dayPnL >= 0 ? '+' : '-'}$${Math.abs(dayPnL).toFixed(2)}${hasJournal ? ' 📝' : ''}`
+          ? `${format(date, 'MMM d')}: ${Math.abs(dayPnL) < 0.01 ? '' : (dayPnL >= 0 ? '+' : '-')}${symbol}${Math.abs(dayPnL).toFixed(2)}${hasJournal ? ' 📝' : ''}`
           : hasJournal
           ? `${format(date, 'MMM d')}: Has journal 📝`
           : `${format(date, 'MMM d')}: No trades`;
@@ -1384,9 +1413,9 @@ function App() {
                 <div className="year-mini-calendar">
                   {renderMiniCalendar(month)}
                 </div>
-                <div className={`year-month-total ${hasMonthTrades ? (monthTotal >= 0 ? 'text-emerald-400' : 'text-red-400') : 'text-slate-500'}`}>
+                <div className={`year-month-total ${hasMonthTrades ? (Math.abs(monthTotal) < 0.01 ? 'text-slate-400' : (monthTotal >= 0 ? 'text-emerald-400' : 'text-red-400')) : 'text-slate-500'}`}>
                   <span>
-                    {hasMonthTrades ? `${monthTotal >= 0 ? '+' : '-'}$${Math.abs(monthTotal).toFixed(2)}` : '$0'}
+                    {hasMonthTrades ? `${Math.abs(monthTotal) < 0.01 ? '' : (monthTotal >= 0 ? '+' : '-')}${symbol}${Math.abs(monthTotal).toFixed(2)}` : `${symbol}0`}
                   </span>
                 </div>
               </div>
@@ -1406,7 +1435,10 @@ function App() {
     if (!selectedDate || readerModalOpen) return null;
 
     // Calculate today's stats for real-time insights
-    const todayTrades = getTradesForDate(selectedDate);
+    const todayTrades = getTradesForDate(selectedDate).sort((a, b) => {
+      // Sort by created_at timestamp (oldest first)
+      return new Date(a.created_at) - new Date(b.created_at);
+    });
     const todayPnL = calculatePnL(todayTrades);
     const todayTradeCount = todayTrades.length;
 
@@ -1434,26 +1466,12 @@ function App() {
 
                 {/* Daily total P&L - existing trades + current trade being entered */}
                 {modalTab === 'add' && (() => {
-                  // Only calculate and add current trade P&L if form has meaningful data
-                  // This prevents double-counting during save
                   const amount = parseFloat(formData.amount) || 0;
                   const fees = parseFloat(formData.fees) || 0;
-                  const hasFormData = formData.symbol && formData.amount && formData.category;
-                  let currentTradePnL = 0;
 
-                  if (hasFormData) {
-                    if (tradeType === 'profit') {
-                      currentTradePnL = Math.abs(amount) - fees;
-                    } else if (tradeType === 'loss') {
-                      currentTradePnL = -(Math.abs(amount) + fees);
-                    } else {
-                      currentTradePnL = -fees;
-                    }
-                  }
-
-                  // If editing, subtract the original trade value to avoid double counting
+                  // Calculate existing P&L, subtracting the trade being edited if applicable
                   let existingPnL = todayPnL;
-                  if (editingTrade && hasFormData) {
+                  if (editingTrade) {
                     const editAmount = parseFloat(editingTrade.amount) || 0;
                     const editFees = parseFloat(editingTrade.fees) || 0;
                     let editPnL = 0;
@@ -1465,6 +1483,18 @@ function App() {
                       editPnL = -editFees;
                     }
                     existingPnL = todayPnL - editPnL;
+                  }
+
+                  // Calculate current trade P&L - only if amount is entered
+                  let currentTradePnL = 0;
+                  if (amount !== 0 || fees > 0) {
+                    if (tradeType === 'profit') {
+                      currentTradePnL = Math.abs(amount) - fees;
+                    } else if (tradeType === 'loss') {
+                      currentTradePnL = -(Math.abs(amount) + fees);
+                    } else {
+                      currentTradePnL = -fees;
+                    }
                   }
 
                   const totalDailyPnL = existingPnL + currentTradePnL;
@@ -1498,7 +1528,7 @@ function App() {
                     }}>
                       <DisplayIcon size={16} color={displayColor} strokeWidth={2.5} />
                       <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: displayColor }}>
-                        {prefix}${Math.abs(totalDailyPnL).toFixed(2)}
+                        {prefix}{symbol}{Math.abs(totalDailyPnL).toFixed(2)}
                       </span>
                     </div>
                   );
@@ -1745,12 +1775,16 @@ function App() {
                     <input
                       id="fees"
                       name="fees"
-                      type="number"
-                      step="0.01"
-                      min="0"
+                      type="text"
                       placeholder="0.00"
                       value={formData.fees}
-                      onChange={handleInputChange}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Allow empty string or valid positive float (with up to 2 decimal places)
+                        if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
+                          handleInputChange(e);
+                        }
+                      }}
                       style={{
                         width: '100%',
                         padding: '0.625rem 0.75rem',
@@ -1930,9 +1964,9 @@ function App() {
                           <span style={{
                             fontSize: '0.875rem',
                             fontWeight: 600,
-                            color: todayPnL >= 0 ? '#10b981' : '#ef4444'
+                            color: Math.abs(todayPnL) < 0.01 ? '#94a3b8' : (todayPnL >= 0 ? '#10b981' : '#ef4444')
                           }}>
-                            {todayPnL >= 0 ? '+' : '-'}${Math.abs(todayPnL).toFixed(2)}
+                            {Math.abs(todayPnL) < 0.01 ? '' : (todayPnL >= 0 ? '+' : '-')}{symbol}{Math.abs(todayPnL).toFixed(2)}
                           </span>
                         </div>
                         <ChevronRight
@@ -2016,12 +2050,12 @@ function App() {
                                     style={{
                                       fontSize: '0.8125rem',
                                       fontWeight: 600,
-                                      color: pnl >= 0 ? '#10b981' : '#ef4444',
+                                      color: Math.abs(pnl) < 0.01 ? '#94a3b8' : (pnl >= 0 ? '#10b981' : '#ef4444'),
                                       marginLeft: 'auto',
                                       marginRight: '0.5rem'
                                     }}
                                   >
-                                    {pnl >= 0 ? '+' : '-'}${Math.abs(pnl).toFixed(2)}
+                                    {Math.abs(pnl) < 0.01 ? '' : (pnl >= 0 ? '+' : '-')}{symbol}{Math.abs(pnl).toFixed(2)}
                                   </span>
                                 </div>
                                 <button
@@ -2123,12 +2157,7 @@ function App() {
                         })}
                         <button
                           type="button"
-                          onClick={() => {
-                            const newTag = prompt('Enter new tag name:');
-                            if (newTag && newTag.trim()) {
-                              handleAddTag(newTag.trim());
-                            }
-                          }}
+                          onClick={() => setShowAddTagModal(true)}
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -2416,7 +2445,7 @@ function App() {
       if (!dailyPnL[dateKey]) {
         dailyPnL[dateKey] = 0;
       }
-      const amount = parseFloat(trade.amount) || 0;
+      const amount = Math.abs(parseFloat(trade.amount) || 0);
       const fees = parseFloat(trade.fees) || 0;
       if (trade.type === 'profit') {
         dailyPnL[dateKey] += amount - fees;
@@ -2436,11 +2465,11 @@ function App() {
     const lossTrades = periodTrades.filter(t => t.type === 'loss');
 
     const avgWin = profitTrades.length > 0
-      ? profitTrades.reduce((sum, t) => sum + parseFloat(t.amount) - parseFloat(t.fees || 0), 0) / profitTrades.length
+      ? profitTrades.reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)) - parseFloat(t.fees || 0), 0) / profitTrades.length
       : 0;
 
     const avgLoss = lossTrades.length > 0
-      ? lossTrades.reduce((sum, t) => sum + parseFloat(t.amount) + parseFloat(t.fees || 0), 0) / lossTrades.length
+      ? lossTrades.reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)) + parseFloat(t.fees || 0), 0) / lossTrades.length
       : 0;
 
     const totalPnL = calculatePnL(periodTrades);
@@ -2451,8 +2480,8 @@ function App() {
 
         <div className="info-card">
           <span className="info-label">Net Total</span>
-          <div className={`info-value ${totalPnL >= 0 ? 'positive' : 'negative'}`}>
-            {totalPnL >= 0 ? '+' : '-'}${Math.abs(totalPnL).toFixed(2)}
+          <div className={`info-value ${Math.abs(totalPnL) < 0.01 ? '' : (totalPnL >= 0 ? 'positive' : 'negative')}`}>
+            {Math.abs(totalPnL) < 0.01 ? '' : (totalPnL >= 0 ? '+' : '-')}{symbol}{Math.abs(totalPnL).toFixed(2)}
           </div>
           <div className="info-subtext">Period P&L</div>
         </div>
@@ -2467,14 +2496,14 @@ function App() {
           <span className="info-label">Daily Performance</span>
           <div className="perf-row">
             <span className="perf-label">Best Day</span>
-            <span className={`perf-value ${bestDay >= 0 ? 'positive' : 'negative'}`}>
-              {bestDay >= 0 ? '+' : '-'}${Math.abs(bestDay).toFixed(2)}
+            <span className={`perf-value ${Math.abs(bestDay) < 0.01 ? '' : (bestDay >= 0 ? 'positive' : 'negative')}`}>
+              {Math.abs(bestDay) < 0.01 ? '' : (bestDay >= 0 ? '+' : '-')}{symbol}{Math.abs(bestDay).toFixed(2)}
             </span>
           </div>
           <div className="perf-row">
             <span className="perf-label">Worst Day</span>
-            <span className={`perf-value ${worstDay >= 0 ? 'positive' : 'negative'}`}>
-              {worstDay >= 0 ? '+' : '-'}${Math.abs(worstDay).toFixed(2)}
+            <span className={`perf-value ${Math.abs(worstDay) < 0.01 ? '' : (worstDay >= 0 ? 'positive' : 'negative')}`}>
+              {Math.abs(worstDay) < 0.01 ? '' : (worstDay >= 0 ? '+' : '-')}{symbol}{Math.abs(worstDay).toFixed(2)}
             </span>
           </div>
         </div>
@@ -2483,14 +2512,14 @@ function App() {
           <span className="info-label">Average Stats</span>
           <div className="perf-row">
             <span className="perf-label">Avg Win</span>
-            <span className="perf-value positive">
-              +${avgWin.toFixed(2)}
+            <span className={`perf-value ${Math.abs(avgWin) < 0.01 ? '' : 'positive'}`}>
+              {Math.abs(avgWin) < 0.01 ? '' : '+'}{symbol}{avgWin.toFixed(2)}
             </span>
           </div>
           <div className="perf-row">
             <span className="perf-label">Avg Loss</span>
-            <span className="perf-value negative">
-              -${avgLoss.toFixed(2)}
+            <span className={`perf-value ${Math.abs(avgLoss) < 0.01 ? '' : 'negative'}`}>
+              {Math.abs(avgLoss) < 0.01 ? '' : '-'}{symbol}{avgLoss.toFixed(2)}
             </span>
           </div>
         </div>
@@ -2778,6 +2807,12 @@ function App() {
           </svg>
           Saved!
         </div>
+      )}
+      {showAddTagModal && (
+        <AddTagModal
+          onClose={() => setShowAddTagModal(false)}
+          onSave={handleSaveNewTag}
+        />
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.jsx'
 import Login from './components/Login.jsx'
 import { AuthProvider, useAuth } from './contexts/AuthContext.jsx'
+import { CurrencyProvider } from './contexts/CurrencyContext.jsx'
 
 function AppWrapper() {
   const { user, loading } = useAuth();
@@ -29,7 +30,9 @@ function AppWrapper() {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <AuthProvider>
-      <AppWrapper />
+      <CurrencyProvider>
+        <AppWrapper />
+      </CurrencyProvider>
     </AuthProvider>
   </StrictMode>,
 )

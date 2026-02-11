@@ -5,5 +5,6 @@ export const authAPI = {
   register: (userData) => api.post('/auth/register', userData),
   getProfile: () => api.get('/auth/me'),
   updateProfile: (data) => api.put('/auth/profile', data),
-  updatePassword: (data) => api.put('/auth/password', data)
+  updatePassword: (data) => api.put('/auth/password', data),
+  updateCurrency: (currency) => api.put('/auth/currency', { currency })
 };

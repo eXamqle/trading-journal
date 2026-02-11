@@ -18,6 +18,7 @@ export function initDatabase() {
       name TEXT NOT NULL,
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
+      currency TEXT DEFAULT 'USD',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -105,6 +106,19 @@ export function initDatabase() {
 
   if (usersWithoutTags.length > 0) {
     console.log(`✓ Default tags created for ${usersWithoutTags.length} user(s)`);
+  }
+
+  // Add currency column to existing users table if it doesn't exist
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(users)").all();
+    const hasCurrencyColumn = tableInfo.some(col => col.name === 'currency');
+
+    if (!hasCurrencyColumn) {
+      db.exec(`ALTER TABLE users ADD COLUMN currency TEXT DEFAULT 'USD'`);
+      console.log('✓ Added currency column to users table');
+    }
+  } catch (error) {
+    // Column might already exist, ignore error
   }
 }
 
