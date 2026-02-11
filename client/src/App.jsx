@@ -1426,9 +1426,84 @@ function App() {
               justifyContent: 'space-between',
               gap: '1rem'
             }}>
-              <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-                {editingTrade ? 'Edit Trade' : format(selectedDate, 'EEEE, MMM d')}
-              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+                <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {editingTrade ? <EditIcon size={20} strokeWidth={2.5} /> : <CalendarIcon size={20} strokeWidth={2.5} />}
+                  {editingTrade ? 'Update Trade' : format(selectedDate, 'EEEE, MMM d')}
+                </h2>
+
+                {/* Daily total P&L - existing trades + current trade being entered */}
+                {modalTab === 'add' && (() => {
+                  // Only calculate and add current trade P&L if form has meaningful data
+                  // This prevents double-counting during save
+                  const amount = parseFloat(formData.amount) || 0;
+                  const fees = parseFloat(formData.fees) || 0;
+                  const hasFormData = formData.symbol && formData.amount && formData.category;
+                  let currentTradePnL = 0;
+
+                  if (hasFormData) {
+                    if (tradeType === 'profit') {
+                      currentTradePnL = Math.abs(amount) - fees;
+                    } else if (tradeType === 'loss') {
+                      currentTradePnL = -(Math.abs(amount) + fees);
+                    } else {
+                      currentTradePnL = -fees;
+                    }
+                  }
+
+                  // If editing, subtract the original trade value to avoid double counting
+                  let existingPnL = todayPnL;
+                  if (editingTrade && hasFormData) {
+                    const editAmount = parseFloat(editingTrade.amount) || 0;
+                    const editFees = parseFloat(editingTrade.fees) || 0;
+                    let editPnL = 0;
+                    if (editingTrade.type === 'profit') {
+                      editPnL = Math.abs(editAmount) - editFees;
+                    } else if (editingTrade.type === 'loss') {
+                      editPnL = -(Math.abs(editAmount) + editFees);
+                    } else {
+                      editPnL = -editFees;
+                    }
+                    existingPnL = todayPnL - editPnL;
+                  }
+
+                  const totalDailyPnL = existingPnL + currentTradePnL;
+
+                  let displayColor = '#10b981'; // green for profit
+                  let DisplayIcon = TrendingUp;
+                  let prefix = '+';
+
+                  if (Math.abs(totalDailyPnL) < 0.01) {
+                    // Breakeven (close to $0)
+                    displayColor = '#64748b';
+                    DisplayIcon = Minus;
+                    prefix = '';
+                  } else if (totalDailyPnL < 0) {
+                    // Loss
+                    displayColor = '#ef4444';
+                    DisplayIcon = TrendingDown;
+                    prefix = '-';
+                  }
+
+                  return (
+                    <div style={{
+                      padding: '0.5rem 0.75rem',
+                      background: `${displayColor}15`,
+                      borderRadius: '0.5rem',
+                      border: `1px solid ${displayColor}40`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      marginLeft: 'auto'
+                    }}>
+                      <DisplayIcon size={16} color={displayColor} strokeWidth={2.5} />
+                      <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: displayColor }}>
+                        {prefix}${Math.abs(totalDailyPnL).toFixed(2)}
+                      </span>
+                    </div>
+                  );
+                })()}
+              </div>
 
               {!journalOnlyMode && (
                 <div style={{
@@ -1490,173 +1565,6 @@ function App() {
                 </div>
               )}
             </div>
-
-            {/* Daily stats + existing trades (collapsible) */}
-            {todayTradeCount > 0 && (
-              <div style={{ padding: '0 1.75rem 1rem' }}>
-                <div style={{
-                  padding: '0.625rem 0.875rem',
-                  background: todayPnL >= 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                  borderRadius: '0.5rem',
-                  border: `1px solid ${todayPnL >= 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
-                }}>
-                  <button
-                    type="button"
-                    onClick={() => setTradesExpanded(!tradesExpanded)}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      padding: 0
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{
-                        fontSize: '0.75rem',
-                        fontWeight: 500,
-                        color: 'var(--text-secondary)'
-                      }}>
-                        {todayTradeCount} {todayTradeCount === 1 ? 'trade' : 'trades'}
-                      </span>
-                      <span style={{
-                        fontSize: '0.875rem',
-                        fontWeight: 600,
-                        color: todayPnL >= 0 ? '#10b981' : '#ef4444'
-                      }}>
-                        {todayPnL >= 0 ? '+' : '-'}${Math.abs(todayPnL).toFixed(2)}
-                      </span>
-                    </div>
-                    <ChevronRight
-                      size={14}
-                      style={{
-                        color: 'var(--text-secondary)',
-                        transform: tradesExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                        transition: 'transform 0.2s'
-                      }}
-                    />
-                  </button>
-
-                  {tradesExpanded && (
-                    <div style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.375rem',
-                      marginTop: '0.625rem',
-                      paddingTop: '0.625rem',
-                      borderTop: `1px solid ${todayPnL >= 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`
-                    }}>
-                      {todayTrades.map((trade) => {
-                        const amount = parseFloat(trade.amount) || 0;
-                        const fees = parseFloat(trade.fees) || 0;
-                        let pnl;
-                        if (trade.type === 'profit') {
-                          pnl = Math.abs(amount) - fees;
-                        } else if (trade.type === 'loss') {
-                          pnl = -(Math.abs(amount) + fees);
-                        } else {
-                          pnl = -fees;
-                        }
-
-                        return (
-                          <div
-                            key={trade.id}
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              padding: '0.5rem',
-                              background: 'var(--bg-primary)',
-                              borderRadius: '0.375rem',
-                              cursor: 'pointer',
-                              border: '1px solid transparent',
-                              transition: 'all 0.2s ease',
-                              transform: 'scale(1)'
-                            }}
-                            onClick={() => handleEditTrade(trade)}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = 'rgba(148, 163, 184, 0.1)';
-                              e.currentTarget.style.borderColor = 'var(--border-color)';
-                              e.currentTarget.style.transform = 'scale(1.02)';
-                              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = 'var(--bg-primary)';
-                              e.currentTarget.style.borderColor = 'transparent';
-                              e.currentTarget.style.transform = 'scale(1)';
-                              e.currentTarget.style.boxShadow = 'none';
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
-                              <span style={{
-                                fontWeight: 600,
-                                fontSize: '0.8125rem',
-                                color: 'var(--text-primary)'
-                              }}>
-                                {trade.symbol}
-                              </span>
-                              <span style={{
-                                fontSize: '0.6875rem',
-                                color: 'var(--text-secondary)',
-                                padding: '0.125rem 0.375rem',
-                                background: 'var(--bg-secondary)',
-                                borderRadius: '0.25rem'
-                              }}>
-                                {trade.category}
-                              </span>
-                              <span
-                                style={{
-                                  fontSize: '0.8125rem',
-                                  fontWeight: 600,
-                                  color: pnl >= 0 ? '#10b981' : '#ef4444',
-                                  marginLeft: 'auto',
-                                  marginRight: '0.5rem'
-                                }}
-                              >
-                                {pnl >= 0 ? '+' : '-'}${Math.abs(pnl).toFixed(2)}
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteTrade(trade.id);
-                              }}
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                color: 'var(--text-secondary)',
-                                cursor: 'pointer',
-                                padding: '0.25rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                opacity: 0.6,
-                                transition: 'opacity 0.2s, color 0.2s'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.opacity = '1';
-                                e.currentTarget.style.color = '#ef4444';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.opacity = '0.6';
-                                e.currentTarget.style.color = 'var(--text-secondary)';
-                              }}
-                              title="Delete trade"
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
 
           <div className="modal-body" style={{ padding: '1.5rem 1.75rem' }}>
@@ -1985,54 +1893,175 @@ function App() {
                   </div>
                 </div>
 
-                {/* Auto-calculated result - compact inline display */}
-                {(formData.amount || formData.fees) && (() => {
-                  const amount = parseFloat(formData.amount) || 0;
-                  const fees = parseFloat(formData.fees) || 0;
-                  const netResult = amount - fees;
-
-                  let resultType = '';
-                  let resultColor = '';
-                  let ResultIcon = Minus;
-
-                  if (netResult > 0.01) {
-                    resultType = 'Profit';
-                    resultColor = '#10b981';
-                    ResultIcon = TrendingUp;
-                  } else if (netResult < -0.01) {
-                    resultType = 'Loss';
-                    resultColor = '#ef4444';
-                    ResultIcon = TrendingDown;
-                  } else if (Math.abs(netResult) < 0.01 && (amount > 0 || fees > 0)) {
-                    resultType = 'Breakeven';
-                    resultColor = '#64748b';
-                    ResultIcon = Minus;
-                  }
-
-                  if (!resultType) return null;
-
-                  return (
+                {/* Historic trades for this day (collapsible) */}
+                {todayTradeCount > 0 && (
+                  <div style={{ marginTop: '0.75rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                      Today's Trades
+                    </label>
                     <div style={{
-                      padding: '0.75rem',
-                      background: `${resultColor}10`,
+                      padding: '0.625rem 0.875rem',
+                      background: todayPnL >= 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
                       borderRadius: '0.5rem',
-                      border: `1px solid ${resultColor}30`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between'
+                      border: `1px solid ${todayPnL >= 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <ResultIcon size={16} color={resultColor} strokeWidth={2.5} />
-                        <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: resultColor }}>
-                          {resultType}
-                        </span>
-                      </div>
-                      <span style={{ fontSize: '0.875rem', fontWeight: 600, color: resultColor }}>
-                        {netResult >= 0 ? '+' : '-'}${Math.abs(netResult).toFixed(2)}
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setTradesExpanded(!tradesExpanded)}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: 0
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 500,
+                            color: 'var(--text-secondary)'
+                          }}>
+                            {todayTradeCount} {todayTradeCount === 1 ? 'trade' : 'trades'}
+                          </span>
+                          <span style={{
+                            fontSize: '0.875rem',
+                            fontWeight: 600,
+                            color: todayPnL >= 0 ? '#10b981' : '#ef4444'
+                          }}>
+                            {todayPnL >= 0 ? '+' : '-'}${Math.abs(todayPnL).toFixed(2)}
+                          </span>
+                        </div>
+                        <ChevronRight
+                          size={14}
+                          style={{
+                            color: 'var(--text-secondary)',
+                            transform: tradesExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.2s'
+                          }}
+                        />
+                      </button>
+
+                      {tradesExpanded && (
+                        <div style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.375rem',
+                          marginTop: '0.625rem',
+                          paddingTop: '0.625rem',
+                          borderTop: `1px solid ${todayPnL >= 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`
+                        }}>
+                          {todayTrades.map((trade) => {
+                            const amount = parseFloat(trade.amount) || 0;
+                            const fees = parseFloat(trade.fees) || 0;
+                            let pnl;
+                            if (trade.type === 'profit') {
+                              pnl = Math.abs(amount) - fees;
+                            } else if (trade.type === 'loss') {
+                              pnl = -(Math.abs(amount) + fees);
+                            } else {
+                              pnl = -fees;
+                            }
+
+                            return (
+                              <div
+                                key={trade.id}
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  padding: '0.5rem',
+                                  background: 'var(--bg-primary)',
+                                  borderRadius: '0.375rem',
+                                  cursor: 'pointer',
+                                  border: '1px solid transparent',
+                                  transition: 'all 0.2s ease',
+                                  transform: 'scale(1)'
+                                }}
+                                onClick={() => handleEditTrade(trade)}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = 'rgba(148, 163, 184, 0.1)';
+                                  e.currentTarget.style.borderColor = 'var(--border-color)';
+                                  e.currentTarget.style.transform = 'scale(1.02)';
+                                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = 'var(--bg-primary)';
+                                  e.currentTarget.style.borderColor = 'transparent';
+                                  e.currentTarget.style.transform = 'scale(1)';
+                                  e.currentTarget.style.boxShadow = 'none';
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                                  <span style={{
+                                    fontWeight: 600,
+                                    fontSize: '0.8125rem',
+                                    color: 'var(--text-primary)'
+                                  }}>
+                                    {trade.symbol}
+                                  </span>
+                                  <span style={{
+                                    fontSize: '0.6875rem',
+                                    color: 'var(--text-secondary)',
+                                    padding: '0.125rem 0.375rem',
+                                    background: 'var(--bg-secondary)',
+                                    borderRadius: '0.25rem'
+                                  }}>
+                                    {trade.category}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: '0.8125rem',
+                                      fontWeight: 600,
+                                      color: pnl >= 0 ? '#10b981' : '#ef4444',
+                                      marginLeft: 'auto',
+                                      marginRight: '0.5rem'
+                                    }}
+                                  >
+                                    {pnl >= 0 ? '+' : '-'}${Math.abs(pnl).toFixed(2)}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteTrade(trade.id);
+                                  }}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: 'var(--text-secondary)',
+                                    cursor: 'pointer',
+                                    padding: '0.25rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    opacity: 0.6,
+                                    transition: 'opacity 0.2s, color 0.2s'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.opacity = '1';
+                                    e.currentTarget.style.color = '#ef4444';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.opacity = '0.6';
+                                    e.currentTarget.style.color = 'var(--text-secondary)';
+                                  }}
+                                  title="Delete trade"
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                  );
-                })()}
+                  </div>
+                )}
 
                 {/* Quick tags - all available for instant selection */}
                 {availableTags.length > 0 && (

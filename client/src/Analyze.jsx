@@ -338,7 +338,11 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                 <button
                   type="button"
                   className="analyze-dropdown-trigger"
-                  onClick={() => setPeriodOpen(!periodOpen)}
+                  onClick={() => {
+                    setPeriodOpen(!periodOpen);
+                    setTypeOpen(false);
+                    setCategoryOpen(false);
+                  }}
                 >
                   <span>{periodFilter}</span>
                   <ChevronDown size={16} />
@@ -731,7 +735,11 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                   <button
                     type="button"
                     className="analyze-filter-dropdown"
-                    onClick={() => setTypeOpen(!typeOpen)}
+                    onClick={() => {
+                      setTypeOpen(!typeOpen);
+                      setPeriodOpen(false);
+                      setCategoryOpen(false);
+                    }}
                   >
                     <span>{typeFilter}</span>
                     <ChevronDown size={16} />
@@ -759,7 +767,11 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                   <button
                     type="button"
                     className="analyze-filter-dropdown"
-                    onClick={() => setCategoryOpen(!categoryOpen)}
+                    onClick={() => {
+                      setCategoryOpen(!categoryOpen);
+                      setPeriodOpen(false);
+                      setTypeOpen(false);
+                    }}
                   >
                     <span>{categoryFilter}</span>
                     <ChevronDown size={16} />
