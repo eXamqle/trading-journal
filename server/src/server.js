@@ -2,12 +2,17 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { initDatabase } from './config/database.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
 import authRoutes from './routes/auth.js';
 import tradeRoutes from './routes/trades.js';
 import journalRoutes from './routes/journal.js';
 import tagRoutes from './routes/tags.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Validate critical environment variables
 if (!process.env.JWT_SECRET) {
@@ -71,15 +76,32 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
+// Serve static files in production
+if (process.env.NODE_ENV === 'production') {
+  const publicPath = path.join(__dirname, '..', 'public');
+  app.use(express.static(publicPath));
+
+  // Serve index.html for all non-API routes (SPA support)
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(publicPath, 'index.html'));
+  });
+} else {
+  // Error handling middleware (development only, production uses SPA catch-all)
+  app.use((err, _req, res, _next) => {
+    console.error('Error:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  });
+
+  // 404 handler (development only)
+  app.use((_req, res) => {
+    res.status(404).json({ message: 'Route not found' });
+  });
+}
+
+// Global error handler (always needed)
+app.use((err, _req, res, _next) => {
   console.error('Error:', err);
   res.status(500).json({ message: 'Internal server error' });
-});
-
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ message: 'Route not found' });
 });
 
 app.listen(PORT, () => {
