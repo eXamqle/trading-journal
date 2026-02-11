@@ -25,6 +25,7 @@ function Profile({ availableTags, setAvailableTags }) {
   const [editingTagIndex, setEditingTagIndex] = useState(null);
   const [alertModal, setAlertModal] = useState({ open: false, message: '', title: 'Notice' });
   const [confirmModal, setConfirmModal] = useState({ open: false, message: '', title: 'Confirm', onConfirm: null });
+  const [showSuccess, setShowSuccess] = useState(false);
 
   // Load user data when component mounts or user changes
   useEffect(() => {
@@ -56,7 +57,8 @@ function Profile({ availableTags, setAvailableTags }) {
     try {
       const { data } = await authAPI.updateProfile(accountData);
       updateUser(data);
-      setAlertModal({ open: true, message: 'Your account has been updated successfully.', title: 'Success' });
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 2500);
     } catch (error) {
       setAlertModal({
         open: true,
@@ -85,7 +87,8 @@ function Profile({ availableTags, setAvailableTags }) {
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword
       });
-      setAlertModal({ open: true, message: 'Your password has been updated successfully.', title: 'Success' });
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 2500);
       setPasswordData({
         currentPassword: '',
         newPassword: '',
@@ -287,62 +290,140 @@ function Profile({ availableTags, setAvailableTags }) {
               </div>
               <div className="profile-card-body">
                 <div className="profile-form-field">
-                  <label htmlFor="currency">Currency</label>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+                  <label htmlFor="currency" style={{ fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.5rem', display: 'block' }}>Currency</label>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: '1.5' }}>
                     Choose your preferred currency symbol for displaying P&L and amounts
                   </p>
-                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <button
                       type="button"
                       onClick={() => setCurrency('USD')}
                       style={{
-                        flex: 1,
-                        padding: '1rem',
-                        border: `2px solid ${currency === 'USD' ? 'var(--accent-blue)' : 'var(--border-color)'}`,
-                        background: currency === 'USD' ? 'rgba(59, 130, 246, 0.1)' : 'var(--bg-color)',
-                        borderRadius: '0.5rem',
+                        padding: '1.5rem',
+                        border: `2px solid ${currency === 'USD' ? '#3b82f6' : 'var(--border-color)'}`,
+                        background: currency === 'USD' ? 'rgba(59, 130, 246, 0.1)' : 'var(--bg-secondary)',
+                        borderRadius: '0.75rem',
                         cursor: 'pointer',
                         transition: 'all 0.2s',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
-                        gap: '0.5rem'
+                        gap: '0.75rem',
+                        boxShadow: currency === 'USD' ? '0 4px 12px rgba(59, 130, 246, 0.2)' : 'none',
+                        transform: currency === 'USD' ? 'translateY(-2px)' : 'translateY(0)'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (currency !== 'USD') {
+                          e.currentTarget.style.borderColor = '#3b82f6';
+                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.1)';
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (currency !== 'USD') {
+                          e.currentTarget.style.borderColor = 'var(--border-color)';
+                          e.currentTarget.style.boxShadow = 'none';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }
                       }}
                     >
-                      <span style={{ fontSize: '2rem', fontWeight: '600' }}>$</span>
-                      <span style={{
-                        fontSize: '0.875rem',
-                        fontWeight: '500',
-                        color: currency === 'USD' ? 'var(--accent-blue)' : 'var(--text-primary)'
+                      <div style={{
+                        width: '3.5rem',
+                        height: '3.5rem',
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1.75rem',
+                        fontWeight: '700',
+                        color: '#ffffff',
+                        boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+                        transition: 'all 0.2s'
                       }}>
-                        USD (Dollar)
-                      </span>
+                        $
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{
+                          fontSize: '0.9rem',
+                          fontWeight: '600',
+                          color: 'var(--text-primary)',
+                          marginBottom: '0.25rem'
+                        }}>
+                          USD
+                        </div>
+                        <div style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--text-secondary)'
+                        }}>
+                          US Dollar
+                        </div>
+                      </div>
                     </button>
                     <button
                       type="button"
                       onClick={() => setCurrency('EUR')}
                       style={{
-                        flex: 1,
-                        padding: '1rem',
-                        border: `2px solid ${currency === 'EUR' ? 'var(--accent-blue)' : 'var(--border-color)'}`,
-                        background: currency === 'EUR' ? 'rgba(59, 130, 246, 0.1)' : 'var(--bg-color)',
-                        borderRadius: '0.5rem',
+                        padding: '1.5rem',
+                        border: `2px solid ${currency === 'EUR' ? '#3b82f6' : 'var(--border-color)'}`,
+                        background: currency === 'EUR' ? 'rgba(59, 130, 246, 0.1)' : 'var(--bg-secondary)',
+                        borderRadius: '0.75rem',
                         cursor: 'pointer',
                         transition: 'all 0.2s',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
-                        gap: '0.5rem'
+                        gap: '0.75rem',
+                        boxShadow: currency === 'EUR' ? '0 4px 12px rgba(59, 130, 246, 0.2)' : 'none',
+                        transform: currency === 'EUR' ? 'translateY(-2px)' : 'translateY(0)'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (currency !== 'EUR') {
+                          e.currentTarget.style.borderColor = '#3b82f6';
+                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.1)';
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (currency !== 'EUR') {
+                          e.currentTarget.style.borderColor = 'var(--border-color)';
+                          e.currentTarget.style.boxShadow = 'none';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }
                       }}
                     >
-                      <span style={{ fontSize: '2rem', fontWeight: '600' }}>€</span>
-                      <span style={{
-                        fontSize: '0.875rem',
-                        fontWeight: '500',
-                        color: currency === 'EUR' ? 'var(--accent-blue)' : 'var(--text-primary)'
+                      <div style={{
+                        width: '3.5rem',
+                        height: '3.5rem',
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1.75rem',
+                        fontWeight: '700',
+                        color: '#ffffff',
+                        boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+                        transition: 'all 0.2s'
                       }}>
-                        EUR (Euro)
-                      </span>
+                        €
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{
+                          fontSize: '0.9rem',
+                          fontWeight: '600',
+                          color: 'var(--text-primary)',
+                          marginBottom: '0.25rem'
+                        }}>
+                          EUR
+                        </div>
+                        <div style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--text-secondary)'
+                        }}>
+                          Euro
+                        </div>
+                      </div>
                     </button>
                   </div>
                 </div>
@@ -623,6 +704,16 @@ function Profile({ availableTags, setAvailableTags }) {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Success Notification */}
+      {showSuccess && (
+        <div className="save-success-overlay">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          Saved!
         </div>
       )}
     </div>

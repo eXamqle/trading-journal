@@ -9,13 +9,12 @@ function Login() {
     email: '',
     password: ''
   });
-  const [error, setError] = useState('');
+  const [alertModal, setAlertModal] = useState({ open: false, message: '', title: 'Error' });
   const [loading, setLoading] = useState(false);
   const { login, register } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
     try {
@@ -23,14 +22,22 @@ function Login() {
         await login({ email: formData.email, password: formData.password });
       } else {
         if (!formData.name) {
-          setError('Name is required');
+          setAlertModal({
+            open: true,
+            message: 'Name is required',
+            title: 'Validation Error'
+          });
           setLoading(false);
           return;
         }
         await register(formData);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Authentication failed');
+      setAlertModal({
+        open: true,
+        message: err.response?.data?.message || 'Authentication failed',
+        title: 'Authentication Error'
+      });
       setLoading(false);
     }
   };
@@ -97,19 +104,6 @@ function Login() {
           {isLogin ? 'Welcome back!' : 'Create your account'}
         </p>
 
-        {error && (
-          <div style={{
-            background: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            borderRadius: '6px',
-            padding: '12px',
-            marginBottom: '20px',
-            color: '#ef4444',
-            fontSize: '14px'
-          }}>
-            {error}
-          </div>
-        )}
 
         <form onSubmit={handleSubmit}>
           {!isLogin && (
@@ -271,7 +265,6 @@ function Login() {
           <button
             onClick={() => {
               setIsLogin(!isLogin);
-              setError('');
             }}
             style={{
               background: 'none',
@@ -302,6 +295,33 @@ function Login() {
           </div>
         )}
       </div>
+
+      {/* Error Modal */}
+      {alertModal.open && (
+        <div className="modal-overlay" style={{ zIndex: 10000 }}>
+          <div className="modal-content" style={{ maxWidth: '400px', padding: '2rem' }}>
+            <button className="close-modal" onClick={() => setAlertModal({ ...alertModal, open: false })}>
+              <X size={20} />
+            </button>
+
+            <div className="modal-header" style={{ marginBottom: '1.5rem' }}>
+              <h2 className="modal-title" style={{ fontSize: '1.25rem' }}>{alertModal.title}</h2>
+            </div>
+
+            <div style={{ marginBottom: '2rem', color: 'var(--text-primary)', lineHeight: '1.6' }}>
+              {alertModal.message}
+            </div>
+
+            <button
+              className="modal-action-button"
+              onClick={() => setAlertModal({ ...alertModal, open: false })}
+              style={{ width: '100%' }}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

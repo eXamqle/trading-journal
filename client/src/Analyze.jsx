@@ -33,12 +33,14 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [rowsPerPageOpen, setRowsPerPageOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   // Refs for dropdown containers
   const periodDropdownRef = useRef(null);
   const typeDropdownRef = useRef(null);
   const categoryDropdownRef = useRef(null);
   const rowsPerPageDropdownRef = useRef(null);
+  const exportDropdownRef = useRef(null);
 
   const periods = ['Custom Range', 'This Week', 'This Month', 'Last 30 Days', 'This Year', 'All Time'];
   const types = ['All Types', 'Profit', 'Loss', 'Break Even'];
@@ -58,6 +60,9 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
       }
       if (rowsPerPageDropdownRef.current && !rowsPerPageDropdownRef.current.contains(event.target)) {
         setRowsPerPageOpen(false);
+      }
+      if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target)) {
+        setExportOpen(false);
       }
     };
 
@@ -286,7 +291,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
     setPeriodFilter('Custom Range');
   };
 
-  const handleExport = () => {
+  const handleExportCSV = () => {
     if (filteredTrades.length === 0) {
       setAlertModal({ open: true, message: 'No trades available to export for the selected filters.', title: 'No Data' });
       return;
@@ -322,6 +327,90 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
+    setExportOpen(false);
+  };
+
+  const handleExportPDF = () => {
+    if (filteredTrades.length === 0) {
+      setAlertModal({ open: true, message: 'No trades available to export for the selected filters.', title: 'No Data' });
+      return;
+    }
+
+    // Create printable content
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Trading Journal - ${format(new Date(), 'yyyy-MM-dd')}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          h1 { color: #1e293b; margin-bottom: 10px; }
+          .meta { color: #64748b; margin-bottom: 20px; font-size: 14px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; }
+          th { background-color: #f8fafc; font-weight: 600; }
+          .profit { color: #10b981; }
+          .loss { color: #ef4444; }
+          .text-right { text-align: right; }
+          @media print {
+            body { padding: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <h1>Trading Journal Export</h1>
+        <div class="meta">
+          <p>Period: ${periodFilter}${periodFilter === 'Custom Range' && customStartDate && customEndDate ?
+            ` (${format(new Date(customStartDate), 'MMM d, yyyy')} - ${format(new Date(customEndDate), 'MMM d, yyyy')})` : ''}</p>
+          <p>Generated: ${format(new Date(), 'MMM d, yyyy HH:mm')}</p>
+          <p>Total Trades: ${filteredTrades.length}</p>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Date</th>
+              <th>Symbol</th>
+              <th>Type</th>
+              <th>Category</th>
+              <th class="text-right">Amount</th>
+              <th class="text-right">Fees</th>
+              <th class="text-right">Net P/L</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filteredTrades.map((trade, index) => {
+              const amount = parseFloat(trade.amount) || 0;
+              const fees = parseFloat(trade.fees) || 0;
+              const netPL = trade.type === 'profit' ? Math.abs(amount) - fees :
+                            trade.type === 'loss' ? -(Math.abs(amount) + fees) : -fees;
+              return `
+                <tr>
+                  <td>${index + 1}</td>
+                  <td>${format(new Date(trade.date), 'MMM d, yyyy')}</td>
+                  <td><strong>${trade.symbol}</strong></td>
+                  <td>${trade.type === 'break-even' ? 'Break Even' : trade.type.charAt(0).toUpperCase() + trade.type.slice(1)}</td>
+                  <td>${trade.category}</td>
+                  <td class="text-right">${symbol}${amount.toFixed(2)}</td>
+                  <td class="text-right">${symbol}${fees.toFixed(2)}</td>
+                  <td class="text-right ${netPL >= 0 ? 'profit' : 'loss'}">
+                    ${netPL >= 0 ? '+' : '-'}${symbol}${Math.abs(netPL).toFixed(2)}
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+
+    // Open print dialog
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.print();
+    setExportOpen(false);
   };
 
   const renderAlertModal = () => {
@@ -419,10 +508,35 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                 )}
               </div>
 
-              <button className="analyze-export-btn" onClick={handleExport}>
-                <Download size={16} />
-                Export Data
-              </button>
+              <div className="dropdown-container" ref={exportDropdownRef}>
+                <button
+                  type="button"
+                  className="analyze-export-btn"
+                  onClick={() => setExportOpen(!exportOpen)}
+                >
+                  <Download size={16} />
+                  Export Data
+                  <ChevronDown size={16} />
+                </button>
+                {exportOpen && (
+                  <div className="dropdown-menu">
+                    <button
+                      type="button"
+                      className="dropdown-item"
+                      onClick={handleExportCSV}
+                    >
+                      Export as CSV
+                    </button>
+                    <button
+                      type="button"
+                      className="dropdown-item"
+                      onClick={handleExportPDF}
+                    >
+                      Export as PDF
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
