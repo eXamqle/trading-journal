@@ -40,6 +40,7 @@ import {
   startOfWeek,
   endOfWeek,
   startOfYear,
+  endOfYear,
   isSameMonth,
   isSameDay,
   addDays,
@@ -59,19 +60,40 @@ import { tagsAPI } from './api/tags';
 
 function App() {
   const { user, logout } = useAuth();
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [activeTab, setActiveTab] = useState('Month');
+  const [currentDate, setCurrentDate] = useState(() => {
+    try {
+      const saved = localStorage.getItem('currentDate');
+      if (saved) {
+        const date = new Date(saved);
+        // Check if date is valid
+        if (!isNaN(date.getTime())) {
+          return date;
+        }
+      }
+    } catch (error) {
+      console.error('Error loading currentDate from localStorage:', error);
+    }
+    return new Date();
+  });
+  const [activeTab, setActiveTab] = useState(() => {
+    const saved = localStorage.getItem('activeTab');
+    return saved || 'Month';
+  });
   const [selectedDate, setSelectedDate] = useState(null);
   const [modalTab, setModalTab] = useState('add');
   const [tradeType, setTradeType] = useState('profit');
   const [categoryOpen, setCategoryOpen] = useState(false);
-  const [tagsOpen, setTagsOpen] = useState(false);
-  const [tagSearchQuery, setTagSearchQuery] = useState('');
+  const [symbolDropdownOpen, setSymbolDropdownOpen] = useState(false);
+  const [selectedSymbolIndex, setSelectedSymbolIndex] = useState(-1);
+  const [selectedCategoryIndex, setSelectedCategoryIndex] = useState(-1);
   const [isSevenDayWeek, setIsSevenDayWeek] = useState(() => {
     const saved = localStorage.getItem('isSevenDayWeek');
     return saved !== null ? JSON.parse(saved) : true;
   });
-  const [currentView, setCurrentView] = useState('calendar'); // 'calendar', 'analyze', 'profile', or 'journalEntries'
+  const [currentView, setCurrentView] = useState(() => {
+    const saved = localStorage.getItem('currentView');
+    return saved || 'calendar';
+  });
   const [trades, setTrades] = useState([]);
   const [profileOpen, setProfileOpen] = useState(false);
   const [journalContent, setJournalContent] = useState('');
@@ -101,10 +123,22 @@ function App() {
     loadTags();
   }, []);
 
-  // Save 7/5 day preference to localStorage
+  // Save navigation state to localStorage
   useEffect(() => {
     localStorage.setItem('isSevenDayWeek', JSON.stringify(isSevenDayWeek));
   }, [isSevenDayWeek]);
+
+  useEffect(() => {
+    localStorage.setItem('currentView', currentView);
+  }, [currentView]);
+
+  useEffect(() => {
+    localStorage.setItem('activeTab', activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    localStorage.setItem('currentDate', currentDate.toISOString());
+  }, [currentDate]);
 
   const loadTrades = async () => {
     try {
@@ -144,6 +178,9 @@ function App() {
   const editorRef = useRef(null);
   const imageInputRef = useRef(null);
   const editorInitialized = useRef(false);
+  const symbolInputRef = useRef(null);
+  const hasAutoFocused = useRef(false);
+  const lastUsedCategory = useRef('');
   const [activeFormats, setActiveFormats] = useState({
     bold: false,
     italic: false,
@@ -155,7 +192,7 @@ function App() {
     insertOrderedList: false
   });
 
-  const categories = ['Stocks', 'Options', 'Indices'];
+  const categories = ['Crypto', 'Forex', 'Futures', 'Options', 'Stocks'];
 
   // Helper function to calculate P&L from trades
   const calculatePnL = (tradesArray) => {
@@ -238,10 +275,11 @@ function App() {
       setTradesExpanded(false);
 
       // Reset form data when opening from calendar (for new entries)
+      // Pre-fill category with last used value
       setFormData({
         symbol: '',
         amount: '',
-        category: '',
+        category: lastUsedCategory.current,
         fees: '',
         tags: []
       });
@@ -407,8 +445,6 @@ function App() {
     setViewingJournal(false);
     setJournalOnlyMode(false);
     setTradesExpanded(false);
-    setTagsOpen(false);
-    setTagSearchQuery('');
     editorInitialized.current = false;
     setFormData({
       symbol: '',
@@ -417,6 +453,11 @@ function App() {
       fees: '',
       tags: []
     });
+    // Reset dropdown states
+    setCategoryOpen(false);
+    setSymbolDropdownOpen(false);
+    setSelectedSymbolIndex(-1);
+    setSelectedCategoryIndex(-1);
   };
 
   // WYSIWYG Editor functions
@@ -546,7 +587,7 @@ function App() {
   };
 
   const handleEditorKeyDown = (e) => {
-    // Handle Tab key for indentation (like Word)
+    // Handle Tab key for indentation and list creation
     if (e.key === 'Tab') {
       e.preventDefault();
 
@@ -554,18 +595,127 @@ function App() {
         // Shift+Tab for outdent
         document.execCommand('outdent', false, null);
       } else {
-        // Tab for indent
-        document.execCommand('indent', false, null);
+        // Check if we're already in a list
+        const selection = window.getSelection();
+        if (selection.rangeCount) {
+          let node = selection.anchorNode;
+          let inList = false;
+
+          // Check if we're inside a list
+          while (node && node !== editorRef.current) {
+            if (node.nodeName === 'UL' || node.nodeName === 'OL' || node.nodeName === 'LI') {
+              inList = true;
+              break;
+            }
+            node = node.parentNode;
+          }
+
+          if (inList) {
+            // Already in a list, indent
+            document.execCommand('indent', false, null);
+          } else {
+            // Not in a list, create a bulleted list
+            document.execCommand('insertUnorderedList', false, null);
+          }
+        }
+      }
+    }
+
+    // Handle Enter key for automatic bullet continuation
+    if (e.key === 'Enter') {
+      const selection = window.getSelection();
+      if (!selection.rangeCount) return;
+
+      // Find if we're inside a list item
+      let node = selection.anchorNode;
+      let listItem = null;
+
+      // Traverse up to find the list item
+      while (node && node !== editorRef.current) {
+        if (node.nodeName === 'LI') {
+          listItem = node;
+          break;
+        }
+        node = node.parentNode;
+      }
+
+      if (listItem) {
+        // Check if the list item is empty or only contains a <br>
+        const text = listItem.textContent.trim();
+
+        if (text === '' || text === '\n') {
+          // Empty list item - exit the list
+          e.preventDefault();
+          document.execCommand('outdent', false, null);
+        }
+        // If not empty, let the default behavior create a new list item
       }
     }
   };
 
-  // Reset editor initialization flag when switching tabs
+  // Reset editor initialization flag and close dropdowns when switching tabs
   useEffect(() => {
     if (modalTab !== 'journal') {
       editorInitialized.current = false;
     }
+    // Reset auto-focus flag when switching to 'add' tab to allow refocusing
+    if (modalTab === 'add') {
+      hasAutoFocused.current = false;
+    }
+    // Close all dropdowns when switching tabs
+    setCategoryOpen(false);
+    setSymbolDropdownOpen(false);
+    setSelectedSymbolIndex(-1);
+    setSelectedCategoryIndex(-1);
   }, [modalTab]);
+
+  // Keyboard shortcut handler for Cmd/Ctrl+Enter to save and Esc to close
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ctrl+M to open new entry modal with today's date
+      if ((e.metaKey || e.ctrlKey) && e.key === 'm' && !selectedDate) {
+        e.preventDefault();
+        openModal(new Date());
+        return;
+      }
+
+      // Shortcuts that work when modal is open
+      if (selectedDate) {
+        // Alt+Left Arrow to switch to Add Trade tab
+        if (e.altKey && e.key === 'ArrowLeft' && !journalOnlyMode) {
+          e.preventDefault();
+          setModalTab('add');
+          setViewingJournal(false);
+          return;
+        }
+
+        // Alt+Right Arrow to switch to Journal tab
+        if (e.altKey && e.key === 'ArrowRight' && !journalOnlyMode) {
+          e.preventDefault();
+          setModalTab('journal');
+          setViewingJournal(false);
+          return;
+        }
+
+        // Cmd/Ctrl+Enter to save
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !viewingJournal) {
+          e.preventDefault();
+          handleSaveEntry();
+          return;
+        }
+
+        // Escape to close
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closeModal();
+          return;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedDate, viewingJournal, formData, tradeType, journalContent, modalTab, journalOnlyMode]);
 
   // Set editor content only when modal first opens
   useEffect(() => {
@@ -574,6 +724,50 @@ function App() {
       editorInitialized.current = true;
     }
   }, [selectedDate, journalContent, modalTab]);
+
+  // Auto-focus first empty input on modal open for ultra-fast entry (only once per modal open)
+  useEffect(() => {
+    if (selectedDate && modalTab === 'add' && !hasAutoFocused.current) {
+      hasAutoFocused.current = true;
+      // Small delay to ensure modal is rendered and state is updated
+      setTimeout(() => {
+        // Get the current input values from DOM to ensure we have the latest state
+        const symbolInput = symbolInputRef.current;
+        const categoryInput = document.getElementById('category-input');
+        const amountInput = document.getElementById('amount');
+        const feesInput = document.getElementById('fees');
+
+        // Focus first empty field in order: symbol -> category -> amount -> fees
+        if (symbolInput && !symbolInput.value) {
+          symbolInput.focus();
+        } else if (categoryInput && !categoryInput.value) {
+          categoryInput.focus();
+        } else if (amountInput && !amountInput.value) {
+          amountInput.focus();
+        } else if (feesInput && !feesInput.value) {
+          feesInput.focus();
+        } else {
+          // All fields filled, focus symbol to allow quick override
+          symbolInput?.focus();
+        }
+      }, 100);
+    }
+
+    // Reset the flag when modal closes
+    if (!selectedDate) {
+      hasAutoFocused.current = false;
+    }
+  }, [selectedDate, modalTab]);
+
+  // Auto-focus journal editor when switching to journal tab
+  useEffect(() => {
+    if (selectedDate && modalTab === 'journal' && editorRef.current && !viewingJournal) {
+      // Small delay to ensure editor is rendered
+      setTimeout(() => {
+        editorRef.current?.focus();
+      }, 100);
+    }
+  }, [selectedDate, modalTab, viewingJournal]);
 
   // Disable body scroll when modal is open
   useEffect(() => {
@@ -591,10 +785,30 @@ function App() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => {
+      const updated = {
+        ...prev,
+        [name]: value
+      };
+
+      // Auto-select trade result based on amount and fees
+      if (name === 'amount' || name === 'fees') {
+        const amount = parseFloat(name === 'amount' ? value : prev.amount) || 0;
+        const fees = parseFloat(name === 'fees' ? value : prev.fees) || 0;
+        const netResult = amount - fees;
+
+        // Auto-select the appropriate trade type based on net result
+        if (netResult > 0.01) {
+          setTradeType('profit');
+        } else if (netResult < -0.01) {
+          setTradeType('loss');
+        } else if (Math.abs(netResult) < 0.01 && (amount > 0 || fees > 0)) {
+          setTradeType('break-even');
+        }
+      }
+
+      return updated;
+    });
   };
 
   // Tag management functions
@@ -621,11 +835,6 @@ function App() {
     }));
   };
 
-  const getTagColor = (tagName) => {
-    const tag = availableTags.find(t => t.name === tagName);
-    return tag ? tag.color : '#64748b';
-  };
-
   const handleSaveEntry = async () => {
 
     // Validate category is selected if any trade fields are filled
@@ -635,6 +844,40 @@ function App() {
       return;
     }
 
+    // Validate trade result matches the net outcome
+    if (formData.symbol && formData.amount && formData.category) {
+      const amount = parseFloat(formData.amount) || 0;
+      const fees = parseFloat(formData.fees) || 0;
+      const netResult = amount - fees;
+
+      if (tradeType === 'profit' && netResult <= 0.01) {
+        setAlertModal({
+          open: true,
+          message: 'Profit result requires: Amount - Fees > $0.01\n\nCurrent net: $' + netResult.toFixed(2),
+          title: 'Invalid Trade Result'
+        });
+        return;
+      }
+
+      if (tradeType === 'loss' && netResult >= -0.01) {
+        setAlertModal({
+          open: true,
+          message: 'Loss result requires: Amount - Fees < -$0.01 (fees must exceed amount)\n\nCurrent net: $' + netResult.toFixed(2),
+          title: 'Invalid Trade Result'
+        });
+        return;
+      }
+
+      if (tradeType === 'break-even' && Math.abs(netResult) >= 0.01) {
+        setAlertModal({
+          open: true,
+          message: 'Breakeven result requires: Amount - Fees = $0.00\n\nCurrent net: $' + netResult.toFixed(2),
+          title: 'Invalid Trade Result'
+        });
+        return;
+      }
+    }
+
     try {
       let tradeCreated = false;
       let journalSaved = false;
@@ -642,7 +885,7 @@ function App() {
       // Save trade if form is filled
       if (formData.symbol && formData.amount && formData.category) {
         const tradeData = {
-          date: selectedDate.toISOString(),
+          date: format(selectedDate, 'yyyy-MM-dd'),
           type: tradeType,
           symbol: formData.symbol,
           amount: formData.amount,
@@ -657,6 +900,8 @@ function App() {
           date: new Date(data.trade.date)
         };
         setTrades(prevTrades => [...prevTrades, tradeWithDate]);
+        // Save the category for next entry
+        lastUsedCategory.current = formData.category;
         tradeCreated = true;
       }
 
@@ -711,11 +956,30 @@ function App() {
             <span style={{ fontSize: '24px', fontWeight: 'bold' }}>$</span>
           </div>
           <div className="logo-text">
-            <h1>Journal & Calendar</h1>
+            <h1>Trade-Book</h1>
             <p>Track your trading performance</p>
           </div>
         </div>
         <div className="nav-actions">
+          <div
+            className="calendar-icon-button"
+            onClick={() => setCurrentView('calendar')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '40px',
+              height: '40px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s',
+              marginRight: '12px'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+          >
+            <CalendarIcon size={20} />
+          </div>
           <div className="profile-dropdown-container">
             <div
               className="user-profile"
@@ -843,7 +1107,7 @@ function App() {
               <div
                 className={`day-cell ${!isSameMonth(day, monthStart) ? 'disabled' : ''} ${isSameDay(day, new Date()) ? 'today' : ''} ${isFuture ? 'disabled' : ''}`}
                 key={idx}
-                onClick={() => openModal(day, hasJournal)}
+                onClick={() => !isFuture && openModal(day, false)}
                 style={{ cursor: isFuture ? 'not-allowed' : 'pointer' }}
               >
                 <span className="day-number">{format(day, 'd')}</span>
@@ -853,7 +1117,14 @@ function App() {
                   </span>
                 )}
                 {hasJournal && (
-                  <span className="journal-indicator" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span
+                    className="journal-indicator"
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleViewJournalEntry(format(day, 'yyyy-MM-dd'));
+                    }}
+                  >
                     <FileText size={16} strokeWidth={1.5} color="#e2e8f0" />
                   </span>
                 )}
@@ -915,7 +1186,7 @@ function App() {
                 key={idx}
                 className={`week-day-item ${isToday(day) ? 'week-day-today' : ''} ${isFuture ? 'disabled' : ''}`}
                 style={{ animationDelay: `${idx * 50}ms`, cursor: isFuture ? 'not-allowed' : 'pointer', opacity: isFuture ? 0.5 : 1 }}
-                onClick={() => openModal(day, hasJournal)}
+                onClick={() => !isFuture && openModal(day, false)}
               >
                 <div className="week-day-left">
                   <div className={`week-day-number ${isToday(day) ? 'week-day-number-today' : ''}`}>
@@ -924,7 +1195,14 @@ function App() {
                   <div className="week-day-info">
                     <span className="week-day-name">{format(day, 'EEEE')}</span>
                     {hasJournal && (
-                      <span className="journal-badge" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <span
+                        className="journal-badge"
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewJournalEntry(format(day, 'yyyy-MM-dd'));
+                        }}
+                      >
                         <FileText size={14} strokeWidth={1.5} color="#e2e8f0" />
                         Journal
                       </span>
@@ -1000,7 +1278,7 @@ function App() {
             key={day}
             className={`${dayClass} ${isTodayDate ? 'today' : ''} ${hasJournal ? 'has-journal' : ''}`}
             title={title}
-            onClick={() => !isFuture && openModal(date, hasJournal)}
+            onClick={() => !isFuture && openModal(date, false)}
             style={{ cursor: isFuture ? 'not-allowed' : 'pointer', opacity: isFuture ? 0.5 : 1 }}
           />
         );
@@ -1072,43 +1350,240 @@ function App() {
   const renderModal = () => {
     if (!selectedDate || readerModalOpen) return null;
 
+    // Calculate today's stats for real-time insights
+    const todayTrades = getTradesForDate(selectedDate);
+    const todayPnL = calculatePnL(todayTrades);
+    const todayTradeCount = todayTrades.length;
+
     return (
       <div className="modal-overlay">
-        <div className="modal-content">
-          <button className="close-modal" onClick={closeModal}>
-            <X size={20} />
-          </button>
+        <div className="modal-content" style={{ maxWidth: '680px' }}>
+          {/* Unified Header - Date, Stats, Trades, Tabs all in one cohesive section */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%)',
+            borderBottom: '1px solid var(--border-color)'
+          }}>
+            {/* Top row: Date + Tab switcher */}
+            <div style={{
+              padding: '1.25rem 1.75rem 1rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '1rem'
+            }}>
+              <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                {format(selectedDate, 'EEEE, MMM d')}
+              </h2>
 
-          <div className="modal-header" style={{ textAlign: 'left' }}>
-            <h2 className="modal-title" style={{ textAlign: 'left' }}>{format(selectedDate, 'MMMM d, yyyy')}</h2>
-            <p className="modal-subtitle" style={{ textAlign: 'left' }}>Trade Management Ritual</p>
+              {!journalOnlyMode && (
+                <div style={{
+                  display: 'flex',
+                  gap: '0.25rem',
+                  padding: '0.25rem',
+                  background: 'var(--bg-secondary)',
+                  borderRadius: '0.5rem',
+                  border: '1px solid var(--border-color)'
+                }}>
+                  <button
+                    onClick={() => {
+                      setModalTab('add');
+                      setViewingJournal(false);
+                    }}
+                    style={{
+                      padding: '0.375rem 0.75rem',
+                      borderRadius: '0.375rem',
+                      border: 'none',
+                      background: modalTab === 'add' ? 'var(--accent-blue)' : 'transparent',
+                      color: modalTab === 'add' ? 'white' : 'var(--text-secondary)',
+                      fontSize: '0.8125rem',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.375rem',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    <PlusCircle size={14} />
+                    Trade
+                  </button>
+                  <button
+                    onClick={() => {
+                      setModalTab('journal');
+                      setViewingJournal(false);
+                    }}
+                    style={{
+                      padding: '0.375rem 0.75rem',
+                      borderRadius: '0.375rem',
+                      border: 'none',
+                      background: modalTab === 'journal' ? 'var(--accent-blue)' : 'transparent',
+                      color: modalTab === 'journal' ? 'white' : 'var(--text-secondary)',
+                      fontSize: '0.8125rem',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.375rem',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    <FileText size={14} />
+                    Journal
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Daily stats + existing trades (collapsible) */}
+            {todayTradeCount > 0 && (
+              <div style={{ padding: '0 1.75rem 1rem' }}>
+                <div style={{
+                  padding: '0.625rem 0.875rem',
+                  background: todayPnL >= 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                  borderRadius: '0.5rem',
+                  border: `1px solid ${todayPnL >= 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => setTradesExpanded(!tradesExpanded)}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: 0
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                        color: 'var(--text-secondary)'
+                      }}>
+                        {todayTradeCount} {todayTradeCount === 1 ? 'trade' : 'trades'}
+                      </span>
+                      <span style={{
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        color: todayPnL >= 0 ? '#10b981' : '#ef4444'
+                      }}>
+                        {todayPnL >= 0 ? '+' : ''}${todayPnL.toFixed(2)}
+                      </span>
+                    </div>
+                    <ChevronRight
+                      size={14}
+                      style={{
+                        color: 'var(--text-secondary)',
+                        transform: tradesExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.2s'
+                      }}
+                    />
+                  </button>
+
+                  {tradesExpanded && (
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.375rem',
+                      marginTop: '0.625rem',
+                      paddingTop: '0.625rem',
+                      borderTop: `1px solid ${todayPnL >= 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`
+                    }}>
+                      {todayTrades.map((trade) => {
+                        const amount = parseFloat(trade.amount) || 0;
+                        const fees = parseFloat(trade.fees) || 0;
+                        const pnl = trade.type === 'profit' ? amount - fees : -(amount + fees);
+
+                        return (
+                          <div
+                            key={trade.id}
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              padding: '0.5rem',
+                              background: 'var(--bg-primary)',
+                              borderRadius: '0.375rem',
+                              transition: 'transform 0.15s'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.01)'}
+                            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                              <span style={{
+                                fontWeight: 600,
+                                fontSize: '0.8125rem',
+                                color: 'var(--text-primary)'
+                              }}>
+                                {trade.symbol}
+                              </span>
+                              <span style={{
+                                fontSize: '0.6875rem',
+                                color: 'var(--text-secondary)',
+                                padding: '0.125rem 0.375rem',
+                                background: 'var(--bg-secondary)',
+                                borderRadius: '0.25rem'
+                              }}>
+                                {trade.category}
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: '0.8125rem',
+                                  fontWeight: 600,
+                                  color: pnl >= 0 ? '#10b981' : '#ef4444',
+                                  marginLeft: 'auto',
+                                  marginRight: '0.5rem'
+                                }}
+                              >
+                                {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteTrade(trade.id);
+                              }}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--text-secondary)',
+                                cursor: 'pointer',
+                                padding: '0.25rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                opacity: 0.5,
+                                transition: 'opacity 0.15s, color 0.15s'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.opacity = '1';
+                                e.currentTarget.style.color = '#ef4444';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.opacity = '0.5';
+                                e.currentTarget.style.color = 'var(--text-secondary)';
+                              }}
+                              title="Delete trade"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="modal-body" style={{ padding: '1.5rem 1.75rem' }}>
-            {!journalOnlyMode && (
-              <div className="modal-tabs">
-                <button
-                  className={`modal-tab ${modalTab === 'add' ? 'active' : ''}`}
-                  onClick={() => {
-                    setModalTab('add');
-                    setViewingJournal(false);
-                  }}
-                >
-                  <PlusCircle size={14} />
-                  New Entry
-                </button>
-                <button
-                  className={`modal-tab ${modalTab === 'journal' ? 'active' : ''}`}
-                  onClick={() => {
-                    setModalTab('journal');
-                    setViewingJournal(false);
-                  }}
-                >
-                  <FileText size={14} />
-                  Journal
-                </button>
-              </div>
-            )}
 
             {viewingJournal ? (
               <div className="journal-view-container" style={{ padding: '1rem 0' }}>
@@ -1120,424 +1595,464 @@ function App() {
               </div>
             ) : modalTab === 'add' ? (
               <>
-                {/* Show existing trades for this date */}
-                {selectedDate && getTradesForDate(selectedDate).length > 0 && (() => {
-                  const dayTrades = getTradesForDate(selectedDate);
-                  const totalPnL = calculatePnL(dayTrades);
-
-                  return (
-                    <div style={{
-                      marginBottom: '1.5rem',
-                      padding: '0.75rem 1rem',
-                      background: 'var(--bg-secondary)',
-                      borderRadius: '0.5rem',
-                      border: '1px solid var(--border-color)'
-                    }}>
-                      <button
-                        onClick={() => setTradesExpanded(!tradesExpanded)}
-                        style={{
-                          width: '100%',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          padding: 0
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          <span style={{
-                            fontSize: '0.8125rem',
-                            fontWeight: 600,
-                            color: 'var(--text-primary)'
-                          }}>
-                            Existing Trades ({dayTrades.length})
-                          </span>
-                          <span style={{
-                            fontSize: '0.8125rem',
-                            fontWeight: 600,
-                            color: totalPnL >= 0 ? '#10b981' : '#ef4444'
-                          }}>
-                            {totalPnL >= 0 ? '+' : ''}${totalPnL.toFixed(2)}
-                          </span>
-                        </div>
-                        <ChevronRight
-                          size={16}
-                          style={{
-                            color: 'var(--text-secondary)',
-                            transform: tradesExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                            transition: 'transform 0.2s'
-                          }}
-                        />
-                      </button>
-
-                      {tradesExpanded && (
-                        <div style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '0.375rem',
-                          marginTop: '0.75rem',
-                          paddingTop: '0.75rem',
-                          borderTop: '1px solid var(--border-color)'
-                        }}>
-                          {dayTrades.map((trade) => {
-                            const amount = parseFloat(trade.amount) || 0;
-                            const fees = parseFloat(trade.fees) || 0;
-                            const pnl = trade.type === 'profit' ? amount - fees : -(amount + fees);
-
-                            return (
-                              <div
-                                key={trade.id}
-                                style={{
-                                  display: 'flex',
-                                  justifyContent: 'space-between',
-                                  alignItems: 'center',
-                                  padding: '0.375rem 0.5rem',
-                                  background: 'var(--bg-primary)',
-                                  borderRadius: '0.25rem',
-                                  border: '1px solid var(--border-color)'
-                                }}
-                              >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
-                                  <span style={{
-                                    fontWeight: 600,
-                                    fontSize: '0.8125rem',
-                                    color: 'var(--text-primary)'
-                                  }}>
-                                    {trade.symbol}
-                                  </span>
-                                  <span style={{
-                                    fontSize: '0.75rem',
-                                    color: 'var(--text-secondary)',
-                                    textTransform: 'capitalize'
-                                  }}>
-                                    {trade.category}
-                                  </span>
-                                  <span
-                                    style={{
-                                      fontSize: '0.8125rem',
-                                      fontWeight: 600,
-                                      color: pnl >= 0 ? '#10b981' : '#ef4444'
-                                    }}
-                                  >
-                                    {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
-                                  </span>
-                                </div>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteTrade(trade.id);
-                                  }}
-                                  style={{
-                                    background: 'none',
-                                    border: 'none',
-                                    color: 'var(--text-secondary)',
-                                    cursor: 'pointer',
-                                    padding: '0.25rem',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    opacity: 0.6,
-                                    transition: 'opacity 0.2s, color 0.2s'
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.opacity = '1';
-                                    e.currentTarget.style.color = '#ef4444';
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.opacity = '0.6';
-                                    e.currentTarget.style.color = 'var(--text-secondary)';
-                                  }}
-                                  title="Delete trade"
-                                >
-                                  <X size={14} />
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                <form onSubmit={(e) => { e.preventDefault(); handleSaveEntry(); }}>
-                <div className="form-field full-width">
-                  <label className="form-label">Trade Result</label>
-                  <div className="trade-type-grid">
-                    <div
-                      className={`trade-type-option profit ${tradeType === 'profit' ? 'selected' : ''}`}
-                      onClick={() => setTradeType('profit')}
-                    >
-                      <div className="trade-type-icon">
-                        <TrendingUp size={16} />
-                      </div>
-                      <span className="trade-type-label">Profit</span>
-                    </div>
-                    <div
-                      className={`trade-type-option loss ${tradeType === 'loss' ? 'selected' : ''}`}
-                      onClick={() => setTradeType('loss')}
-                    >
-                      <div className="trade-type-icon">
-                        <TrendingDown size={16} />
-                      </div>
-                      <span className="trade-type-label">Loss</span>
-                    </div>
-                    <div
-                      className={`trade-type-option break-even ${tradeType === 'break-even' ? 'selected' : ''}`}
-                      onClick={() => setTradeType('break-even')}
-                    >
-                      <div className="trade-type-icon">
-                        <Minus size={16} />
-                      </div>
-                      <span className="trade-type-label">Even</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="form-grid">
-                  <div className="form-field">
-                    <label className="form-label" htmlFor="symbol">Symbol *</label>
+                <form onSubmit={(e) => { e.preventDefault(); handleSaveEntry(); }} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {/* Compact, focused input fields */}
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.75rem' }}>
+                  <div style={{ position: 'relative' }}>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '0.375rem' }}>
+                      Symbol
+                    </label>
                     <input
+                      ref={symbolInputRef}
                       id="symbol"
                       name="symbol"
                       type="text"
-                      className="form-input"
-                      placeholder="e.g. BTCUSDT"
+                      placeholder="SPY"
                       value={formData.symbol}
-                      onChange={handleInputChange}
+                      onChange={(e) => {
+                        handleInputChange(e);
+                        setSymbolDropdownOpen(true);
+                        // Auto-select first match for quick entry
+                        const uniqueSymbols = [...new Set(trades.map(t => t.symbol))].sort();
+                        const filteredSymbols = uniqueSymbols.filter(s =>
+                          s.toLowerCase().includes(e.target.value.toLowerCase())
+                        );
+                        setSelectedSymbolIndex(filteredSymbols.length > 0 ? 0 : -1);
+                      }}
+                      onKeyDown={(e) => {
+                        const uniqueSymbols = [...new Set(trades.map(t => t.symbol))].sort();
+                        const filteredSymbols = uniqueSymbols.filter(s =>
+                          s.toLowerCase().includes(formData.symbol.toLowerCase())
+                        );
+
+                        if (e.key === 'ArrowDown') {
+                          e.preventDefault();
+                          setSelectedSymbolIndex(prev =>
+                            prev < filteredSymbols.length - 1 ? prev + 1 : prev
+                          );
+                          setSymbolDropdownOpen(true);
+                        } else if (e.key === 'ArrowUp') {
+                          e.preventDefault();
+                          setSelectedSymbolIndex(prev => prev > 0 ? prev - 1 : -1);
+                        } else if (e.key === 'Enter' && selectedSymbolIndex >= 0 && symbolDropdownOpen) {
+                          e.preventDefault();
+                          setFormData(prev => ({ ...prev, symbol: filteredSymbols[selectedSymbolIndex] }));
+                          setSymbolDropdownOpen(false);
+                          setSelectedSymbolIndex(-1);
+                        } else if (e.key === 'Escape') {
+                          setSymbolDropdownOpen(false);
+                          setSelectedSymbolIndex(-1);
+                        }
+                      }}
+                      onFocus={() => {
+                        if (formData.symbol) {
+                          setSymbolDropdownOpen(true);
+                          // Auto-select first match
+                          const uniqueSymbols = [...new Set(trades.map(t => t.symbol))].sort();
+                          const filteredSymbols = uniqueSymbols.filter(s =>
+                            s.toLowerCase().includes(formData.symbol.toLowerCase())
+                          );
+                          setSelectedSymbolIndex(filteredSymbols.length > 0 ? 0 : -1);
+                        }
+                      }}
+                      onBlur={() => {
+                        // Delay to allow click on dropdown item
+                        setTimeout(() => {
+                          setSymbolDropdownOpen(false);
+                          setSelectedSymbolIndex(-1);
+                        }, 200);
+                      }}
+                      autoComplete="off"
+                      style={{
+                        width: '100%',
+                        padding: '0.625rem 0.75rem',
+                        fontSize: '0.875rem',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '0.5rem',
+                        background: 'var(--bg-primary)',
+                        color: 'var(--text-primary)',
+                        outline: 'none',
+                        transition: 'border-color 0.15s'
+                      }}
                       required
                     />
+                    {/* Autocomplete dropdown */}
+                    {symbolDropdownOpen && formData.symbol && (() => {
+                      const uniqueSymbols = [...new Set(trades.map(t => t.symbol))].sort();
+                      const filteredSymbols = uniqueSymbols.filter(s =>
+                        s.toLowerCase().includes(formData.symbol.toLowerCase())
+                      );
+
+                      if (filteredSymbols.length === 0) return null;
+
+                      return (
+                        <div style={{
+                          position: 'absolute',
+                          top: 'calc(100% + 0.25rem)',
+                          left: 0,
+                          right: 0,
+                          background: '#1e293b',
+                          border: '1px solid rgba(148, 163, 184, 0.3)',
+                          borderRadius: '0.5rem',
+                          maxHeight: '200px',
+                          overflowY: 'auto',
+                          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
+                          zIndex: 100
+                        }}>
+                          {filteredSymbols.map((symbol, index) => (
+                            <div
+                              key={symbol}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setFormData(prev => ({ ...prev, symbol }));
+                                setSymbolDropdownOpen(false);
+                                setSelectedSymbolIndex(-1);
+                              }}
+                              onMouseEnter={() => setSelectedSymbolIndex(index)}
+                              style={{
+                                padding: '0.5rem 0.75rem',
+                                fontSize: '0.8125rem',
+                                cursor: 'pointer',
+                                background: selectedSymbolIndex === index ? 'var(--accent-blue)' : 'transparent',
+                                color: selectedSymbolIndex === index ? 'white' : '#e2e8f0',
+                                transition: 'all 0.15s'
+                              }}
+                            >
+                              {symbol}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
-                  <div className="form-field">
-                    <label className="form-label" htmlFor="amount">Amount ($) *</label>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '0.375rem' }}>
+                      Amount
+                    </label>
                     <input
                       id="amount"
                       name="amount"
                       type="number"
                       step="0.01"
                       min="0"
-                      className="form-input"
                       placeholder="0.00"
                       value={formData.amount}
                       onChange={handleInputChange}
+                      style={{
+                        width: '100%',
+                        padding: '0.625rem 0.75rem',
+                        fontSize: '0.875rem',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '0.5rem',
+                        background: 'var(--bg-primary)',
+                        color: 'var(--text-primary)',
+                        outline: 'none',
+                        transition: 'border-color 0.15s'
+                      }}
+                      onFocus={(e) => e.target.style.borderColor = 'var(--accent-blue)'}
+                      onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
                       required
                     />
                   </div>
-                  <div className="form-field">
-                    <label className="form-label" htmlFor="category">Category *</label>
-                    <div className="dropdown-container">
-                      <button
-                        type="button"
-                        className="dropdown-trigger"
-                        onClick={() => setCategoryOpen(!categoryOpen)}
-                        style={{ borderColor: !formData.category ? '#ef4444' : undefined }}
-                      >
-                        <span className={formData.category ? '' : 'placeholder'}>
-                          {formData.category || 'Select Market'}
-                        </span>
-                        <ChevronRight
-                          size={16}
-                          style={{
-                            transform: categoryOpen ? 'rotate(90deg)' : 'rotate(0deg)',
-                            transition: 'transform 0.2s'
-                          }}
-                        />
-                      </button>
-                      {categoryOpen && (
-                        <div className="dropdown-menu">
-                          {categories.map((cat) => (
-                            <button
-                              key={cat}
-                              type="button"
-                              className="dropdown-item"
-                              onClick={() => {
-                                setFormData(prev => ({ ...prev, category: cat }));
-                                setCategoryOpen(false);
-                              }}
-                            >
-                              {cat}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="form-field">
-                    <label className="form-label" htmlFor="fees">Fees ($)</label>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '0.375rem' }}>
+                      Fees
+                    </label>
                     <input
                       id="fees"
                       name="fees"
                       type="number"
                       step="0.01"
                       min="0"
-                      className="form-input"
                       placeholder="0.00"
                       value={formData.fees}
                       onChange={handleInputChange}
+                      style={{
+                        width: '100%',
+                        padding: '0.625rem 0.75rem',
+                        fontSize: '0.875rem',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '0.5rem',
+                        background: 'var(--bg-primary)',
+                        color: 'var(--text-primary)',
+                        outline: 'none',
+                        transition: 'border-color 0.15s'
+                      }}
+                      onFocus={(e) => e.target.style.borderColor = 'var(--accent-blue)'}
+                      onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
                     />
                   </div>
                 </div>
 
-                <div className="form-field full-width">
-                  <label className="form-label">Tags</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.75rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '0.375rem' }}>
+                      Market
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        id="category-input"
+                        name="category"
+                        type="text"
+                        placeholder="Stocks, Options, etc."
+                        value={formData.category}
+                        onChange={(e) => {
+                          setFormData(prev => ({ ...prev, category: e.target.value }));
+                          setCategoryOpen(true);
+                          // Auto-select first match
+                          const filteredCategories = categories.filter(c =>
+                            c.toLowerCase().includes(e.target.value.toLowerCase())
+                          );
+                          setSelectedCategoryIndex(filteredCategories.length > 0 ? 0 : -1);
+                        }}
+                        onKeyDown={(e) => {
+                          const filteredCategories = categories.filter(c =>
+                            c.toLowerCase().includes(formData.category.toLowerCase())
+                          );
 
-                  <div style={{ position: 'relative' }}>
-                    {/* Dropdown above input */}
-                    {tagsOpen && (() => {
-                      const filteredTags = availableTags.filter(tag =>
-                        tag.name.toLowerCase().includes(tagSearchQuery.toLowerCase())
-                      );
-                      const showCreate = tagSearchQuery && !availableTags.find(t => t.name.toLowerCase() === tagSearchQuery.toLowerCase());
+                          if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            setSelectedCategoryIndex(prev =>
+                              prev < filteredCategories.length - 1 ? prev + 1 : prev
+                            );
+                            setCategoryOpen(true);
+                          } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            setSelectedCategoryIndex(prev => prev > 0 ? prev - 1 : -1);
+                          } else if (e.key === 'Enter' && selectedCategoryIndex >= 0 && categoryOpen) {
+                            e.preventDefault();
+                            setFormData(prev => ({ ...prev, category: filteredCategories[selectedCategoryIndex] }));
+                            setCategoryOpen(false);
+                            setSelectedCategoryIndex(-1);
+                          } else if (e.key === 'Escape') {
+                            setCategoryOpen(false);
+                            setSelectedCategoryIndex(-1);
+                          }
+                        }}
+                        onFocus={() => {
+                          setCategoryOpen(true);
+                          // Show all options when focused
+                          const filteredCategories = formData.category
+                            ? categories.filter(c => c.toLowerCase().includes(formData.category.toLowerCase()))
+                            : categories;
+                          setSelectedCategoryIndex(filteredCategories.length > 0 ? 0 : -1);
+                        }}
+                        onBlur={() => {
+                          // Delay to allow click on dropdown item
+                          setTimeout(() => {
+                            setCategoryOpen(false);
+                            setSelectedCategoryIndex(-1);
+                          }, 200);
+                        }}
+                        autoComplete="off"
+                        style={{
+                          width: '100%',
+                          padding: '0.625rem 0.75rem',
+                          fontSize: '0.875rem',
+                          border: `1px solid ${!formData.category ? '#ef4444' : 'var(--border-color)'}`,
+                          borderRadius: '0.5rem',
+                          background: 'var(--bg-primary)',
+                          color: 'var(--text-primary)',
+                          outline: 'none',
+                          transition: 'border-color 0.15s'
+                        }}
+                        required
+                      />
+                      {/* Autocomplete dropdown */}
+                      {categoryOpen && (() => {
+                        const filteredCategories = formData.category
+                          ? categories.filter(c => c.toLowerCase().includes(formData.category.toLowerCase()))
+                          : categories;
 
-                      return (
-                        <div style={{
-                          display: 'flex',
-                          flexWrap: 'wrap',
-                          gap: '0.5rem',
-                          padding: '0.75rem',
-                          background: 'var(--bg-secondary)',
-                          border: '1px solid var(--border-color)',
-                          borderBottom: 'none',
-                          borderRadius: '0.5rem 0.5rem 0 0',
-                          maxHeight: '180px',
-                          overflowY: 'auto',
-                          marginBottom: '-1px'
-                        }}>
-                          {filteredTags.map((tag) => {
-                            const isSelected = formData.tags.includes(tag.name);
-                            return (
-                              <button
-                                key={tag.name}
-                                type="button"
+                        if (filteredCategories.length === 0) return null;
+
+                        return (
+                          <div style={{
+                            position: 'absolute',
+                            top: 'calc(100% + 0.25rem)',
+                            left: 0,
+                            right: 0,
+                            background: '#1e293b',
+                            border: '1px solid rgba(148, 163, 184, 0.3)',
+                            borderRadius: '0.5rem',
+                            maxHeight: '200px',
+                            overflowY: 'auto',
+                            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
+                            zIndex: 100
+                          }}>
+                            {filteredCategories.map((cat, index) => (
+                              <div
+                                key={cat}
                                 onMouseDown={(e) => {
                                   e.preventDefault();
-                                  if (isSelected) {
-                                    handleRemoveTag(tag.name);
-                                  } else {
-                                    handleAddTag(tag.name);
-                                  }
+                                  setFormData(prev => ({ ...prev, category: cat }));
+                                  setCategoryOpen(false);
+                                  setSelectedCategoryIndex(-1);
                                 }}
+                                onMouseEnter={() => setSelectedCategoryIndex(index)}
                                 style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '0.375rem',
-                                  padding: '0.375rem 0.625rem',
-                                  borderRadius: '999px',
+                                  padding: '0.5rem 0.75rem',
                                   fontSize: '0.8125rem',
-                                  background: isSelected ? 'var(--accent-purple)' : 'var(--bg-primary)',
-                                  border: `1px solid ${isSelected ? 'var(--accent-purple)' : 'var(--border-color)'}`,
-                                  color: isSelected ? 'white' : 'var(--text-primary)',
                                   cursor: 'pointer',
-                                  transition: 'all 0.15s',
-                                  whiteSpace: 'nowrap'
+                                  background: selectedCategoryIndex === index ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                  color: selectedCategoryIndex === index ? '#60a5fa' : '#e2e8f0',
+                                  transition: 'background 0.15s'
                                 }}
                               >
-                                <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: tag.color, flexShrink: 0 }} />
-                                {tag.name}
-                                {isSelected && <span style={{ fontSize: '0.7rem' }}>✓</span>}
-                              </button>
-                            );
-                          })}
-                          {showCreate && (
+                                {cat}
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Auto-calculated result - compact inline display */}
+                {(formData.amount || formData.fees) && (() => {
+                  const amount = parseFloat(formData.amount) || 0;
+                  const fees = parseFloat(formData.fees) || 0;
+                  const netResult = amount - fees;
+
+                  let resultType = '';
+                  let resultColor = '';
+                  let ResultIcon = Minus;
+
+                  if (netResult > 0.01) {
+                    resultType = 'Profit';
+                    resultColor = '#10b981';
+                    ResultIcon = TrendingUp;
+                  } else if (netResult < -0.01) {
+                    resultType = 'Loss';
+                    resultColor = '#ef4444';
+                    ResultIcon = TrendingDown;
+                  } else if (Math.abs(netResult) < 0.01 && (amount > 0 || fees > 0)) {
+                    resultType = 'Breakeven';
+                    resultColor = '#64748b';
+                    ResultIcon = Minus;
+                  }
+
+                  if (!resultType) return null;
+
+                  return (
+                    <div style={{
+                      padding: '0.75rem',
+                      background: `${resultColor}10`,
+                      borderRadius: '0.5rem',
+                      border: `1px solid ${resultColor}30`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <ResultIcon size={16} color={resultColor} strokeWidth={2.5} />
+                        <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: resultColor }}>
+                          {resultType}
+                        </span>
+                      </div>
+                      <span style={{ fontSize: '0.875rem', fontWeight: 600, color: resultColor }}>
+                        {netResult >= 0 ? '+' : ''}${netResult.toFixed(2)}
+                      </span>
+                    </div>
+                  );
+                })()}
+
+                {/* Quick tags - all available for instant selection */}
+                {availableTags.length > 0 && (
+                  <div style={{ marginTop: '0.75rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                      Tags (optional)
+                    </label>
+                    <div style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '0.375rem',
+                      alignItems: 'center'
+                    }}>
+                      {availableTags.map((tag) => {
+                          const isSelected = formData.tags.includes(tag.name);
+                          return (
                             <button
+                              key={tag.name}
                               type="button"
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                                handleAddTag(tagSearchQuery);
-                                setTagSearchQuery('');
+                              onClick={() => {
+                                if (isSelected) {
+                                  handleRemoveTag(tag.name);
+                                } else {
+                                  handleAddTag(tag.name);
+                                }
                               }}
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                padding: '0.375rem 0.625rem',
+                                gap: '0.25rem',
+                                padding: '0.3rem 0.5rem',
                                 borderRadius: '999px',
-                                fontSize: '0.8125rem',
-                                background: 'transparent',
-                                border: '1px dashed var(--border-color)',
-                                color: 'var(--text-secondary)',
+                                fontSize: '0.6875rem',
+                                background: isSelected ? tag.color : 'transparent',
+                                border: `1px solid ${isSelected ? tag.color : 'rgba(148, 163, 184, 0.3)'}`,
+                                color: isSelected ? 'white' : '#94a3b8',
                                 cursor: 'pointer',
-                                fontStyle: 'italic',
-                                whiteSpace: 'nowrap'
+                                transition: 'all 0.15s',
+                                whiteSpace: 'nowrap',
+                                fontWeight: 500
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!isSelected) {
+                                  e.currentTarget.style.borderColor = tag.color;
+                                  e.currentTarget.style.color = tag.color;
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!isSelected) {
+                                  e.currentTarget.style.borderColor = 'rgba(148, 163, 184, 0.3)';
+                                  e.currentTarget.style.color = '#94a3b8';
+                                }
                               }}
                             >
-                              + Create "{tagSearchQuery}"
+                              {tag.name}
+                              {isSelected && <span style={{ fontSize: '0.625rem' }}>✓</span>}
                             </button>
-                          )}
-                        </div>
-                      );
-                    })()}
-
-                    {/* Input with selected tags */}
-                    <div
-                      style={{
-                        width: '100%',
-                        minHeight: '42px',
-                        padding: '0.5rem',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: tagsOpen ? '0 0 0.5rem 0.5rem' : '0.5rem',
-                        background: 'var(--bg-primary)',
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        alignItems: 'center',
-                        gap: '0.375rem'
-                      }}
-                    >
-                      {formData.tags.map((tag, index) => (
-                        <span
-                          key={index}
-                          className="tag-badge"
-                          style={{ backgroundColor: getTagColor(tag) }}
+                          );
+                        })}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newTag = prompt('Enter new tag name:');
+                            if (newTag && newTag.trim()) {
+                              handleAddTag(newTag.trim());
+                            }
+                          }}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            padding: '0.3rem 0.5rem',
+                            borderRadius: '999px',
+                            fontSize: '0.6875rem',
+                            background: 'transparent',
+                            border: '1px dashed rgba(148, 163, 184, 0.4)',
+                            color: '#94a3b8',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s',
+                            whiteSpace: 'nowrap',
+                            fontWeight: 500
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = '#3b82f6';
+                            e.currentTarget.style.color = '#3b82f6';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = 'rgba(148, 163, 184, 0.4)';
+                            e.currentTarget.style.color = '#94a3b8';
+                          }}
                         >
-                          {tag}
-                          <button
-                            type="button"
-                            className="tag-remove"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveTag(tag);
-                            }}
-                          >
-                            <X size={12} />
-                          </button>
-                        </span>
-                      ))}
-                      <input
-                        id="tags-input"
-                        type="text"
-                        placeholder={formData.tags.length === 0 ? 'Type to add tags...' : ''}
-                        value={tagSearchQuery}
-                        onChange={(e) => setTagSearchQuery(e.target.value)}
-                        onClick={() => setTagsOpen(true)}
-                        onBlur={() => setTimeout(() => setTagsOpen(false), 150)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && tagSearchQuery.trim()) {
-                            e.preventDefault();
-                            handleAddTag(tagSearchQuery);
-                            setTagSearchQuery('');
-                          } else if (e.key === 'Backspace' && !tagSearchQuery && formData.tags.length > 0) {
-                            e.preventDefault();
-                            handleRemoveTag(formData.tags[formData.tags.length - 1]);
-                          } else if (e.key === 'Escape') {
-                            setTagsOpen(false);
-                            setTagSearchQuery('');
-                          }
-                        }}
-                        style={{
-                          flex: 1,
-                          minWidth: '120px',
-                          border: 'none',
-                          outline: 'none',
-                          background: 'transparent',
-                          color: 'var(--text-primary)',
-                          fontSize: '0.875rem',
-                          padding: '0.25rem'
-                        }}
-                      />
+                          + add
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                )}
 
               </form>
               </>
@@ -1654,7 +2169,7 @@ function App() {
                   className="journal-editor"
                   contentEditable
                   suppressContentEditableWarning
-                  data-placeholder="Write your trading journal entry here... You can paste screenshots directly (Ctrl+V)"
+                  data-placeholder="Write your trading journal here... You can paste screenshots directly (Ctrl+V)"
                   onInput={(e) => setJournalContent(e.currentTarget.innerHTML)}
                   onPaste={handlePaste}
                   onKeyDown={handleEditorKeyDown}
@@ -1672,43 +2187,88 @@ function App() {
               </div>
             ) : null}
 
-            {/* Persistent action button */}
+            {/* Action buttons with keyboard shortcuts */}
             {!viewingJournal && (
-              <div style={{ paddingTop: '1.5rem' }}>
-                <button
-                  type="button"
-                  style={{
-                    width: '100%',
-                    background: 'var(--accent-blue)',
-                    border: 'none',
-                    color: 'white',
-                    padding: '0.625rem 1.25rem',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem',
-                    transition: 'all 0.2s',
-                    boxShadow: '0 2px 8px rgba(59, 130, 246, 0.2)'
-                  }}
-                  onClick={handleSaveEntry}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#2563eb';
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'var(--accent-blue)';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.2)';
-                  }}
-                >
-                  <PlusCircle size={16} />
-                  Save Entry
-                </button>
+              <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    style={{
+                      flex: 1,
+                      background: 'var(--bg-secondary)',
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--text-primary)',
+                      padding: '0.75rem 1.25rem',
+                      borderRadius: '0.5rem',
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'var(--bg-primary)';
+                      e.currentTarget.style.borderColor = 'var(--text-secondary)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'var(--bg-secondary)';
+                      e.currentTarget.style.borderColor = 'var(--border-color)';
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    style={{
+                      flex: 2,
+                      background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                      border: 'none',
+                      color: 'white',
+                      padding: '0.75rem 1.25rem',
+                      borderRadius: '0.5rem',
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      transition: 'all 0.2s',
+                      boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)',
+                      position: 'relative'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.35)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.25)';
+                    }}
+                  >
+                    <PlusCircle size={16} strokeWidth={2.5} />
+                    <span>Save Entry</span>
+                    <span style={{
+                      position: 'absolute',
+                      right: '1rem',
+                      fontSize: '0.6875rem',
+                      opacity: 0.7,
+                      fontWeight: 500,
+                      letterSpacing: '0.025em'
+                    }}>
+                      ⌘↵
+                    </span>
+                  </button>
+                </div>
+                <p style={{
+                  fontSize: '0.6875rem',
+                  color: 'var(--text-secondary)',
+                  textAlign: 'center',
+                  marginTop: '0.5rem',
+                  marginBottom: 0
+                }}>
+                  <kbd style={{ padding: '0.125rem 0.25rem', background: 'var(--bg-secondary)', borderRadius: '0.25rem', fontSize: '0.6875rem' }}>⌘M</kbd> new entry • <kbd style={{ padding: '0.125rem 0.25rem', background: 'var(--bg-secondary)', borderRadius: '0.25rem', fontSize: '0.6875rem' }}>⌥←/→</kbd> switch tabs • <kbd style={{ padding: '0.125rem 0.25rem', background: 'var(--bg-secondary)', borderRadius: '0.25rem', fontSize: '0.6875rem' }}>⌘↵</kbd> save • <kbd style={{ padding: '0.125rem 0.25rem', background: 'var(--bg-secondary)', borderRadius: '0.25rem', fontSize: '0.6875rem' }}>Esc</kbd> cancel
+                </p>
               </div>
             )}
           </div>
