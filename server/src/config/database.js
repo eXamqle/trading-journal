@@ -2,11 +2,22 @@ import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import bcrypt from 'bcryptjs';
+import { createDefaultTagsForUserForUser } from '../utils/defaultTags.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dbPath = path.join(__dirname, '../../database/trading-journal.db');
+const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '../../database/trading-journal.db');
+
+// Ensure database directory exists
+const dbDir = path.dirname(dbPath);
+import { mkdirSync } from 'fs';
+try {
+  mkdirSync(dbDir, { recursive: true });
+} catch (error) {
+  // Directory might already exist
+}
 
 const db = new Database(dbPath);
+console.log(`✓ Database location: ${dbPath}`);
 db.pragma('journal_mode = WAL'); // Better concurrency
 
 // Initialize tables
@@ -88,7 +99,7 @@ export function initDatabase() {
     console.log('✓ Default user created: john@example.com / password123');
 
     // Create default tags for the new user
-    createDefaultTags(result.lastInsertRowid);
+    createDefaultTagsForUser(db, result.lastInsertRowid);
   }
 
   // Create default tags for existing users who don't have any
@@ -101,7 +112,7 @@ export function initDatabase() {
   `).all();
 
   usersWithoutTags.forEach(user => {
-    createDefaultTags(user.id);
+    createDefaultTagsForUser(db, user.id);
   });
 
   if (usersWithoutTags.length > 0) {
@@ -119,31 +130,6 @@ export function initDatabase() {
     }
   } catch (error) {
     // Column might already exist, ignore error
-  }
-}
-
-function createDefaultTags(userId) {
-  const defaultTags = [
-    // Strategy tags
-    { name: 'Scalp', color: '#10b981' },
-    { name: 'Day Trade', color: '#3b82f6' },
-    { name: 'Swing', color: '#8b5cf6' },
-    { name: 'Breakout', color: '#f59e0b' },
-    { name: 'Reversal', color: '#ef4444' },
-    { name: 'Trend Following', color: '#06b6d4' },
-    // Psychology/Emotional tags
-    { name: 'FOMO', color: '#dc2626' },
-    { name: 'Revenge Trade', color: '#991b1b' },
-    { name: 'Overtrading', color: '#ea580c' },
-    { name: 'Emotional', color: '#9333ea' },
-    { name: 'Disciplined', color: '#059669' },
-    { name: 'Patient', color: '#0891b2' }
-  ];
-
-  const insertTag = db.prepare('INSERT INTO tags (user_id, name, color) VALUES (?, ?, ?)');
-
-  for (const tag of defaultTags) {
-    insertTag.run(userId, tag.name, tag.color);
   }
 }
 

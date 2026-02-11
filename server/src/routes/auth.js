@@ -3,11 +3,14 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import db from '../config/database.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { authLimiter } from '../middleware/rateLimiter.js';
+import { registerValidation, loginValidation } from '../middleware/validation.js';
+import { createDefaultTagsForUser } from '../utils/defaultTags.js';
 
 const router = express.Router();
 
 // Register new user
-router.post('/register', (req, res) => {
+router.post('/register', authLimiter, registerValidation, async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
@@ -15,8 +18,13 @@ router.post('/register', (req, res) => {
       return res.status(400).json({ message: 'Name, email, and password are required' });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    if (password.length < 8) {
+      return res.status(400).json({ message: 'Password must be at least 8 characters' });
+    }
+
+    // Basic password complexity check
+    if (!/(?=.*[a-z])(?=.*[A-Z])|(?=.*\d)/.test(password)) {
+      return res.status(400).json({ message: 'Password must contain at least: one uppercase OR one number' });
     }
 
     // Check if user already exists
@@ -26,7 +34,7 @@ router.post('/register', (req, res) => {
     }
 
     // Hash password and create user
-    const passwordHash = bcrypt.hashSync(password, 10);
+    const passwordHash = await bcrypt.hash(password, 10);
     const result = db.prepare(`
       INSERT INTO users (name, email, password_hash)
       VALUES (?, ?, ?)
@@ -35,27 +43,7 @@ router.post('/register', (req, res) => {
     const userId = result.lastInsertRowid;
 
     // Create default tags for the new user
-    const defaultTags = [
-      // Strategy tags
-      { name: 'Scalp', color: '#10b981' },
-      { name: 'Day Trade', color: '#3b82f6' },
-      { name: 'Swing', color: '#8b5cf6' },
-      { name: 'Breakout', color: '#f59e0b' },
-      { name: 'Reversal', color: '#ef4444' },
-      { name: 'Trend Following', color: '#06b6d4' },
-      // Psychology/Emotional tags
-      { name: 'FOMO', color: '#dc2626' },
-      { name: 'Revenge Trade', color: '#991b1b' },
-      { name: 'Overtrading', color: '#ea580c' },
-      { name: 'Emotional', color: '#9333ea' },
-      { name: 'Disciplined', color: '#059669' },
-      { name: 'Patient', color: '#0891b2' }
-    ];
-
-    const insertTag = db.prepare('INSERT INTO tags (user_id, name, color) VALUES (?, ?, ?)');
-    for (const tag of defaultTags) {
-      insertTag.run(userId, tag.name, tag.color);
-    }
+    createDefaultTagsForUser(db, userId);
 
     // Generate JWT token
     const token = jwt.sign({ userId }, process.env.JWT_SECRET, {
@@ -78,23 +66,21 @@ router.post('/register', (req, res) => {
 });
 
 // Login
-router.post('/login', (req, res) => {
+router.post('/login', authLimiter, loginValidation, async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required' });
-    }
-
     // Find user
     const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
-    if (!user) {
-      return res.status(401).json({ message: 'Invalid email or password' });
-    }
 
-    // Verify password
-    const isValidPassword = bcrypt.compareSync(password, user.password_hash);
-    if (!isValidPassword) {
+    // Use a dummy hash to prevent timing attacks
+    const dummyHash = '$2a$10$XQFw5KYKzLk8OHBmGVvCaO7u8tVz.jxJZz1JVGxJ4SJ7bHBnJq9h6';
+    const hashToCompare = user ? user.password_hash : dummyHash;
+
+    // Always call bcrypt.compare to prevent timing attacks
+    const isValidPassword = await bcrypt.compare(password, hashToCompare);
+
+    if (!user || !isValidPassword) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
@@ -165,7 +151,7 @@ router.put('/profile', authenticateToken, (req, res) => {
 });
 
 // Update password
-router.put('/password', authenticateToken, (req, res) => {
+router.put('/password', authenticateToken, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
@@ -173,20 +159,25 @@ router.put('/password', authenticateToken, (req, res) => {
       return res.status(400).json({ message: 'Current and new password are required' });
     }
 
-    if (newPassword.length < 6) {
-      return res.status(400).json({ message: 'New password must be at least 6 characters' });
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: 'New password must be at least 8 characters' });
+    }
+
+    // Basic password complexity check
+    if (!/(?=.*[a-z])(?=.*[A-Z])|(?=.*\d)/.test(newPassword)) {
+      return res.status(400).json({ message: 'Password must contain at least: one uppercase OR one number' });
     }
 
     // Verify current password
     const user = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(req.userId);
-    const isValidPassword = bcrypt.compareSync(currentPassword, user.password_hash);
+    const isValidPassword = await bcrypt.compare(currentPassword, user.password_hash);
 
     if (!isValidPassword) {
       return res.status(401).json({ message: 'Current password is incorrect' });
     }
 
     // Update password
-    const newPasswordHash = bcrypt.hashSync(newPassword, 10);
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
     db.prepare(`
       UPDATE users
       SET password_hash = ?, updated_at = CURRENT_TIMESTAMP

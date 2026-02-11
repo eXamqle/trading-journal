@@ -8,22 +8,34 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkAuth();
-  }, []);
+    let isMounted = true;
 
-  const checkAuth = async () => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      try {
-        const { data } = await authAPI.getProfile();
-        setUser(data);
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        localStorage.removeItem('token');
+    const checkAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const { data } = await authAPI.getProfile();
+          if (isMounted) {
+            setUser(data);
+          }
+        } catch (error) {
+          console.error('Auth check failed:', error);
+          if (isMounted) {
+            localStorage.removeItem('token');
+          }
+        }
       }
-    }
-    setLoading(false);
-  };
+      if (isMounted) {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const login = async (credentials) => {
     const { data } = await authAPI.login(credentials);

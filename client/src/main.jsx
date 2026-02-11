@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import Login from './components/Login.jsx'
+import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { AuthProvider, useAuth } from './contexts/AuthContext.jsx'
 import { CurrencyProvider } from './contexts/CurrencyContext.jsx'
 
@@ -29,10 +30,12 @@ function AppWrapper() {
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <AuthProvider>
-      <CurrencyProvider>
-        <AppWrapper />
-      </CurrencyProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <CurrencyProvider>
+          <AppWrapper />
+        </CurrencyProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   </StrictMode>,
 )

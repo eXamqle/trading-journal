@@ -190,7 +190,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
   const totalPages = Math.ceil(filteredTrades.length / rowsPerPage);
 
   // Reset to page 1 when filters change
-  useMemo(() => {
+  useEffect(() => {
     setCurrentPage(1);
   }, [symbolFilter, typeFilter, categoryFilter, periodFilter, customStartDate, customEndDate, rowsPerPage]);
 
@@ -407,6 +407,10 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
 
     // Open print dialog
     const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      setAlertModal({ open: true, message: 'Please allow pop-ups to export as PDF.', title: 'Pop-up Blocked' });
+      return;
+    }
     printWindow.document.write(printContent);
     printWindow.document.close();
     printWindow.print();

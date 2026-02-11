@@ -1,6 +1,12 @@
 import express from 'express';
 import db from '../config/database.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { modifyLimiter } from '../middleware/rateLimiter.js';
+import {
+  createTradeValidation,
+  updateTradeValidation,
+  deleteTradeValidation
+} from '../middleware/validation.js';
 
 const router = express.Router();
 
@@ -39,22 +45,41 @@ router.get('/', (req, res) => {
 
     const trades = db.prepare(query).all(...params);
 
-    // Fetch tags for each trade
-    const tradesWithTags = trades.map(trade => {
-      const tags = db.prepare(`
-        SELECT t.id, t.name, t.color
+    // Fetch all tags for all trades in one query (fix N+1 problem)
+    if (trades.length > 0) {
+      const tradeIds = trades.map(t => t.id);
+      const placeholders = tradeIds.map(() => '?').join(',');
+
+      const allTags = db.prepare(`
+        SELECT tt.trade_id, t.id, t.name, t.color
         FROM tags t
         INNER JOIN trade_tags tt ON t.id = tt.tag_id
-        WHERE tt.trade_id = ?
-      `).all(trade.id);
+        WHERE tt.trade_id IN (${placeholders})
+      `).all(...tradeIds);
 
-      return {
+      // Group tags by trade_id
+      const tagsByTradeId = {};
+      allTags.forEach(tag => {
+        if (!tagsByTradeId[tag.trade_id]) {
+          tagsByTradeId[tag.trade_id] = [];
+        }
+        tagsByTradeId[tag.trade_id].push({
+          id: tag.id,
+          name: tag.name,
+          color: tag.color
+        });
+      });
+
+      // Attach tags to trades
+      const tradesWithTags = trades.map(trade => ({
         ...trade,
-        tags
-      };
-    });
+        tags: tagsByTradeId[trade.id] || []
+      }));
 
-    res.json({ trades: tradesWithTags });
+      res.json({ trades: tradesWithTags });
+    } else {
+      res.json({ trades: [] });
+    }
   } catch (error) {
     console.error('Get trades error:', error);
     res.status(500).json({ message: 'Failed to fetch trades' });
@@ -62,7 +87,7 @@ router.get('/', (req, res) => {
 });
 
 // Create new trade
-router.post('/', (req, res) => {
+router.post('/', modifyLimiter, createTradeValidation, (req, res) => {
   try {
     const { date, type, symbol, amount, category, fees, notes, tags } = req.body;
 
@@ -140,7 +165,7 @@ router.post('/', (req, res) => {
 });
 
 // Update trade
-router.put('/:id', (req, res) => {
+router.put('/:id', modifyLimiter, updateTradeValidation, (req, res) => {
   try {
     const { id } = req.params;
     const { date, type, symbol, amount, category, fees, notes, tags } = req.body;
@@ -232,7 +257,7 @@ router.put('/:id', (req, res) => {
 });
 
 // Delete trade
-router.delete('/:id', (req, res) => {
+router.delete('/:id', modifyLimiter, deleteTradeValidation, (req, res) => {
   try {
     const { id } = req.params;
 

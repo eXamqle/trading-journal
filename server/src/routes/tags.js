@@ -1,6 +1,12 @@
 import express from 'express';
 import db from '../config/database.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { modifyLimiter } from '../middleware/rateLimiter.js';
+import {
+  createTagValidation,
+  updateTagValidation,
+  deleteTagValidation
+} from '../middleware/validation.js';
 
 const router = express.Router();
 
@@ -19,7 +25,7 @@ router.get('/', (req, res) => {
 });
 
 // Create new tag
-router.post('/', (req, res) => {
+router.post('/', modifyLimiter, createTagValidation, (req, res) => {
   try {
     const { name, color } = req.body;
 
@@ -53,7 +59,7 @@ router.post('/', (req, res) => {
 });
 
 // Update tag
-router.put('/:id', (req, res) => {
+router.put('/:id', modifyLimiter, updateTagValidation, (req, res) => {
   try {
     const { id } = req.params;
     const { name, color } = req.body;
@@ -97,7 +103,7 @@ router.put('/:id', (req, res) => {
 });
 
 // Delete tag
-router.delete('/:id', (req, res) => {
+router.delete('/:id', modifyLimiter, deleteTagValidation, (req, res) => {
   try {
     const { id } = req.params;
 
