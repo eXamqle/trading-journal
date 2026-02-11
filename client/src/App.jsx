@@ -1048,7 +1048,7 @@ function App() {
             <BookOpen size={26} strokeWidth={2.5} />
           </div>
           <div className="logo-text">
-            <h1>Trade-Book</h1>
+            <h1>TradeBook</h1>
             <p>Track your trading performance</p>
           </div>
         </div>
