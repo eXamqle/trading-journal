@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 
-function Analyze({ trades }) {
+function Analyze({ trades, onEditTrade, onDeleteTrade }) {
   const [periodFilter, setPeriodFilter] = useState('All Time');
   const [periodOpen, setPeriodOpen] = useState(false);
   const [symbolFilter, setSymbolFilter] = useState('');
@@ -31,7 +31,7 @@ function Analyze({ trades }) {
 
   const periods = ['This Week', 'This Month', 'Last 30 Days', 'This Year', 'All Time', 'Custom Range'];
   const types = ['All Types', 'Profit', 'Loss', 'Break Even'];
-  const categories = ['All Categories', 'Stocks', 'Options', 'Indices'];
+  const categories = ['All Categories', 'Crypto', 'Forex', 'Futures', 'Options', 'Stocks'];
 
   // Filter trades based on period
   const filteredByPeriod = useMemo(() => {
@@ -122,8 +122,8 @@ function Analyze({ trades }) {
             const calcNetPL = (trade) => {
               const amount = parseFloat(trade.amount) || 0;
               const fees = parseFloat(trade.fees) || 0;
-              return trade.type === 'profit' ? amount - fees :
-                     trade.type === 'loss' ? -(amount + fees) : -fees;
+              return trade.type === 'profit' ? Math.abs(amount) - fees :
+                     trade.type === 'loss' ? -(Math.abs(amount) + fees) : -fees;
             };
             aValue = calcNetPL(a);
             bValue = calcNetPL(b);
@@ -166,15 +166,17 @@ function Analyze({ trades }) {
       let pnl = 0;
 
       if (trade.type === 'profit') {
-        totalProfit += amount;
-        totalWinAmount += amount;
+        const absAmount = Math.abs(amount);
+        totalProfit += absAmount;
+        totalWinAmount += absAmount;
         winCount++;
-        pnl = amount - fees;
+        pnl = absAmount - fees;
       } else if (trade.type === 'loss') {
-        totalLoss += amount;
-        totalLossAmount += amount;
+        const absAmount = Math.abs(amount);
+        totalLoss += absAmount;
+        totalLossAmount += absAmount;
         lossCount++;
-        pnl = -(amount + fees);
+        pnl = -(absAmount + fees);
       } else if (trade.type === 'break-even') {
         breakEvenCount++;
         pnl = -fees;
@@ -248,8 +250,8 @@ function Analyze({ trades }) {
       ...filteredTrades.map(trade => {
         const amount = parseFloat(trade.amount) || 0;
         const fees = parseFloat(trade.fees) || 0;
-        const netPL = trade.type === 'profit' ? amount - fees :
-                      trade.type === 'loss' ? -(amount + fees) : -fees;
+        const netPL = trade.type === 'profit' ? Math.abs(amount) - fees :
+                      trade.type === 'loss' ? -(Math.abs(amount) + fees) : -fees;
 
         return [
           format(new Date(trade.date), 'yyyy-MM-dd'),
@@ -385,7 +387,7 @@ function Analyze({ trades }) {
                 </div>
               </div>
               <div className={`analyze-kpi-value ${kpis.netProfit >= 0 ? 'analyze-kpi-value-profit' : 'analyze-kpi-value-loss'}`}>
-                {kpis.netProfit >= 0 ? '+' : ''}${kpis.netProfit.toFixed(2)}
+                {kpis.netProfit >= 0 ? '+' : '-'}${Math.abs(kpis.netProfit).toFixed(2)}
               </div>
               <p className="analyze-kpi-sublabel">
                 {kpis.totalFees > 0 ? `$${kpis.totalFees.toFixed(2)} in fees` : 'No fees recorded'}
@@ -443,7 +445,7 @@ function Analyze({ trades }) {
                 </div>
               </div>
               <div className={`analyze-kpi-value ${kpis.bestDay >= 0 ? 'analyze-kpi-value-profit' : 'analyze-kpi-value-loss'}`}>
-                {kpis.bestDay >= 0 ? '+' : ''}${kpis.bestDay.toFixed(2)}
+                {kpis.bestDay >= 0 ? '+' : '-'}${Math.abs(kpis.bestDay).toFixed(2)}
               </div>
               <p className="analyze-kpi-sublabel">Highest daily P&L</p>
             </div>
@@ -456,7 +458,7 @@ function Analyze({ trades }) {
                 </div>
               </div>
               <div className={`analyze-kpi-value ${kpis.worstDay >= 0 ? 'analyze-kpi-value-profit' : 'analyze-kpi-value-loss'}`}>
-                {kpis.worstDay >= 0 ? '+' : ''}${kpis.worstDay.toFixed(2)}
+                {kpis.worstDay >= 0 ? '+' : '-'}${Math.abs(kpis.worstDay).toFixed(2)}
               </div>
               <p className="analyze-kpi-sublabel">Lowest daily P&L</p>
             </div>
@@ -511,8 +513,8 @@ function Analyze({ trades }) {
                 sortedTrades.forEach((trade, index) => {
                   const amount = parseFloat(trade.amount) || 0;
                   const fees = parseFloat(trade.fees) || 0;
-                  const netPL = trade.type === 'profit' ? amount - fees :
-                                trade.type === 'loss' ? -(amount + fees) : -fees;
+                  const netPL = trade.type === 'profit' ? Math.abs(amount) - fees :
+                                trade.type === 'loss' ? -(Math.abs(amount) + fees) : -fees;
                   cumulative += netPL;
                   dataPoints.push({
                     x: index + 1,
@@ -699,10 +701,10 @@ function Analyze({ trades }) {
                           {dataPoints[hoveredPoint].symbol}
                         </div>
                         <div style={{ fontSize: '0.875rem', fontWeight: '600', color: dataPoints[hoveredPoint].netPL >= 0 ? '#10b981' : '#ef4444' }}>
-                          {dataPoints[hoveredPoint].netPL >= 0 ? '+' : ''}${dataPoints[hoveredPoint].netPL.toFixed(2)}
+                          {dataPoints[hoveredPoint].netPL >= 0 ? '+' : '-'}${Math.abs(dataPoints[hoveredPoint].netPL).toFixed(2)}
                         </div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)' }}>
-                          Total: {dataPoints[hoveredPoint].y >= 0 ? '+' : ''}${dataPoints[hoveredPoint].y.toFixed(2)}
+                          Total: {dataPoints[hoveredPoint].y >= 0 ? '+' : '-'}${Math.abs(dataPoints[hoveredPoint].y).toFixed(2)}
                         </div>
                       </div>
                     )}
@@ -823,12 +825,13 @@ function Analyze({ trades }) {
                           Net P/L {getSortIcon('netPL')}
                         </div>
                       </th>
+                      <th style={{ width: '60px', textAlign: 'center' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredTrades.length === 0 ? (
                       <tr>
-                        <td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+                        <td colSpan="9" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
                           No trades match the current filters
                         </td>
                       </tr>
@@ -836,11 +839,15 @@ function Analyze({ trades }) {
                       filteredTrades.map((trade, index) => {
                         const amount = parseFloat(trade.amount) || 0;
                         const fees = parseFloat(trade.fees) || 0;
-                        const netPL = trade.type === 'profit' ? amount - fees :
-                                      trade.type === 'loss' ? -(amount + fees) : -fees;
+                        const netPL = trade.type === 'profit' ? Math.abs(amount) - fees :
+                                      trade.type === 'loss' ? -(Math.abs(amount) + fees) : -fees;
 
                         return (
-                          <tr key={trade.id}>
+                          <tr
+                            key={trade.id}
+                            onClick={() => onEditTrade && onEditTrade(trade)}
+                            style={{ cursor: onEditTrade ? 'pointer' : 'default' }}
+                          >
                             <td>{index + 1}</td>
                             <td>{format(new Date(trade.date), 'MMM d, yyyy')}</td>
                             <td><strong>{trade.symbol}</strong></td>
@@ -854,7 +861,40 @@ function Analyze({ trades }) {
                             <td className="text-right">${amount.toFixed(2)}</td>
                             <td className="text-right">${fees.toFixed(2)}</td>
                             <td className={`text-right ${netPL >= 0 ? 'text-profit' : 'text-loss'}`}>
-                              {netPL >= 0 ? '+' : ''}${netPL.toFixed(2)}
+                              {netPL >= 0 ? '+' : '-'}${Math.abs(netPL).toFixed(2)}
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              {onDeleteTrade && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDeleteTrade(trade.id);
+                                  }}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: 'var(--text-secondary)',
+                                    cursor: 'pointer',
+                                    padding: '0.25rem',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    opacity: 0.6,
+                                    transition: 'opacity 0.2s, color 0.2s'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.opacity = '1';
+                                    e.currentTarget.style.color = '#ef4444';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.opacity = '0.6';
+                                    e.currentTarget.style.color = 'var(--text-secondary)';
+                                  }}
+                                  title="Delete trade"
+                                >
+                                  <X size={14} />
+                                </button>
+                              )}
                             </td>
                           </tr>
                         );

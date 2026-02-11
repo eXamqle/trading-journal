@@ -36,10 +36,13 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
     return tradesArray.reduce((sum, trade) => {
       const amount = parseFloat(trade.amount) || 0;
       const fees = parseFloat(trade.fees) || 0;
+      // For profit: amount should be positive, add it
+      // For loss: amount can be negative (already includes sign), just add it
+      // This handles both cases where user enters -20 or where type determines sign
       if (trade.type === 'profit') {
-        return sum + amount - fees;
+        return sum + Math.abs(amount) - fees;
       } else if (trade.type === 'loss') {
-        return sum - amount - fees;
+        return sum - Math.abs(amount) - fees;
       }
       return sum - fees;
     }, 0);
@@ -155,8 +158,8 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
         <div className="main-content">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', gap: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <div className="journal-entries-icon" style={{ width: '2.5rem', height: '2.5rem', fontSize: '1rem' }}>
-                <FileText size={20} strokeWidth={2} color="#94a3b8" />
+              <div className="journal-entries-icon" style={{ width: '3rem', height: '3rem', fontSize: '1rem' }}>
+                <FileText size={26} strokeWidth={2.5} color="white" />
               </div>
               <div>
                 <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Journal</h2>
@@ -285,7 +288,7 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                             <span className="journal-entry-word-badge">{entry.wordCount}w</span>
                             {hasTrades && (
                               <span className={`journal-entry-pnl-badge ${isProfitable ? 'profit' : 'loss'}`}>
-                                {isProfitable ? '+' : ''}{entry.pnl >= 0 ? '$' : '-$'}{Math.abs(entry.pnl).toFixed(0)}
+                                {entry.pnl >= 0 ? '+' : '-'}${Math.abs(entry.pnl).toFixed(0)}
                               </span>
                             )}
                           </div>
@@ -475,7 +478,7 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
           <div className="info-card">
             <span className="info-label">Total P&L</span>
             <div className={`info-value ${stats.totalPnL >= 0 ? 'positive' : 'negative'}`}>
-              {stats.totalPnL >= 0 ? '+' : ''}${stats.totalPnL.toFixed(2)}
+              {stats.totalPnL >= 0 ? '+' : '-'}${Math.abs(stats.totalPnL).toFixed(2)}
             </div>
             <div className="info-subtext">All-time trading</div>
           </div>

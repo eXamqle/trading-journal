@@ -144,15 +144,15 @@
 }
 
 .tab-btn-journal {
-  border: 1px solid rgba(99, 102, 241, 0.3);
-  background: rgba(99, 102, 241, 0.1);
-  color: #6366f1;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  background: rgba(139, 92, 246, 0.1);
+  color: #8b5cf6;
   font-weight: 600;
 }
 
 .tab-btn-journal:hover {
-  background: rgba(99, 102, 241, 0.15);
-  border-color: rgba(99, 102, 241, 0.5);
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.5);
 }
 
 /* Top Stats */
@@ -532,6 +532,70 @@
   }
 }
 
+@keyframes tabContentFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dropdownSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.tab-content-animate {
+  animation: tabContentFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dropdown-animate {
+  animation: dropdownSlideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes saveSuccess {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.save-success-overlay {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(16, 185, 129, 0.95);
+  color: white;
+  padding: 1.5rem 2rem;
+  border-radius: 1rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  z-index: 10000;
+  animation: saveSuccess 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
 .modal-header {
   padding: 1.5rem 1.75rem 0;
   text-align: center;
@@ -872,10 +936,9 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 0.5rem;
-  overflow: hidden;
   z-index: 1000;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  max-height: 200px;
+  max-height: 300px;
   overflow-y: auto;
 }
 
@@ -890,6 +953,9 @@
   cursor: pointer;
   transition: all 0.2s;
   display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .dropdown-item:hover {
@@ -2862,7 +2928,6 @@ button.new-tag-color-picker:focus {
   align-items: center;
   justify-content: center;
   color: #94a3b8;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
 .journal-entries-search {

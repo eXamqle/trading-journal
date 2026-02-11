@@ -25,7 +25,8 @@ import {
   Heading2,
   Heading3,
   Edit as EditIcon,
-  FileText
+  FileText,
+  BookOpen
 } from 'lucide-react';
 import {
   format,
@@ -81,6 +82,7 @@ function App() {
   });
   const [selectedDate, setSelectedDate] = useState(null);
   const [modalTab, setModalTab] = useState('add');
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [tradeType, setTradeType] = useState('profit');
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [symbolDropdownOpen, setSymbolDropdownOpen] = useState(false);
@@ -112,6 +114,7 @@ function App() {
     tags: []
   });
   const [tradesExpanded, setTradesExpanded] = useState(false);
+  const [editingTrade, setEditingTrade] = useState(null);
 
   // Tags management
   const [availableTags, setAvailableTags] = useState([]);
@@ -199,10 +202,12 @@ function App() {
     return tradesArray.reduce((sum, trade) => {
       const amount = parseFloat(trade.amount) || 0;
       const fees = parseFloat(trade.fees) || 0;
+      // Always use absolute value to avoid sign issues
+      // The type (profit/loss) determines the actual sign
       if (trade.type === 'profit') {
-        return sum + amount - fees;
+        return sum + Math.abs(amount) - fees;
       } else if (trade.type === 'loss') {
-        return sum - amount - fees;
+        return sum - Math.abs(amount) - fees;
       }
       return sum - fees; // break-even still has fees
     }, 0);
@@ -422,6 +427,39 @@ function App() {
     });
   };
 
+  const handleEditTrade = (trade) => {
+    // Set the editing trade
+    setEditingTrade(trade);
+
+    // Set the selected date to the trade's date
+    setSelectedDate(trade.date);
+
+    // Populate the form with the trade's data
+    setFormData({
+      symbol: trade.symbol,
+      amount: trade.amount.toString(),
+      category: trade.category,
+      fees: trade.fees ? trade.fees.toString() : '',
+      tags: trade.tags || []
+    });
+
+    // Set the trade type
+    setTradeType(trade.type);
+
+    // Switch to the add tab
+    setModalTab('add');
+
+    // Load existing journal content for this date if any
+    const dateKey = format(trade.date, 'yyyy-MM-dd');
+    const existingJournal = journalEntries[dateKey] || '';
+    setJournalContent(existingJournal);
+
+    // Reset other states
+    setViewingJournal(false);
+    setJournalOnlyMode(false);
+    setTradesExpanded(false);
+  };
+
   const closeModal = async () => {
     // Save journal content before closing
     if (selectedDate && journalContent) {
@@ -445,6 +483,7 @@ function App() {
     setViewingJournal(false);
     setJournalOnlyMode(false);
     setTradesExpanded(false);
+    setEditingTrade(null);
     editorInitialized.current = false;
     setFormData({
       symbol: '',
@@ -837,11 +876,21 @@ function App() {
 
   const handleSaveEntry = async () => {
 
-    // Validate category is selected if any trade fields are filled
+    // Validate required fields if any trade fields are filled
     const hasTradeData = formData.symbol || formData.amount || formData.category;
-    if (hasTradeData && !formData.category) {
-      setAlertModal({ open: true, message: 'Please select a category before adding a trade.', title: 'Validation Error' });
-      return;
+    if (hasTradeData) {
+      if (!formData.symbol) {
+        setAlertModal({ open: true, message: 'Please enter a symbol.', title: 'Validation Error' });
+        return;
+      }
+      if (!formData.amount) {
+        setAlertModal({ open: true, message: 'Please enter an amount.', title: 'Validation Error' });
+        return;
+      }
+      if (!formData.category) {
+        setAlertModal({ open: true, message: 'Please select a category.', title: 'Validation Error' });
+        return;
+      }
     }
 
     // Validate trade result matches the net outcome
@@ -894,15 +943,28 @@ function App() {
           tags: formData.tags
         };
 
-        const { data } = await tradesAPI.create(tradeData);
-        const tradeWithDate = {
-          ...data.trade,
-          date: new Date(data.trade.date)
-        };
-        setTrades(prevTrades => [...prevTrades, tradeWithDate]);
+        if (editingTrade) {
+          // Update existing trade
+          const { data } = await tradesAPI.update(editingTrade.id, tradeData);
+          const tradeWithDate = {
+            ...data.trade,
+            date: new Date(data.trade.date)
+          };
+          setTrades(prevTrades => prevTrades.map(t => t.id === editingTrade.id ? tradeWithDate : t));
+          setEditingTrade(null);
+          tradeCreated = true;
+        } else {
+          // Create new trade
+          const { data } = await tradesAPI.create(tradeData);
+          const tradeWithDate = {
+            ...data.trade,
+            date: new Date(data.trade.date)
+          };
+          setTrades(prevTrades => [...prevTrades, tradeWithDate]);
+          tradeCreated = true;
+        }
         // Save the category for next entry
         lastUsedCategory.current = formData.category;
-        tradeCreated = true;
       }
 
       // Save journal if there's content
@@ -917,13 +979,14 @@ function App() {
       }
 
       // Show appropriate success message
-      if (tradeCreated && journalSaved) {
-        // Both saved successfully
-        closeModal();
-      } else if (tradeCreated) {
-        closeModal();
-      } else if (journalSaved) {
-        closeModal();
+      if (tradeCreated || journalSaved) {
+        // Show success animation
+        setShowSaveSuccess(true);
+        // Close modal after animation
+        setTimeout(() => {
+          setShowSaveSuccess(false);
+          closeModal();
+        }, 800);
       } else {
         setAlertModal({
           open: true,
@@ -952,8 +1015,8 @@ function App() {
           }}
           style={{ cursor: 'pointer' }}
         >
-          <div className="logo-icon">
-            <span style={{ fontSize: '24px', fontWeight: 'bold' }}>$</span>
+          <div className="logo-icon" style={{ width: '3rem', height: '3rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '0.75rem' }}>
+            <BookOpen size={26} strokeWidth={2.5} />
           </div>
           <div className="logo-text">
             <h1>Trade-Book</h1>
@@ -962,23 +1025,15 @@ function App() {
         </div>
         <div className="nav-actions">
           <div
-            className="calendar-icon-button"
+            className="nav-link"
             onClick={() => setCurrentView('calendar')}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '40px',
-              height: '40px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              transition: 'background-color 0.2s',
-              marginRight: '12px'
+              marginRight: '12px',
+              cursor: 'pointer'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
           >
             <CalendarIcon size={20} />
+            <span>Calendar</span>
           </div>
           <div className="profile-dropdown-container">
             <div
@@ -1212,7 +1267,7 @@ function App() {
                 <div className="week-day-right">
                   {hasTrades ? (
                     <span className={dayPnL >= 0 ? 'text-emerald-400' : 'text-red-400'} style={{ fontWeight: '600' }}>
-                      {dayPnL >= 0 ? '+' : ''}${dayPnL.toFixed(2)}
+                      {dayPnL >= 0 ? '+' : '-'}${Math.abs(dayPnL).toFixed(2)}
                     </span>
                   ) : (
                     <span className="week-day-empty">—</span>
@@ -1257,7 +1312,7 @@ function App() {
         const hasTrades = dayTrades.length > 0;
 
         const title = hasTrades
-          ? `${format(date, 'MMM d')}: ${dayPnL >= 0 ? '+' : ''}$${dayPnL.toFixed(2)}${hasJournal ? ' 📝' : ''}`
+          ? `${format(date, 'MMM d')}: ${dayPnL >= 0 ? '+' : '-'}$${Math.abs(dayPnL).toFixed(2)}${hasJournal ? ' 📝' : ''}`
           : hasJournal
           ? `${format(date, 'MMM d')}: Has journal 📝`
           : `${format(date, 'MMM d')}: No trades`;
@@ -1331,7 +1386,7 @@ function App() {
                 </div>
                 <div className={`year-month-total ${hasMonthTrades ? (monthTotal >= 0 ? 'text-emerald-400' : 'text-red-400') : 'text-slate-500'}`}>
                   <span>
-                    {hasMonthTrades ? `${monthTotal >= 0 ? '+' : ''}$${monthTotal.toFixed(2)}` : '$0'}
+                    {hasMonthTrades ? `${monthTotal >= 0 ? '+' : '-'}$${Math.abs(monthTotal).toFixed(2)}` : '$0'}
                   </span>
                 </div>
               </div>
@@ -1343,7 +1398,7 @@ function App() {
   };
 
   const renderAllTimeView = () => {
-    return <Analyze trades={trades} />;
+    return <Analyze trades={trades} onEditTrade={handleEditTrade} onDeleteTrade={handleDeleteTrade} />;
   };
 
 
@@ -1372,7 +1427,7 @@ function App() {
               gap: '1rem'
             }}>
               <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-                {format(selectedDate, 'EEEE, MMM d')}
+                {editingTrade ? 'Edit Trade' : format(selectedDate, 'EEEE, MMM d')}
               </h2>
 
               {!journalOnlyMode && (
@@ -1417,7 +1472,7 @@ function App() {
                       padding: '0.375rem 0.75rem',
                       borderRadius: '0.375rem',
                       border: 'none',
-                      background: modalTab === 'journal' ? 'var(--accent-blue)' : 'transparent',
+                      background: modalTab === 'journal' ? '#8b5cf6' : 'transparent',
                       color: modalTab === 'journal' ? 'white' : 'var(--text-secondary)',
                       fontSize: '0.8125rem',
                       fontWeight: 500,
@@ -1472,7 +1527,7 @@ function App() {
                         fontWeight: 600,
                         color: todayPnL >= 0 ? '#10b981' : '#ef4444'
                       }}>
-                        {todayPnL >= 0 ? '+' : ''}${todayPnL.toFixed(2)}
+                        {todayPnL >= 0 ? '+' : '-'}${Math.abs(todayPnL).toFixed(2)}
                       </span>
                     </div>
                     <ChevronRight
@@ -1497,7 +1552,14 @@ function App() {
                       {todayTrades.map((trade) => {
                         const amount = parseFloat(trade.amount) || 0;
                         const fees = parseFloat(trade.fees) || 0;
-                        const pnl = trade.type === 'profit' ? amount - fees : -(amount + fees);
+                        let pnl;
+                        if (trade.type === 'profit') {
+                          pnl = Math.abs(amount) - fees;
+                        } else if (trade.type === 'loss') {
+                          pnl = -(Math.abs(amount) + fees);
+                        } else {
+                          pnl = -fees;
+                        }
 
                         return (
                           <div
@@ -1509,10 +1571,24 @@ function App() {
                               padding: '0.5rem',
                               background: 'var(--bg-primary)',
                               borderRadius: '0.375rem',
-                              transition: 'transform 0.15s'
+                              cursor: 'pointer',
+                              border: '1px solid transparent',
+                              transition: 'all 0.2s ease',
+                              transform: 'scale(1)'
                             }}
-                            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.01)'}
-                            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                            onClick={() => handleEditTrade(trade)}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'rgba(148, 163, 184, 0.1)';
+                              e.currentTarget.style.borderColor = 'var(--border-color)';
+                              e.currentTarget.style.transform = 'scale(1.02)';
+                              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'var(--bg-primary)';
+                              e.currentTarget.style.borderColor = 'transparent';
+                              e.currentTarget.style.transform = 'scale(1)';
+                              e.currentTarget.style.boxShadow = 'none';
+                            }}
                           >
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
                               <span style={{
@@ -1540,7 +1616,7 @@ function App() {
                                   marginRight: '0.5rem'
                                 }}
                               >
-                                {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
+                                {pnl >= 0 ? '+' : '-'}${Math.abs(pnl).toFixed(2)}
                               </span>
                             </div>
                             <button
@@ -1558,15 +1634,15 @@ function App() {
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                opacity: 0.5,
-                                transition: 'opacity 0.15s, color 0.15s'
+                                opacity: 0.6,
+                                transition: 'opacity 0.2s, color 0.2s'
                               }}
                               onMouseEnter={(e) => {
                                 e.currentTarget.style.opacity = '1';
                                 e.currentTarget.style.color = '#ef4444';
                               }}
                               onMouseLeave={(e) => {
-                                e.currentTarget.style.opacity = '0.5';
+                                e.currentTarget.style.opacity = '0.6';
                                 e.currentTarget.style.color = 'var(--text-secondary)';
                               }}
                               title="Delete trade"
@@ -1594,7 +1670,7 @@ function App() {
                 />
               </div>
             ) : modalTab === 'add' ? (
-              <>
+              <div key="trade-tab" className="tab-content-animate">
                 <form onSubmit={(e) => { e.preventDefault(); handleSaveEntry(); }} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {/* Compact, focused input fields */}
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.75rem' }}>
@@ -1667,7 +1743,7 @@ function App() {
                         width: '100%',
                         padding: '0.625rem 0.75rem',
                         fontSize: '0.875rem',
-                        border: '1px solid var(--border-color)',
+                        border: `1px solid ${!formData.symbol && (formData.amount || formData.category) ? '#ef4444' : 'var(--border-color)'}`,
                         borderRadius: '0.5rem',
                         background: 'var(--bg-primary)',
                         color: 'var(--text-primary)',
@@ -1686,7 +1762,7 @@ function App() {
                       if (filteredSymbols.length === 0) return null;
 
                       return (
-                        <div style={{
+                        <div className="dropdown-animate" style={{
                           position: 'absolute',
                           top: 'calc(100% + 0.25rem)',
                           left: 0,
@@ -1742,7 +1818,7 @@ function App() {
                         width: '100%',
                         padding: '0.625rem 0.75rem',
                         fontSize: '0.875rem',
-                        border: '1px solid var(--border-color)',
+                        border: `1px solid ${!formData.amount && (formData.symbol || formData.category) ? '#ef4444' : 'var(--border-color)'}`,
                         borderRadius: '0.5rem',
                         background: 'var(--bg-primary)',
                         color: 'var(--text-primary)',
@@ -1750,7 +1826,7 @@ function App() {
                         transition: 'border-color 0.15s'
                       }}
                       onFocus={(e) => e.target.style.borderColor = 'var(--accent-blue)'}
-                      onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
+                      onBlur={(e) => e.target.style.borderColor = !formData.amount && (formData.symbol || formData.category) ? '#ef4444' : 'var(--border-color)'}
                       required
                     />
                   </div>
@@ -1849,7 +1925,7 @@ function App() {
                           width: '100%',
                           padding: '0.625rem 0.75rem',
                           fontSize: '0.875rem',
-                          border: `1px solid ${!formData.category ? '#ef4444' : 'var(--border-color)'}`,
+                          border: `1px solid ${!formData.category && (formData.symbol || formData.amount) ? '#ef4444' : 'var(--border-color)'}`,
                           borderRadius: '0.5rem',
                           background: 'var(--bg-primary)',
                           color: 'var(--text-primary)',
@@ -1867,7 +1943,7 @@ function App() {
                         if (filteredCategories.length === 0) return null;
 
                         return (
-                          <div style={{
+                          <div className="dropdown-animate" style={{
                             position: 'absolute',
                             top: 'calc(100% + 0.25rem)',
                             left: 0,
@@ -1952,7 +2028,7 @@ function App() {
                         </span>
                       </div>
                       <span style={{ fontSize: '0.875rem', fontWeight: 600, color: resultColor }}>
-                        {netResult >= 0 ? '+' : ''}${netResult.toFixed(2)}
+                        {netResult >= 0 ? '+' : '-'}${Math.abs(netResult).toFixed(2)}
                       </span>
                     </div>
                   );
@@ -2055,9 +2131,9 @@ function App() {
                 )}
 
               </form>
-              </>
+              </div>
             ) : modalTab === 'journal' ? (
-              <div className="journal-editor-container">
+              <div key="journal-tab" className="journal-editor-container tab-content-animate">
                 <div className="journal-toolbar">
                   <div className="journal-toolbar-group">
                     <button
@@ -2218,7 +2294,8 @@ function App() {
                     Cancel
                   </button>
                   <button
-                    type="submit"
+                    type="button"
+                    onClick={handleSaveEntry}
                     style={{
                       flex: 2,
                       background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
@@ -2246,8 +2323,8 @@ function App() {
                       e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.25)';
                     }}
                   >
-                    <PlusCircle size={16} strokeWidth={2.5} />
-                    <span>Save Entry</span>
+                    {editingTrade ? <EditIcon size={16} strokeWidth={2.5} /> : <PlusCircle size={16} strokeWidth={2.5} />}
+                    <span>{editingTrade ? 'Update Trade' : 'Save Entry'}</span>
                     <span style={{
                       position: 'absolute',
                       right: '1rem',
@@ -2346,7 +2423,7 @@ function App() {
         <div className="info-card">
           <span className="info-label">Net Total</span>
           <div className={`info-value ${totalPnL >= 0 ? 'positive' : 'negative'}`}>
-            {totalPnL >= 0 ? '+' : ''}${totalPnL.toFixed(2)}
+            {totalPnL >= 0 ? '+' : '-'}${Math.abs(totalPnL).toFixed(2)}
           </div>
           <div className="info-subtext">Period P&L</div>
         </div>
@@ -2362,13 +2439,13 @@ function App() {
           <div className="perf-row">
             <span className="perf-label">Best Day</span>
             <span className={`perf-value ${bestDay >= 0 ? 'positive' : 'negative'}`}>
-              {bestDay >= 0 ? '+' : ''}${bestDay.toFixed(2)}
+              {bestDay >= 0 ? '+' : '-'}${Math.abs(bestDay).toFixed(2)}
             </span>
           </div>
           <div className="perf-row">
             <span className="perf-label">Worst Day</span>
             <span className={`perf-value ${worstDay >= 0 ? 'positive' : 'negative'}`}>
-              {worstDay >= 0 ? '+' : ''}${worstDay.toFixed(2)}
+              {worstDay >= 0 ? '+' : '-'}${Math.abs(worstDay).toFixed(2)}
             </span>
           </div>
         </div>
@@ -2470,7 +2547,7 @@ function App() {
                 onClick={handleEditJournalFromReader}
                 style={{
                   width: '100%',
-                  background: 'var(--accent-blue)',
+                  background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
                   border: 'none',
                   color: 'white',
                   padding: '0.625rem 1.25rem',
@@ -2483,17 +2560,17 @@ function App() {
                   justifyContent: 'center',
                   gap: '0.5rem',
                   transition: 'all 0.2s',
-                  boxShadow: '0 2px 8px rgba(59, 130, 246, 0.2)'
+                  boxShadow: '0 2px 8px rgba(99, 102, 241, 0.2)'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#2563eb';
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)';
                   e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(99, 102, 241, 0.3)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--accent-blue)';
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)';
                   e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.2)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(99, 102, 241, 0.2)';
                 }}
               >
                 <EditIcon size={16} />
@@ -2588,7 +2665,7 @@ function App() {
       {renderHeader()}
 
       {currentView === 'analyze' ? (
-        <Analyze trades={trades} />
+        <Analyze trades={trades} onEditTrade={handleEditTrade} onDeleteTrade={handleDeleteTrade} />
       ) : currentView === 'profile' ? (
         <Profile
           availableTags={availableTags}
@@ -2665,6 +2742,14 @@ function App() {
       {renderReaderModal()}
       {renderConfirmModal()}
       {renderAlertModal()}
+      {showSaveSuccess && (
+        <div className="save-success-overlay">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          Saved!
+        </div>
+      )}
     </div>
   );
 }
