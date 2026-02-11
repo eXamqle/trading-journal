@@ -2,7 +2,7 @@ import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import bcrypt from 'bcryptjs';
-import { createDefaultTagsForUserForUser } from '../utils/defaultTags.js';
+import { createDefaultTagsForUser } from '../utils/defaultTags.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '../../database/trading-journal.db');

@@ -1,16 +1,8 @@
 /**
  * Default tags created for new users
- * These tags help users get started with common trading strategies and emotional patterns
+ * Psychology/Emotional tags to help track trading discipline
  */
 export const defaultTags = [
-  // Strategy tags
-  { name: 'Scalp', color: '#10b981' },
-  { name: 'Day Trade', color: '#3b82f6' },
-  { name: 'Swing', color: '#8b5cf6' },
-  { name: 'Breakout', color: '#f59e0b' },
-  { name: 'Reversal', color: '#ef4444' },
-  { name: 'Trend Following', color: '#06b6d4' },
-  // Psychology/Emotional tags
   { name: 'FOMO', color: '#dc2626' },
   { name: 'Revenge Trade', color: '#991b1b' },
   { name: 'Overtrading', color: '#ea580c' },
