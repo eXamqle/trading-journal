@@ -72,6 +72,34 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
     };
   }, []);
 
+  // Handle Escape key for alert modal
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && alertModal.open) {
+        setAlertModal({ ...alertModal, open: false });
+      }
+    };
+
+    if (alertModal.open) {
+      window.addEventListener('keydown', handleEscape);
+      return () => window.removeEventListener('keydown', handleEscape);
+    }
+  }, [alertModal]);
+
+  // Handle Escape key for custom date modal
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && customDateModal) {
+        setCustomDateModal(false);
+      }
+    };
+
+    if (customDateModal) {
+      window.addEventListener('keydown', handleEscape);
+      return () => window.removeEventListener('keydown', handleEscape);
+    }
+  }, [customDateModal]);
+
   // Filter trades based on period
   const filteredByPeriod = useMemo(() => {
     const now = new Date();

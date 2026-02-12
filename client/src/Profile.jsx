@@ -37,6 +37,49 @@ function Profile({ availableTags, setAvailableTags }) {
     }
   }, [user]);
 
+  // Handle Escape key for alert modal
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && alertModal.open) {
+        setAlertModal({ ...alertModal, open: false });
+      }
+    };
+
+    if (alertModal.open) {
+      window.addEventListener('keydown', handleEscape);
+      return () => window.removeEventListener('keydown', handleEscape);
+    }
+  }, [alertModal]);
+
+  // Handle Escape key for confirm modal
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && confirmModal.open) {
+        setConfirmModal({ ...confirmModal, open: false });
+      }
+    };
+
+    if (confirmModal.open) {
+      window.addEventListener('keydown', handleEscape);
+      return () => window.removeEventListener('keydown', handleEscape);
+    }
+  }, [confirmModal]);
+
+  // Handle Escape key for color picker
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && showColorPicker) {
+        setShowColorPicker(false);
+        setEditingTagIndex(null);
+      }
+    };
+
+    if (showColorPicker) {
+      window.addEventListener('keydown', handleEscape);
+      return () => window.removeEventListener('keydown', handleEscape);
+    }
+  }, [showColorPicker]);
+
   const handleAccountChange = (e) => {
     const { id, value } = e.target;
     setAccountData(prev => ({

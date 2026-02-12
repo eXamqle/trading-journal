@@ -159,6 +159,77 @@ function App() {
     localStorage.setItem('recentMarkets', JSON.stringify(recentMarkets));
   }, [recentMarkets]);
 
+  // Handle Escape key for alert modal
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && alertModal.open) {
+        setAlertModal({ ...alertModal, open: false });
+      }
+    };
+
+    if (alertModal.open) {
+      window.addEventListener('keydown', handleEscape);
+      return () => window.removeEventListener('keydown', handleEscape);
+    }
+  }, [alertModal]);
+
+  // Handle Escape key for confirm modal
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && confirmModal.open) {
+        setConfirmModal({ ...confirmModal, open: false });
+      }
+    };
+
+    if (confirmModal.open) {
+      window.addEventListener('keydown', handleEscape);
+      return () => window.removeEventListener('keydown', handleEscape);
+    }
+  }, [confirmModal]);
+
+  // Handle Escape key for reader modal
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && readerModalOpen) {
+        setReaderModalOpen(false);
+        setViewingJournal(false);
+      }
+    };
+
+    if (readerModalOpen) {
+      window.addEventListener('keydown', handleEscape);
+      return () => window.removeEventListener('keydown', handleEscape);
+    }
+  }, [readerModalOpen]);
+
+  // Handle Escape key for add tag modal
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && showAddTagModal) {
+        setShowAddTagModal(false);
+      }
+    };
+
+    if (showAddTagModal) {
+      window.addEventListener('keydown', handleEscape);
+      return () => window.removeEventListener('keydown', handleEscape);
+    }
+  }, [showAddTagModal]);
+
+  // Handle Escape key for main modal (add/edit trade modal)
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && selectedDate && !readerModalOpen && !alertModal.open && !confirmModal.open && !showAddTagModal) {
+        closeModal(false);
+      }
+    };
+
+    if (selectedDate && !readerModalOpen) {
+      window.addEventListener('keydown', handleEscape);
+      return () => window.removeEventListener('keydown', handleEscape);
+    }
+  }, [selectedDate, readerModalOpen, alertModal.open, confirmModal.open, showAddTagModal]);
+
   const loadTrades = async () => {
     try {
       setLoading(true);
@@ -2609,12 +2680,10 @@ function App() {
       <div
         className="modal-overlay"
         style={{ zIndex: 9999 }}
-        onClick={handleCloseReader}
       >
         <div
           className="modal-content"
           style={{ maxWidth: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
-          onClick={(e) => e.stopPropagation()}
         >
           <button className="close-modal" onClick={handleCloseReader}>
             <X size={20} />
