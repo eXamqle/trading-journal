@@ -57,3 +57,60 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-secondary);
 }
+
+/* Large Screen Support (1440p and 4K) */
+
+/* 1440p displays (2560x1440) - 25% scale increase */
+@media (min-width: 2560px) {
+  :root {
+    font-size: 20px; /* Up from default 16px = 1.25x */
+  }
+}
+
+/* 4K displays (3840x2160) - 50% scale increase */
+@media (min-width: 3840px) {
+  :root {
+    font-size: 24px; /* Up from default 16px = 1.5x */
+  }
+}
+
+/* Mobile Touch-Friendly Improvements */
+@media (max-width: 768px) {
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Prevent horizontal overflow */
+  body {
+    overflow-x: hidden;
+  }
+
+  /* Prevent text selection on buttons and interactive elements */
+  button, .tab-btn, .nav-btn, .day-cell {
+    -webkit-tap-highlight-color: rgba(59, 130, 246, 0.2);
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Ensure minimum touch target size for all interactive elements */
+  button,
+  a,
+  input[type="button"],
+  input[type="submit"] {
+    min-height: 44px;
+  }
+
+  /* Make inputs more touch-friendly - prevents iOS zoom on focus */
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  /* Hide scrollbar on mobile for cleaner look */
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+}

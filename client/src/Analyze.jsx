@@ -699,11 +699,6 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                 let cumulative = 0;
                 const dataPoints = [];
 
-                // Start at 0 on the first trading day
-                if (sortedTrades.length > 0) {
-                  dataPoints.push({ x: 0, y: 0, date: sortedTrades[0].date, label: 'Start' });
-                }
-
                 sortedTrades.forEach((trade, index) => {
                   const amount = parseFloat(trade.amount) || 0;
                   const fees = parseFloat(trade.fees) || 0;
@@ -711,7 +706,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                                 trade.type === 'loss' ? -(Math.abs(amount) + fees) : -fees;
                   cumulative += netPL;
                   dataPoints.push({
-                    x: index + 1,
+                    x: index,
                     y: cumulative,
                     date: trade.date,
                     symbol: trade.symbol,

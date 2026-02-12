@@ -789,9 +789,6 @@ function App() {
           amountInput.focus();
         } else if (feesInput && !feesInput.value) {
           feesInput.focus();
-        } else {
-          // All fields filled, focus symbol to allow quick override
-          symbolInput?.focus();
         }
       }, 100);
     }

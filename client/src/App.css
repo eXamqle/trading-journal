@@ -350,12 +350,35 @@
   gap: 14px;
 }
 
+/* Staggered animation for sidebar info cards */
+.sidebar-section .info-card {
+  animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+.sidebar-section .info-card:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.sidebar-section .info-card:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+.sidebar-section .info-card:nth-child(4) {
+  animation-delay: 0.3s;
+}
+
+.sidebar-section .info-card:nth-child(5) {
+  animation-delay: 0.4s;
+}
+
 .sidebar-title {
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 0.5rem;
+  animation: fadeIn 0.4s ease-out;
 }
 
 .info-card {
@@ -2943,12 +2966,37 @@ button.new-tag-color-picker:focus {
   align-items: center;
   justify-content: center;
   color: #94a3b8;
+  animation: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .journal-entries-search {
   position: relative;
   max-width: 320px;
   min-width: 220px;
+  animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .journal-search-icon {
@@ -2989,6 +3037,7 @@ button.new-tag-color-picker:focus {
   padding: 0.85rem;
   backdrop-filter: blur(10px);
   min-height: 400px;
+  animation: fadeIn 0.4s ease-out;
 }
 
 .journal-entries-list-new {
@@ -3004,7 +3053,8 @@ button.new-tag-color-picker:focus {
   padding: 0.85rem;
   cursor: pointer;
   transition: all 0.2s;
-  animation: fadeInUp 0.3s ease-out;
+  animation: fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
 }
 
 .journal-entry-card:hover {
@@ -3111,6 +3161,7 @@ button.new-tag-color-picker:focus {
 .journal-empty-state {
   text-align: center;
   padding: 3rem 1.5rem;
+  animation: fadeIn 0.5s ease-out;
 }
 
 .journal-empty-icon {
@@ -3123,6 +3174,8 @@ button.new-tag-color-picker:focus {
   align-items: center;
   justify-content: center;
   color: var(--text-secondary);
+  animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards;
+  opacity: 0;
 }
 
 .journal-empty-state h3 {
@@ -3148,6 +3201,8 @@ button.new-tag-color-picker:focus {
   padding-top: 1rem;
   border-top: 1px solid var(--border-color);
   gap: 1rem;
+  animation: fadeIn 0.4s ease-out 0.3s forwards;
+  opacity: 0;
 }
 
 .journal-pagination-btn {
@@ -3217,5 +3272,598 @@ button.new-tag-color-picker:focus {
 
   .journal-pagination-info {
     order: -1;
+  }
+}
+
+/* Large Screen Container Scaling */
+
+/* 1440p displays */
+@media (min-width: 2560px) {
+  .app-container {
+    max-width: 2250px; /* 1800px * 1.25 */
+  }
+
+  .header,
+  .nav-container,
+  .dashboard-grid,
+  .analyze-container,
+  .main-content .analyze-container {
+    max-width: 1750px; /* 1400px * 1.25 */
+  }
+
+  .modal-content {
+    max-width: 1187px; /* 950px * 1.25 */
+  }
+
+  .profile-container {
+    max-width: 1000px; /* 800px * 1.25 */
+  }
+
+  /* Sidebar width */
+  .dashboard-grid {
+    grid-template-columns: 1fr 337.5px; /* 270px * 1.25 */
+  }
+
+  /* Calendar cell min-height */
+  .day-cell {
+    min-height: 112.5px; /* 90px * 1.25 */
+  }
+
+  /* Scrollbar width */
+  ::-webkit-scrollbar {
+    width: 10px; /* 8px * 1.25 */
+  }
+
+  /* Modal overlay padding */
+  .modal-overlay {
+    padding: 25px; /* 20px * 1.25 */
+  }
+}
+
+/* 4K displays */
+@media (min-width: 3840px) {
+  .app-container {
+    max-width: 2700px; /* 1800px * 1.5 */
+  }
+
+  .header,
+  .nav-container,
+  .dashboard-grid,
+  .analyze-container,
+  .main-content .analyze-container {
+    max-width: 2100px; /* 1400px * 1.5 */
+  }
+
+  .modal-content {
+    max-width: 1425px; /* 950px * 1.5 */
+  }
+
+  .profile-container {
+    max-width: 1200px; /* 800px * 1.5 */
+  }
+
+  /* Sidebar width */
+  .dashboard-grid {
+    grid-template-columns: 1fr 405px; /* 270px * 1.5 */
+  }
+
+  /* Calendar cell min-height */
+  .day-cell {
+    min-height: 135px; /* 90px * 1.5 */
+  }
+
+  /* Scrollbar width */
+  ::-webkit-scrollbar {
+    width: 12px; /* 8px * 1.5 */
+  }
+
+  /* Modal overlay padding */
+  .modal-overlay {
+    padding: 30px; /* 20px * 1.5 */
+  }
+}
+
+/* Mobile Responsive Styles */
+
+/* Tablet and Mobile Landscape (768px and below) */
+@media (max-width: 768px) {
+  /* Header adjustments */
+  .header {
+    padding: 8px 1rem;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .logo-text h1 {
+    font-size: 1rem;
+  }
+
+  .logo-text p {
+    font-size: 0.65rem;
+  }
+
+  .nav-actions {
+    gap: 12px;
+  }
+
+  .btn-support {
+    padding: 8px 14px;
+    font-size: 0.9rem;
+  }
+
+  /* Navigation and containers */
+  .nav-container,
+  .dashboard-grid {
+    padding: 0 1rem;
+  }
+
+  /* Calendar adjustments */
+  .calendar-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .calendar-nav {
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .month-display {
+    font-size: 1rem;
+  }
+
+  .toggle-7day {
+    padding: 5px 10px;
+    font-size: 0.7rem;
+  }
+
+  .calendar-container {
+    padding: 0.65rem;
+    margin-bottom: 20px;
+  }
+
+  .calendar-grid {
+    gap: 0.4rem;
+  }
+
+  .day-cell {
+    min-height: 70px;
+    padding: 0.5rem;
+  }
+
+  .day-number {
+    font-size: 0.75rem;
+  }
+
+  .day-trades {
+    gap: 0.25rem;
+  }
+
+  .trade-badge {
+    padding: 0.15rem 0.35rem;
+    font-size: 0.65rem;
+  }
+
+  /* Modal adjustments */
+  .modal-overlay {
+    padding: 12px;
+    align-items: flex-start;
+  }
+
+  .modal-content {
+    max-width: 100%;
+    max-height: 95vh;
+    margin-top: 12px;
+  }
+
+  .modal-header {
+    padding: 1rem 1.25rem 0;
+  }
+
+  .modal-title {
+    font-size: 1.25rem;
+  }
+
+  .modal-subtitle {
+    font-size: 0.7rem;
+  }
+
+  .modal-body {
+    padding: 1rem 1.25rem 1.25rem;
+  }
+
+  /* Tabs */
+  .view-tabs {
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .view-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab-btn {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+
+  /* Sidebar */
+  .sidebar-section {
+    gap: 12px;
+  }
+
+  .info-card {
+    padding: 10px;
+  }
+
+  .info-value {
+    font-size: 1.2rem;
+  }
+
+  /* Footer */
+  .footer {
+    margin-top: 40px;
+    padding: 40px 0;
+  }
+
+  .footer-grid {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+
+  /* Week view */
+  .week-view-date-range {
+    font-size: 1.25rem;
+  }
+
+  /* Profile */
+  .profile-container {
+    padding: 1rem;
+  }
+
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Journal entries */
+  .journal-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .journal-search {
+    width: 100%;
+  }
+}
+
+/* Small Mobile Portrait (480px and below) */
+@media (max-width: 480px) {
+  /* Further reduce header */
+  .header {
+    padding: 8px 0.75rem;
+  }
+
+  .logo-section {
+    gap: 8px;
+  }
+
+  .logo-icon {
+    padding: 6px;
+  }
+
+  .logo-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .logo-text h1 {
+    font-size: 0.9rem;
+  }
+
+  .logo-text p {
+    display: none;
+  }
+
+  .btn-support {
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    gap: 4px;
+  }
+
+  .btn-support svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .user-profile span {
+    display: none;
+  }
+
+  /* Containers */
+  .nav-container,
+  .dashboard-grid,
+  .app-container {
+    padding: 0 0.75rem;
+  }
+
+  /* Calendar - make it more compact */
+  .calendar-header {
+    padding: 10px 12px;
+  }
+
+  .calendar-nav {
+    gap: 8px;
+  }
+
+  .month-display {
+    font-size: 0.9rem;
+    gap: 6px;
+  }
+
+  .nav-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .toggle-7day {
+    padding: 4px 8px;
+    font-size: 0.65rem;
+    gap: 4px;
+  }
+
+  .calendar-container {
+    padding: 0.5rem;
+  }
+
+  .calendar-grid {
+    gap: 0.25rem;
+  }
+
+  .weekday {
+    padding: 0.35rem;
+    font-size: 0.65rem;
+  }
+
+  .day-cell {
+    min-height: 60px;
+    padding: 0.35rem;
+  }
+
+  .day-number {
+    font-size: 0.7rem;
+    padding: 0.2rem;
+  }
+
+  .trade-badge {
+    padding: 0.1rem 0.25rem;
+    font-size: 0.6rem;
+  }
+
+  /* Modal - make more compact */
+  .modal-overlay {
+    padding: 8px;
+  }
+
+  .modal-content {
+    border-radius: 12px;
+    margin-top: 8px;
+  }
+
+  .modal-header {
+    padding: 0.85rem 1rem 0;
+  }
+
+  .modal-title {
+    font-size: 1.1rem;
+  }
+
+  .modal-subtitle {
+    font-size: 0.65rem;
+  }
+
+  .modal-body {
+    padding: 0.85rem 1rem 1rem;
+  }
+
+  .modal-tabs {
+    gap: 0.25rem;
+    padding: 0.25rem;
+  }
+
+  .modal-tab {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+  }
+
+  /* Form elements */
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .form-group {
+    margin-bottom: 0.85rem;
+  }
+
+  .form-label {
+    font-size: 0.85rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .form-input,
+  .form-select,
+  .form-textarea {
+    padding: 10px 12px;
+    font-size: 0.9rem;
+  }
+
+  /* Buttons */
+  .modal-action-button {
+    padding: 10px 16px;
+    font-size: 0.9rem;
+  }
+
+  .tab-btn {
+    padding: 6px 10px;
+    font-size: 0.85rem;
+  }
+
+  /* Dropdowns - limit height on mobile */
+  .dropdown-menu {
+    max-height: 200px;
+  }
+
+  /* Ensure text wraps in small spaces */
+  .dropdown-item {
+    white-space: normal;
+    word-wrap: break-word;
+  }
+
+  /* Sidebar info cards */
+  .info-card {
+    padding: 8px;
+  }
+
+  .info-label {
+    font-size: 0.6rem;
+  }
+
+  .info-value {
+    font-size: 1.1rem;
+  }
+
+  .info-subtext {
+    font-size: 0.7rem;
+  }
+
+  /* Week view compact */
+  .week-view-date-range {
+    font-size: 1.1rem;
+  }
+
+  .week-total-card {
+    padding: 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .week-day-card {
+    padding: 0.75rem;
+  }
+
+  /* Year view compact */
+  .year-view-year {
+    font-size: 1.5rem;
+  }
+
+  .year-months-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .year-month-card {
+    padding: 0.85rem;
+  }
+
+  .year-total-card {
+    padding: 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .year-total-amount {
+    font-size: 1.5rem;
+  }
+
+  /* Tables - make scrollable */
+  .table-container,
+  .trades-table-container,
+  .tags-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -0.75rem;
+    padding: 0 0.75rem;
+  }
+
+  table {
+    min-width: 500px;
+    font-size: 0.85rem;
+  }
+
+  /* Make table cells more compact */
+  td, th {
+    padding: 0.5rem !important;
+  }
+
+  /* Profile compact */
+  .profile-header {
+    padding: 1rem;
+  }
+
+  .profile-info h2 {
+    font-size: 1.25rem;
+  }
+
+  .profile-stats {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  /* Journal entries compact */
+  .journal-entry {
+    padding: 0.85rem;
+  }
+
+  .journal-header-info h3 {
+    font-size: 1rem;
+  }
+
+  /* Analyze page */
+  .analyze-container {
+    padding: 0.75rem;
+  }
+
+  .analyze-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .analyze-dropdown-trigger {
+    min-width: auto;
+    width: 100%;
+  }
+
+  .analyze-filter-input {
+    min-width: auto;
+    width: 100%;
+  }
+
+  .analyze-filter-dropdown {
+    min-width: auto;
+    width: 100%;
+  }
+
+  .analyze-filters {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .chart-container {
+    min-height: 250px;
+  }
+
+  /* Ensure dropdowns don't overflow */
+  .analyze-dropdown-menu {
+    left: 0;
+    right: 0;
+    min-width: auto;
   }
 }
