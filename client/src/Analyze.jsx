@@ -459,7 +459,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
           )}
 
           {/* Controls */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', gap: '1rem', flexWrap: 'wrap' }}>
+          <div className="analyze-controls-row">
             <div className="analyze-tabs" style={{ marginBottom: 0 }}>
               <button
                 className={`analyze-tab-trigger ${activeTab === 'performance' ? 'active' : ''}`}
@@ -474,7 +474,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                 Trade List
               </button>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div className="analyze-controls-actions">
               <div className="dropdown-container" ref={periodDropdownRef}>
                 <button
                   type="button"
@@ -766,12 +766,11 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                 const areaData = `M ${marginLeft} ${height - marginBottom} L ${pathData.substring(2)} L ${xScale(dataPoints[dataPoints.length - 1].x)} ${height - marginBottom} Z`;
 
                 return (
-                  <div style={{ position: 'relative' }}>
+                  <div className="equity-chart-container">
                     <svg
                       width="100%"
-                      height={height}
                       viewBox={`0 0 ${width} ${height}`}
-                      style={{ display: 'block' }}
+                      style={{ display: 'block', minWidth: '500px' }}
                     >
                       <defs>
                         <linearGradient id="areaGradient" x1="0" x2="0" y1="0" y2="1">

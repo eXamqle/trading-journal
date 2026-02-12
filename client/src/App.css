@@ -75,6 +75,125 @@
   font-weight: 500;
 }
 
+/* Burger Menu Button - hidden on desktop */
+.burger-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.burger-btn:hover {
+  background: rgba(148, 163, 184, 0.1);
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+/* Mobile Nav Overlay */
+.mobile-nav-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 2000;
+  animation: modalFadeIn 0.2s ease-out;
+  backdrop-filter: blur(4px);
+}
+
+/* Mobile Nav Slide-in Panel */
+.mobile-nav {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 280px;
+  max-width: 85vw;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border-color);
+  z-index: 2001;
+  padding: 0;
+  animation: mobileNavSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+@keyframes mobileNavSlideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.mobile-nav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.mobile-nav-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.mobile-nav-close {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.mobile-nav-close:hover {
+  color: var(--text-primary);
+  background: rgba(148, 163, 184, 0.1);
+}
+
+.mobile-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 1.25rem;
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mobile-nav-item:hover {
+  background: rgba(148, 163, 184, 0.1);
+}
+
+.mobile-nav-item-danger {
+  color: #ef4444;
+}
+
+.mobile-nav-item-danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.mobile-nav-separator {
+  height: 1px;
+  margin: 0.5rem 1.25rem;
+  background: var(--border-color);
+}
+
 /* Navigation Container */
 .nav-container {
   max-width: 1400px;
@@ -579,6 +698,40 @@
 
 .tab-content-animate {
   animation: tabContentFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Modal entry form layout classes */
+.modal-header-row {
+  padding: 1.25rem 1.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.modal-body-entry {
+  padding: 1.5rem 1.75rem;
+}
+
+.modal-form-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.modal-keyboard-hints {
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
+
+.modal-keyboard-hints kbd {
+  padding: 0.125rem 0.25rem;
+  background: var(--bg-secondary);
+  border-radius: 0.25rem;
+  font-size: 0.6875rem;
 }
 
 .dropdown-animate {
@@ -1547,6 +1700,29 @@
   margin: 0;
   font-size: 0.875rem;
   line-height: 1.5;
+}
+
+/* Analyze controls row */
+.analyze-controls-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.analyze-controls-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Equity chart container */
+.equity-chart-container {
+  position: relative;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .analyze-kpi-grid {
@@ -3383,12 +3559,11 @@ button.new-tag-color-picker:focus {
   }
 
   .nav-actions {
-    gap: 12px;
+    display: none;
   }
 
-  .btn-support {
-    padding: 8px 14px;
-    font-size: 0.9rem;
+  .burger-btn {
+    display: flex;
   }
 
   /* Navigation and containers */
@@ -3473,6 +3648,24 @@ button.new-tag-color-picker:focus {
     padding: 1rem 1.25rem 1.25rem;
   }
 
+  .modal-header-row {
+    padding: 1rem 1.25rem 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .modal-body-entry {
+    padding: 1rem 1.25rem 1.25rem;
+  }
+
+  .modal-form-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .modal-keyboard-hints {
+    display: none;
+  }
+
   /* Tabs */
   .view-tabs {
     width: 100%;
@@ -3489,6 +3682,19 @@ button.new-tag-color-picker:focus {
     padding: 8px 12px;
     font-size: 0.9rem;
     white-space: nowrap;
+  }
+
+  /* Analyze chart */
+  .equity-chart-container {
+    margin: 0 -0.5rem;
+  }
+
+  .analyze-controls-row {
+    gap: 0.75rem;
+  }
+
+  .analyze-controls-actions {
+    flex-wrap: wrap;
   }
 
   /* Sidebar */
@@ -3565,21 +3771,6 @@ button.new-tag-color-picker:focus {
   }
 
   .logo-text p {
-    display: none;
-  }
-
-  .btn-support {
-    padding: 6px 10px;
-    font-size: 0.85rem;
-    gap: 4px;
-  }
-
-  .btn-support svg {
-    width: 14px;
-    height: 14px;
-  }
-
-  .user-profile span {
     display: none;
   }
 
@@ -3667,6 +3858,18 @@ button.new-tag-color-picker:focus {
 
   .modal-body {
     padding: 0.85rem 1rem 1rem;
+  }
+
+  .modal-header-row {
+    padding: 0.85rem 1rem 0.625rem;
+  }
+
+  .modal-body-entry {
+    padding: 0.85rem 1rem 1rem;
+  }
+
+  .modal-form-row {
+    grid-template-columns: 1fr;
   }
 
   .modal-tabs {
@@ -3831,9 +4034,30 @@ button.new-tag-color-picker:focus {
     gap: 10px;
   }
 
+  .analyze-controls-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .analyze-controls-actions {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .analyze-controls-actions .dropdown-container {
+    flex: 1;
+    min-width: 0;
+  }
+
   .analyze-dropdown-trigger {
     min-width: auto;
     width: 100%;
+  }
+
+  .analyze-export-btn {
+    width: 100%;
+    justify-content: center;
   }
 
   .analyze-filter-input {
@@ -3849,6 +4073,10 @@ button.new-tag-color-picker:focus {
   .analyze-filters {
     flex-direction: column;
     gap: 10px;
+  }
+
+  .analyze-kpi-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   }
 
   .stats-grid {

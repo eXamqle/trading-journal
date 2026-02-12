@@ -15,6 +15,7 @@ import {
   ListFilter,
   LogOut,
   CalendarOff,
+  Menu,
   Bold,
   Italic,
   Underline,
@@ -101,6 +102,7 @@ function App() {
   });
   const [trades, setTrades] = useState([]);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [journalContent, setJournalContent] = useState('');
   const [journalEntries, setJournalEntries] = useState({}); // Store journal entries by date
   const [viewingJournal, setViewingJournal] = useState(false); // Track if viewing journal
@@ -1106,6 +1108,61 @@ function App() {
             )}
           </div>
         </div>
+
+        <button
+          className="burger-btn"
+          onClick={() => setMobileMenuOpen(true)}
+          aria-label="Open menu"
+        >
+          <Menu size={24} />
+        </button>
+
+        {mobileMenuOpen && (
+          <>
+            <div className="mobile-nav-overlay" onClick={() => setMobileMenuOpen(false)} />
+            <nav className="mobile-nav">
+              <div className="mobile-nav-header">
+                <span className="mobile-nav-title">Menu</span>
+                <button
+                  className="mobile-nav-close"
+                  onClick={() => setMobileMenuOpen(false)}
+                  aria-label="Close menu"
+                >
+                  <X size={22} />
+                </button>
+              </div>
+              <div
+                className="mobile-nav-item"
+                onClick={() => { setCurrentView('calendar'); setMobileMenuOpen(false); }}
+              >
+                <CalendarIcon size={20} />
+                <span>Calendar</span>
+              </div>
+              <div
+                className="mobile-nav-item"
+                onClick={() => { setCurrentView('journalEntries'); setMobileMenuOpen(false); }}
+              >
+                <FileText size={20} />
+                <span>Journal Entries</span>
+              </div>
+              <div
+                className="mobile-nav-item"
+                onClick={() => { setCurrentView('profile'); setMobileMenuOpen(false); }}
+              >
+                <User size={20} />
+                <span>Profile</span>
+              </div>
+              <div className="mobile-nav-separator" />
+              <div
+                className="mobile-nav-item mobile-nav-item-danger"
+                onClick={() => { setMobileMenuOpen(false); logout(); }}
+              >
+                <LogOut size={20} />
+                <span>Sign Out</span>
+              </div>
+            </nav>
+          </>
+        )}
       </header>
     );
   };
@@ -1454,13 +1511,7 @@ function App() {
             borderBottom: '1px solid var(--border-color)'
           }}>
             {/* Top row: Date + Tab switcher */}
-            <div style={{
-              padding: '1.25rem 1.75rem 1rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '1rem'
-            }}>
+            <div className="modal-header-row">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
                 <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   {editingTrade ? <EditIcon size={20} strokeWidth={2.5} /> : <CalendarIcon size={20} strokeWidth={2.5} />}
@@ -1600,7 +1651,7 @@ function App() {
             </div>
           </div>
 
-          <div className="modal-body" style={{ padding: '1.5rem 1.75rem' }}>
+          <div className="modal-body modal-body-entry">
 
             {viewingJournal ? (
               <div className="journal-view-container" style={{ padding: '1rem 0' }}>
@@ -1614,7 +1665,7 @@ function App() {
               <div key="trade-tab" className="tab-content-animate">
                 <form onSubmit={(e) => { e.preventDefault(); handleSaveEntry(); }} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {/* Compact, focused input fields */}
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.75rem' }}>
+                <div className="modal-form-row">
                   <div style={{ position: 'relative' }}>
                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '0.375rem' }}>
                       Symbol
@@ -2398,14 +2449,8 @@ function App() {
                     </span>
                   </button>
                 </div>
-                <p style={{
-                  fontSize: '0.6875rem',
-                  color: 'var(--text-secondary)',
-                  textAlign: 'center',
-                  marginTop: '0.5rem',
-                  marginBottom: 0
-                }}>
-                  <kbd style={{ padding: '0.125rem 0.25rem', background: 'var(--bg-secondary)', borderRadius: '0.25rem', fontSize: '0.6875rem' }}>⌘M</kbd> new entry • <kbd style={{ padding: '0.125rem 0.25rem', background: 'var(--bg-secondary)', borderRadius: '0.25rem', fontSize: '0.6875rem' }}>⌥←/→</kbd> switch tabs • <kbd style={{ padding: '0.125rem 0.25rem', background: 'var(--bg-secondary)', borderRadius: '0.25rem', fontSize: '0.6875rem' }}>⌘↵</kbd> save • <kbd style={{ padding: '0.125rem 0.25rem', background: 'var(--bg-secondary)', borderRadius: '0.25rem', fontSize: '0.6875rem' }}>Esc</kbd> cancel
+                <p className="modal-keyboard-hints">
+                  <kbd>⌘M</kbd> new entry • <kbd>⌥←/→</kbd> switch tabs • <kbd>⌘↵</kbd> save • <kbd>Esc</kbd> cancel
                 </p>
               </div>
             )}
