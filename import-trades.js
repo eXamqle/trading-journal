@@ -5,8 +5,8 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Raspberry Pi paths - update these for your system
-const dbPath = path.join(__dirname, 'database/trading-journal.db');
+// Docker container paths (when run from /app inside container)
+const dbPath = path.join(__dirname, 'server/database/trading-journal.db');
 const csvPath = path.join(__dirname, 'TradeJournal.csv');
 
 console.log('📊 Starting CSV import...\n');
