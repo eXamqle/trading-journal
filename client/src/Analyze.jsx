@@ -695,6 +695,70 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                   );
                 }
 
+                if (sortedTrades.length === 1) {
+                  const trade = sortedTrades[0];
+                  const amount = parseFloat(trade.amount) || 0;
+                  const fees = parseFloat(trade.fees) || 0;
+                  const netPL = trade.type === 'profit' ? Math.abs(amount) - fees :
+                                trade.type === 'loss' ? -(Math.abs(amount) + fees) : -fees;
+
+                  return (
+                    <div style={{
+                      padding: '3rem 2rem',
+                      textAlign: 'center',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '1rem'
+                    }}>
+                      <div style={{
+                        width: '80px',
+                        height: '80px',
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 8px 24px rgba(59, 130, 246, 0.4)',
+                        marginBottom: '0.5rem'
+                      }}>
+                        <Activity size={36} style={{ color: 'white' }} />
+                      </div>
+                      <div>
+                        <p style={{
+                          color: 'var(--text-secondary)',
+                          fontSize: '0.875rem',
+                          marginBottom: '0.5rem'
+                        }}>
+                          Only one trade recorded
+                        </p>
+                        <p style={{
+                          color: 'var(--text-primary)',
+                          fontSize: '1.25rem',
+                          fontWeight: '600',
+                          marginBottom: '0.25rem'
+                        }}>
+                          {trade.symbol} • {format(new Date(trade.date), 'MMM d, yyyy')}
+                        </p>
+                        <p style={{
+                          fontSize: '1.5rem',
+                          fontWeight: '700',
+                          color: netPL >= 0 ? '#10b981' : '#ef4444'
+                        }}>
+                          {netPL >= 0 ? '+' : '-'}{symbol}{Math.abs(netPL).toFixed(2)}
+                        </p>
+                        <p style={{
+                          color: 'var(--text-secondary)',
+                          fontSize: '0.75rem',
+                          marginTop: '1rem'
+                        }}>
+                          Add more trades to see the equity curve visualization
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+
                 // Calculate cumulative equity
                 let cumulative = 0;
                 const dataPoints = [];
@@ -748,7 +812,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                 const displayRange = displayMaxY - displayMinY;
 
                 const width = 1000;
-                const height = 280;
+                const height = 220;
                 const marginLeft = 60;
                 const marginRight = 20;
                 const marginTop = 15;

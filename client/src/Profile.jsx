@@ -201,7 +201,7 @@ function Profile({ availableTags, setAvailableTags }) {
         </div>
 
         {activeTab === 'account' ? (
-          <div className="profile-tab-panel">
+          <div key="account" className="profile-tab-panel">
             <div className="profile-card">
               <div className="profile-card-header">
                 <h3>Account Information</h3>
@@ -237,7 +237,7 @@ function Profile({ availableTags, setAvailableTags }) {
             </div>
           </div>
         ) : activeTab === 'security' ? (
-          <div className="profile-tab-panel">
+          <div key="security" className="profile-tab-panel">
             <div className="profile-card">
               <div className="profile-card-header">
                 <h3>Security Settings</h3>
@@ -282,7 +282,7 @@ function Profile({ availableTags, setAvailableTags }) {
             </div>
           </div>
         ) : activeTab === 'preferences' ? (
-          <div className="profile-tab-panel">
+          <div key="preferences" className="profile-tab-panel">
             <div className="profile-card">
               <div className="profile-card-header">
                 <h3>Preferences</h3>
@@ -431,7 +431,7 @@ function Profile({ availableTags, setAvailableTags }) {
             </div>
           </div>
         ) : (
-          <div className="profile-tab-panel">
+          <div key="tags" className="profile-tab-panel">
             <div className="profile-card">
               <div className="profile-card-header">
                 <h3>Tag Management</h3>
