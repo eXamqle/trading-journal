@@ -888,24 +888,29 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                       />
 
                       {/* Data points */}
-                      {dataPoints.map((point, i) => (
-                        <circle
-                          key={i}
-                          cx={xScale(point.x)}
-                          cy={yScale(point.y)}
-                          r={hoveredPoint === i ? 7 : 4}
-                          fill="var(--bg-color)"
-                          stroke="#3b82f6"
-                          strokeWidth="2.5"
-                          style={{
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease',
-                            filter: hoveredPoint === i ? 'drop-shadow(0 0 10px #3b82f6)' : 'drop-shadow(0 2px 4px rgba(59, 130, 246, 0.3))'
-                          }}
-                          onMouseEnter={() => setHoveredPoint(i)}
-                          onMouseLeave={() => setHoveredPoint(null)}
-                        />
-                      ))}
+                      {dataPoints.map((point, i) => {
+                        // Skip the first point to keep the chart clean
+                        if (i === 0) return null;
+
+                        return (
+                          <circle
+                            key={i}
+                            cx={xScale(point.x)}
+                            cy={yScale(point.y)}
+                            r={hoveredPoint === i ? 7 : 4}
+                            fill="var(--bg-color)"
+                            stroke="#3b82f6"
+                            strokeWidth="2.5"
+                            style={{
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                              filter: hoveredPoint === i ? 'drop-shadow(0 0 10px #3b82f6)' : 'drop-shadow(0 2px 4px rgba(59, 130, 246, 0.3))'
+                            }}
+                            onMouseEnter={() => setHoveredPoint(i)}
+                            onMouseLeave={() => setHoveredPoint(null)}
+                          />
+                        );
+                      })}
 
                       {/* X-axis */}
                       <line
