@@ -278,22 +278,6 @@ function Login() {
             {isLogin ? 'Sign Up' : 'Log In'}
           </button>
         </div>
-
-        {isLogin && (
-          <div style={{
-            marginTop: '20px',
-            padding: '12px',
-            background: 'rgba(59, 130, 246, 0.1)',
-            border: '1px solid rgba(59, 130, 246, 0.3)',
-            borderRadius: '6px',
-            fontSize: '13px',
-            color: '#94a3b8'
-          }}>
-            <strong style={{ color: '#f8fafc' }}>Demo account:</strong><br />
-            Email: john@example.com<br />
-            Password: password123
-          </div>
-        )}
       </div>
 
       {/* Error Modal */}

@@ -43,17 +43,14 @@ app.use(helmet({
 const allowedOrigins = [
   process.env.CLIENT_URL || 'http://localhost:5173',
   'http://localhost:5173', // Always allow local development
+  'https://flobros.de',
+  'https://www.flobros.de', // Also allow www subdomain
 ];
 
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-
-    // In production, allow same-origin requests (client served from same server)
-    if (process.env.NODE_ENV === 'production') {
-      return callback(null, true);
-    }
 
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
