@@ -1,9 +1,13 @@
 import Database from 'better-sqlite3';
 import { readFileSync } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// Use absolute paths
-const dbPath = '/home/luka/Projects/trading-journal/server/database/trading-journal.db';
-const csvPath = '/home/luka/Projects/trading-journal/TradeJournal.csv';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Raspberry Pi paths - update these for your system
+const dbPath = path.join(__dirname, 'database/trading-journal.db');
+const csvPath = path.join(__dirname, 'TradeJournal.csv');
 
 console.log('📊 Starting CSV import...\n');
 console.log(`Database: ${dbPath}`);
