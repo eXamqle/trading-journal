@@ -1,18 +1,15 @@
 import Database from 'better-sqlite3';
 import { readFileSync } from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-// Database path
-const dbPath = process.env.DATABASE_PATH || path.join(__dirname, 'server/database/trading-journal.db');
-const db = new Database(dbPath);
-
-// CSV file path
-const csvPath = path.join(__dirname, 'TradeJournal.csv');
+// Use absolute paths
+const dbPath = '/home/luka/Projects/trading-journal/server/database/trading-journal.db';
+const csvPath = '/home/luka/Projects/trading-journal/TradeJournal.csv';
 
 console.log('📊 Starting CSV import...\n');
+console.log(`Database: ${dbPath}`);
+console.log(`CSV file: ${csvPath}\n`);
+
+const db = new Database(dbPath);
 
 // Find user by email
 const user = db.prepare('SELECT * FROM users WHERE email = ?').get('kuznikluka@gmail.com');
@@ -30,7 +27,6 @@ const csvContent = readFileSync(csvPath, 'utf-8');
 const lines = csvContent.split('\n').filter(line => line.trim());
 
 // Skip header
-const header = lines[0];
 const trades = lines.slice(1);
 
 console.log(`📄 CSV contains ${trades.length} trades\n`);
