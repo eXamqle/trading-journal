@@ -25,7 +25,7 @@ docker cp TradeJournal.csv trading-journal-app:/app/
 docker cp import-trades.js trading-journal-app:/app/
 
 echo "📦 Installing better-sqlite3 in container..."
-docker exec trading-journal-app npm install better-sqlite3
+docker exec -w /app trading-journal-app npm install better-sqlite3
 
 echo "🚀 Running import..."
 docker exec -w /app trading-journal-app node import-trades.js
