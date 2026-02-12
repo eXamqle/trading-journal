@@ -616,26 +616,119 @@ function Profile({ availableTags, setAvailableTags }) {
       {/* Alert Modal */}
       {alertModal.open && (
         <div className="modal-overlay" style={{ zIndex: 10000 }}>
-          <div className="modal-content" style={{ maxWidth: '400px', padding: '2rem' }}>
-            <button className="close-modal" onClick={() => setAlertModal({ ...alertModal, open: false })}>
+          <div className="modal-content" style={{
+            maxWidth: '440px',
+            padding: '0',
+            overflow: 'hidden'
+          }}>
+            <button
+              className="close-modal"
+              onClick={() => setAlertModal({ ...alertModal, open: false })}
+              style={{ zIndex: 10 }}
+            >
               <X size={20} />
             </button>
 
-            <div className="modal-header" style={{ marginBottom: '1.5rem' }}>
-              <h2 className="modal-title" style={{ fontSize: '1.25rem' }}>{alertModal.title}</h2>
+            <div style={{
+              background: alertModal.title?.toLowerCase().includes('error') || alertModal.title?.toLowerCase().includes('failed')
+                ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%)'
+                : 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%)',
+              padding: '2rem 2rem 1.5rem',
+              borderBottom: '1px solid var(--border-color)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.75rem' }}>
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '12px',
+                  background: alertModal.title?.toLowerCase().includes('error') || alertModal.title?.toLowerCase().includes('failed')
+                    ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+                    : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: alertModal.title?.toLowerCase().includes('error') || alertModal.title?.toLowerCase().includes('failed')
+                    ? '0 4px 12px rgba(239, 68, 68, 0.3)'
+                    : '0 4px 12px rgba(59, 130, 246, 0.3)',
+                  flexShrink: 0
+                }}>
+                  {alertModal.title?.toLowerCase().includes('error') || alertModal.title?.toLowerCase().includes('failed') ? (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/>
+                      <line x1="12" y1="8" x2="12" y2="12"/>
+                      <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                  ) : (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/>
+                      <line x1="12" y1="16" x2="12" y2="12"/>
+                      <line x1="12" y1="8" x2="12.01" y2="8"/>
+                    </svg>
+                  )}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <h2 style={{
+                    fontSize: '1.25rem',
+                    fontWeight: '700',
+                    color: 'var(--text-primary)',
+                    margin: 0,
+                    lineHeight: '1.4'
+                  }}>
+                    {alertModal.title}
+                  </h2>
+                </div>
+              </div>
             </div>
 
-            <div style={{ marginBottom: '2rem', color: 'var(--text-primary)', lineHeight: '1.6' }}>
+            <div style={{
+              padding: '2rem',
+              color: 'var(--text-secondary)',
+              lineHeight: '1.6',
+              fontSize: '0.9375rem'
+            }}>
               {alertModal.message}
             </div>
 
-            <button
-              className="modal-action-button"
-              onClick={() => setAlertModal({ ...alertModal, open: false })}
-              style={{ width: '100%' }}
-            >
-              OK
-            </button>
+            <div style={{
+              padding: '1.5rem 2rem',
+              background: 'var(--bg-secondary)',
+              borderTop: '1px solid var(--border-color)'
+            }}>
+              <button
+                onClick={() => setAlertModal({ ...alertModal, open: false })}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem 1.5rem',
+                  background: alertModal.title?.toLowerCase().includes('error') || alertModal.title?.toLowerCase().includes('failed')
+                    ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+                    : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  color: 'white',
+                  fontSize: '0.9375rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: alertModal.title?.toLowerCase().includes('error') || alertModal.title?.toLowerCase().includes('failed')
+                    ? '0 2px 8px rgba(239, 68, 68, 0.2)'
+                    : '0 2px 8px rgba(59, 130, 246, 0.2)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = alertModal.title?.toLowerCase().includes('error') || alertModal.title?.toLowerCase().includes('failed')
+                    ? '0 4px 12px rgba(239, 68, 68, 0.3)'
+                    : '0 4px 12px rgba(59, 130, 246, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = alertModal.title?.toLowerCase().includes('error') || alertModal.title?.toLowerCase().includes('failed')
+                    ? '0 2px 8px rgba(239, 68, 68, 0.2)'
+                    : '0 2px 8px rgba(59, 130, 246, 0.2)';
+                }}
+              >
+                Got it
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -643,61 +736,119 @@ function Profile({ availableTags, setAvailableTags }) {
       {/* Confirm Modal */}
       {confirmModal.open && (
         <div className="modal-overlay" style={{ zIndex: 10000 }}>
-          <div className="modal-content" style={{ maxWidth: '400px', padding: '2rem' }}>
-            <button className="close-modal" onClick={() => setConfirmModal({ ...confirmModal, open: false })}>
+          <div className="modal-content" style={{
+            maxWidth: '440px',
+            padding: '0',
+            overflow: 'hidden'
+          }}>
+            <button
+              className="close-modal"
+              onClick={() => setConfirmModal({ ...confirmModal, open: false })}
+              style={{ zIndex: 10 }}
+            >
               <X size={20} />
             </button>
 
-            <div className="modal-header" style={{ marginBottom: '1.5rem' }}>
-              <h2 className="modal-title" style={{ fontSize: '1.25rem' }}>{confirmModal.title}</h2>
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%)',
+              padding: '2rem 2rem 1.5rem',
+              borderBottom: '1px solid var(--border-color)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.75rem' }}>
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)',
+                  flexShrink: 0
+                }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                  </svg>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <h2 style={{
+                    fontSize: '1.25rem',
+                    fontWeight: '700',
+                    color: 'var(--text-primary)',
+                    margin: 0,
+                    lineHeight: '1.4'
+                  }}>
+                    {confirmModal.title}
+                  </h2>
+                </div>
+              </div>
             </div>
 
-            <div style={{ marginBottom: '2rem', color: 'var(--text-primary)', lineHeight: '1.6' }}>
+            <div style={{
+              padding: '2rem',
+              color: 'var(--text-secondary)',
+              lineHeight: '1.6',
+              fontSize: '0.9375rem'
+            }}>
               {confirmModal.message}
             </div>
 
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <div style={{
+              padding: '1.5rem 2rem',
+              background: 'var(--bg-secondary)',
+              borderTop: '1px solid var(--border-color)',
+              display: 'flex',
+              gap: '0.75rem'
+            }}>
               <button
-                className="modal-action-button"
                 onClick={() => setConfirmModal({ ...confirmModal, open: false })}
                 style={{
                   flex: 1,
-                  background: 'var(--bg-secondary)',
-                  color: 'var(--text-primary)',
+                  padding: '0.75rem 1.5rem',
+                  background: 'var(--bg-color)',
                   border: '1px solid var(--border-color)',
-                  boxShadow: 'none'
+                  borderRadius: '0.5rem',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.9375rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--bg-color)';
-                  e.currentTarget.style.border = '1px solid var(--border-color)';
-                  e.currentTarget.style.boxShadow = 'none';
+                  e.currentTarget.style.background = 'var(--bg-secondary)';
+                  e.currentTarget.style.borderColor = 'var(--text-secondary)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--bg-secondary)';
-                  e.currentTarget.style.border = '1px solid var(--border-color)';
-                  e.currentTarget.style.boxShadow = 'none';
+                  e.currentTarget.style.background = 'var(--bg-color)';
+                  e.currentTarget.style.borderColor = 'var(--border-color)';
                 }}
               >
                 Cancel
               </button>
               <button
-                className="modal-action-button"
                 onClick={confirmModal.onConfirm}
                 style={{
                   flex: 1,
-                  background: '#ef4444',
+                  padding: '0.75rem 1.5rem',
+                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
                   border: 'none',
-                  boxShadow: '0 4px 12px rgba(239, 68, 68, 0.2)'
+                  borderRadius: '0.5rem',
+                  color: 'white',
+                  fontSize: '0.9375rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 2px 8px rgba(239, 68, 68, 0.2)'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#dc2626';
-                  e.currentTarget.style.border = 'none';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(239, 68, 68, 0.25)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.3)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = '#ef4444';
-                  e.currentTarget.style.border = 'none';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.2)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(239, 68, 68, 0.2)';
                 }}
               >
                 Delete

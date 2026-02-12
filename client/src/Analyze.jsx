@@ -420,28 +420,125 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
   const renderAlertModal = () => {
     if (!alertModal.open) return null;
 
+    const isError = alertModal.title?.toLowerCase().includes('error') ||
+                    alertModal.title?.toLowerCase().includes('failed') ||
+                    alertModal.title?.toLowerCase().includes('invalid');
+
     return (
       <div className="modal-overlay" style={{ zIndex: 10000 }}>
-        <div className="modal-content" style={{ maxWidth: '400px', padding: '2rem' }}>
-          <button className="close-modal" onClick={() => setAlertModal({ ...alertModal, open: false })}>
+        <div className="modal-content" style={{
+          maxWidth: '440px',
+          padding: '0',
+          overflow: 'hidden'
+        }}>
+          <button
+            className="close-modal"
+            onClick={() => setAlertModal({ ...alertModal, open: false })}
+            style={{ zIndex: 10 }}
+          >
             <X size={20} />
           </button>
 
-          <div className="modal-header" style={{ marginBottom: '1.5rem' }}>
-            <h2 className="modal-title" style={{ fontSize: '1.25rem' }}>{alertModal.title}</h2>
+          <div style={{
+            background: isError
+              ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%)'
+              : 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%)',
+            padding: '2rem 2rem 1.5rem',
+            borderBottom: '1px solid var(--border-color)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.75rem' }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: isError
+                  ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+                  : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: isError
+                  ? '0 4px 12px rgba(239, 68, 68, 0.3)'
+                  : '0 4px 12px rgba(59, 130, 246, 0.3)',
+                flexShrink: 0
+              }}>
+                {isError ? (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                ) : (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="16" x2="12" y2="12"/>
+                    <line x1="12" y1="8" x2="12.01" y2="8"/>
+                  </svg>
+                )}
+              </div>
+              <div style={{ flex: 1 }}>
+                <h2 style={{
+                  fontSize: '1.25rem',
+                  fontWeight: '700',
+                  color: 'var(--text-primary)',
+                  margin: 0,
+                  lineHeight: '1.4'
+                }}>
+                  {alertModal.title}
+                </h2>
+              </div>
+            </div>
           </div>
 
-          <div style={{ marginBottom: '2rem', color: 'var(--text-primary)', lineHeight: '1.6' }}>
+          <div style={{
+            padding: '2rem',
+            color: 'var(--text-secondary)',
+            lineHeight: '1.6',
+            fontSize: '0.9375rem'
+          }}>
             {alertModal.message}
           </div>
 
-          <button
-            className="modal-action-button"
-            onClick={() => setAlertModal({ ...alertModal, open: false })}
-            style={{ width: '100%' }}
-          >
-            OK
-          </button>
+          <div style={{
+            padding: '1.5rem 2rem',
+            background: 'var(--bg-secondary)',
+            borderTop: '1px solid var(--border-color)'
+          }}>
+            <button
+              onClick={() => setAlertModal({ ...alertModal, open: false })}
+              style={{
+                width: '100%',
+                padding: '0.75rem 1.5rem',
+                background: isError
+                  ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+                  : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                border: 'none',
+                borderRadius: '0.5rem',
+                color: 'white',
+                fontSize: '0.9375rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: isError
+                  ? '0 2px 8px rgba(239, 68, 68, 0.2)'
+                  : '0 2px 8px rgba(59, 130, 246, 0.2)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = isError
+                  ? '0 4px 12px rgba(239, 68, 68, 0.3)'
+                  : '0 4px 12px rgba(59, 130, 246, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = isError
+                  ? '0 2px 8px rgba(239, 68, 68, 0.2)'
+                  : '0 2px 8px rgba(59, 130, 246, 0.2)';
+              }}
+            >
+              Got it
+            </button>
+          </div>
         </div>
       </div>
     );
