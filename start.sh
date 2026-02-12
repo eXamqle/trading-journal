@@ -14,7 +14,7 @@ if [ ! -f .env.production ]; then
 
     cat > .env.production <<EOF
 JWT_SECRET=$JWT_SECRET
-CLIENT_URL=http://localhost:5000
+CLIENT_URL=https://flobros.de
 NODE_ENV=production
 PORT=5000
 EOF
