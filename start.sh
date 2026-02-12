@@ -23,6 +23,18 @@ EOF
     echo ""
 fi
 
+# Check if client/.env.production exists
+if [ ! -f client/.env.production ]; then
+    echo "📝 Creating client/.env.production file..."
+
+    cat > client/.env.production <<EOF
+VITE_API_URL=https://flobros.de/api
+EOF
+
+    echo "✓ Created client/.env.production"
+    echo ""
+fi
+
 # Check if docker compose or docker-compose is available
 if command -v docker &> /dev/null; then
     if docker compose version &> /dev/null; then
