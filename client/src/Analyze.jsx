@@ -1127,7 +1127,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
         <div className="analyze-tab-content">
           <div className="analyze-card">
             <div className="analyze-card-header">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginRight: '1rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginRight: '1rem', marginBottom: '0.75rem' }}>
                 <h3 style={{ margin: 0 }}>All Trades</h3>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '500' }}>
                   {periodFilter}
