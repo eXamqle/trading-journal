@@ -28,7 +28,7 @@ echo "📦 Installing better-sqlite3 in container..."
 docker exec trading-journal-app npm install better-sqlite3
 
 echo "🚀 Running import..."
-docker exec trading-journal-app node import-trades.js
+docker exec -w /app trading-journal-app node import-trades.js
 
 echo ""
 echo "✨ Done! Check your trading journal."
