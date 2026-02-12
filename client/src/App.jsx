@@ -351,28 +351,15 @@ function App() {
     setViewingJournal(false);
     setModalTab('journal');
 
-    // Load trade data if there are trades for this date
-    if (selectedDate) {
-      const dayTrades = getTradesForDate(selectedDate);
-      if (dayTrades.length > 0) {
-        // Populate form with the first trade's data
-        const trade = dayTrades[0];
-        setTradeType(trade.type);
-
-        // Extract tag names, handling both string and object formats
-        const tagNames = trade.tags
-          ? trade.tags.map(t => typeof t === 'string' ? t : (t.name || t))
-          : [];
-
-        setFormData({
-          symbol: trade.symbol || '',
-          amount: trade.amount || '',
-          category: trade.category || '',
-          fees: trade.fees || '',
-          tags: tagNames
-        });
-      }
-    }
+    // Clear form data to prevent accidentally creating duplicate trades
+    setFormData({
+      symbol: '',
+      amount: '',
+      category: '',
+      fees: '',
+      tags: []
+    });
+    setTradeType('profit');
   };
 
   const handleDeleteJournal = (dateString) => {
@@ -973,7 +960,8 @@ function App() {
             ...data.trade,
             date: new Date(data.trade.date)
           };
-          setTrades(prevTrades => prevTrades.map(t => t.id === editingTrade.id ? tradeWithDate : t));
+          // Use == for comparison to handle type coercion (number vs string)
+          setTrades(prevTrades => prevTrades.map(t => t.id == editingTrade.id ? tradeWithDate : t));
           setEditingTrade(null);
           tradeCreated = true;
         } else {
