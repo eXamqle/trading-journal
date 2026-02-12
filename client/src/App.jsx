@@ -189,7 +189,6 @@ function App() {
   const editorInitialized = useRef(false);
   const symbolInputRef = useRef(null);
   const hasAutoFocused = useRef(false);
-  const lastUsedCategory = useRef('');
   const [activeFormats, setActiveFormats] = useState({
     bold: false,
     italic: false,
@@ -290,7 +289,7 @@ function App() {
       setFormData({
         symbol: '',
         amount: '',
-        category: lastUsedCategory.current,
+        category: '',
         fees: '',
         tags: []
       });
@@ -974,8 +973,6 @@ function App() {
           setTrades(prevTrades => [...prevTrades, tradeWithDate]);
           tradeCreated = true;
         }
-        // Save the category for next entry
-        lastUsedCategory.current = formData.category;
       }
 
       // Save journal if there's content
