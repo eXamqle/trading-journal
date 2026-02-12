@@ -464,9 +464,9 @@ function App() {
     setTradesExpanded(false);
   };
 
-  const closeModal = async () => {
-    // Save journal content before closing
-    if (selectedDate && journalContent) {
+  const closeModal = async (shouldSave = true) => {
+    // Save journal content before closing only if shouldSave is true
+    if (shouldSave && selectedDate && journalContent) {
       const dateKey = format(selectedDate, 'yyyy-MM-dd');
       try {
         await journalAPI.saveEntry(dateKey, journalContent);
@@ -477,6 +477,7 @@ function App() {
       } catch (error) {
         console.error('Failed to save journal:', error);
         setAlertModal({ open: true, message: 'Failed to save journal entry. Please try again.', title: 'Error' });
+        return; // Don't close modal if save fails
       }
     }
 
@@ -747,10 +748,10 @@ function App() {
           return;
         }
 
-        // Escape to close
+        // Escape to close without saving
         if (e.key === 'Escape') {
           e.preventDefault();
-          closeModal();
+          closeModal(false);
           return;
         }
       }
@@ -890,6 +891,11 @@ function App() {
   };
 
   const handleSaveEntry = async () => {
+    // Check if selectedDate is valid
+    if (!selectedDate) {
+      console.error('Cannot save entry: selectedDate is null or invalid');
+      return;
+    }
 
     // Validate required fields if any trade fields are filled
     const hasTradeData = formData.symbol || formData.amount || formData.category;
@@ -2324,7 +2330,7 @@ function App() {
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
                   <button
                     type="button"
-                    onClick={closeModal}
+                    onClick={() => closeModal(false)}
                     style={{
                       flex: 1,
                       background: 'var(--bg-secondary)',
