@@ -125,6 +125,12 @@ function App() {
   const [availableTags, setAvailableTags] = useState([]);
   const [showAddTagModal, setShowAddTagModal] = useState(false);
 
+  // Recent markets tracking
+  const [recentMarkets, setRecentMarkets] = useState(() => {
+    const saved = localStorage.getItem('recentMarkets');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   // Load trades, journal entries, and tags on mount
   useEffect(() => {
     loadTrades();
@@ -148,6 +154,10 @@ function App() {
   useEffect(() => {
     localStorage.setItem('currentDate', currentDate.toISOString());
   }, [currentDate]);
+
+  useEffect(() => {
+    localStorage.setItem('recentMarkets', JSON.stringify(recentMarkets));
+  }, [recentMarkets]);
 
   const loadTrades = async () => {
     try {
@@ -182,6 +192,15 @@ function App() {
     } catch (error) {
       console.error('Failed to load tags:', error);
     }
+  };
+
+  const updateRecentMarkets = (market) => {
+    setRecentMarkets(prev => {
+      // Remove the market if it already exists
+      const filtered = prev.filter(m => m !== market);
+      // Add to front, keep only last 5
+      return [market, ...filtered].slice(0, 5);
+    });
   };
 
   const editorRef = useRef(null);
@@ -962,6 +981,7 @@ function App() {
           // Use == for comparison to handle type coercion (number vs string)
           setTrades(prevTrades => prevTrades.map(t => t.id == editingTrade.id ? tradeWithDate : t));
           setEditingTrade(null);
+          updateRecentMarkets(formData.category);
           tradeCreated = true;
         } else {
           // Create new trade
@@ -971,6 +991,7 @@ function App() {
             date: new Date(data.trade.date)
           };
           setTrades(prevTrades => [...prevTrades, tradeWithDate]);
+          updateRecentMarkets(formData.category);
           tradeCreated = true;
         }
       }
@@ -1856,16 +1877,22 @@ function App() {
                         onChange={(e) => {
                           setFormData(prev => ({ ...prev, category: e.target.value }));
                           setCategoryOpen(true);
-                          // Auto-select first match
-                          const filteredCategories = categories.filter(c =>
-                            c.toLowerCase().includes(e.target.value.toLowerCase())
+                          // Auto-select first match, prioritizing recent markets
+                          const searchTerm = e.target.value.toLowerCase();
+                          const recentFiltered = recentMarkets.filter(m => m.toLowerCase().includes(searchTerm));
+                          const remainingCategories = categories.filter(c =>
+                            !recentMarkets.includes(c) && c.toLowerCase().includes(searchTerm)
                           );
+                          const filteredCategories = [...recentFiltered, ...remainingCategories];
                           setSelectedCategoryIndex(filteredCategories.length > 0 ? 0 : -1);
                         }}
                         onKeyDown={(e) => {
-                          const filteredCategories = categories.filter(c =>
-                            c.toLowerCase().includes(formData.category.toLowerCase())
+                          const searchTerm = formData.category.toLowerCase();
+                          const recentFiltered = recentMarkets.filter(m => m.toLowerCase().includes(searchTerm));
+                          const remainingCategories = categories.filter(c =>
+                            !recentMarkets.includes(c) && c.toLowerCase().includes(searchTerm)
                           );
+                          const filteredCategories = [...recentFiltered, ...remainingCategories];
 
                           if (e.key === 'ArrowDown') {
                             e.preventDefault();
@@ -1888,10 +1915,15 @@ function App() {
                         }}
                         onFocus={() => {
                           setCategoryOpen(true);
-                          // Show all options when focused
+                          // Show all options when focused, prioritizing recent markets
+                          const searchTerm = formData.category.toLowerCase();
+                          const recentFiltered = recentMarkets.filter(m => m.toLowerCase().includes(searchTerm));
+                          const remainingCategories = categories.filter(c =>
+                            !recentMarkets.includes(c) && c.toLowerCase().includes(searchTerm)
+                          );
                           const filteredCategories = formData.category
-                            ? categories.filter(c => c.toLowerCase().includes(formData.category.toLowerCase()))
-                            : categories;
+                            ? [...recentFiltered, ...remainingCategories]
+                            : [...recentMarkets, ...categories.filter(c => !recentMarkets.includes(c))];
                           setSelectedCategoryIndex(filteredCategories.length > 0 ? 0 : -1);
                         }}
                         onBlur={() => {
@@ -1917,9 +1949,17 @@ function App() {
                       />
                       {/* Autocomplete dropdown */}
                       {categoryOpen && (() => {
+                        // Prioritize recent markets, then show remaining categories
+                        const searchTerm = formData.category.toLowerCase();
+                        const recentFiltered = recentMarkets.filter(m =>
+                          m.toLowerCase().includes(searchTerm)
+                        );
+                        const remainingCategories = categories.filter(c =>
+                          !recentMarkets.includes(c) && c.toLowerCase().includes(searchTerm)
+                        );
                         const filteredCategories = formData.category
-                          ? categories.filter(c => c.toLowerCase().includes(formData.category.toLowerCase()))
-                          : categories;
+                          ? [...recentFiltered, ...remainingCategories]
+                          : [...recentMarkets, ...categories.filter(c => !recentMarkets.includes(c))];
 
                         if (filteredCategories.length === 0) return null;
 
