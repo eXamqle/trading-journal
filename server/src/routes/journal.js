@@ -103,6 +103,15 @@ router.put('/:date', (req, res) => {
       return res.status(400).json({ message: 'Content is required' });
     }
 
+    // Remove trailing spaces from the content
+    const cleanedContent = content.replace(/ +$/, '');
+
+    // Strip HTML tags and check if there's actual text content
+    const textContent = cleanedContent.replace(/<[^>]*>/g, '').trim();
+    if (!textContent) {
+      return res.status(400).json({ message: 'Journal entry cannot be empty' });
+    }
+
     // Use transaction for atomic operations
     const saveJournal = db.transaction(() => {
       // Check if entry exists

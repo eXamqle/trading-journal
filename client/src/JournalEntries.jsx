@@ -9,7 +9,12 @@ import {
   PlusCircle,
   FileText,
   Trash2,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ChevronDown,
+  ChevronUp,
+  TrendingUp,
+  TrendingDown,
+  Minus
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useCurrency } from './contexts/CurrencyContext';
@@ -19,6 +24,7 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [expandedTrades, setExpandedTrades] = useState({});
   const entriesPerPage = 10;
 
   // Helper function to get trades for a specific date
@@ -38,15 +44,8 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
     return tradesArray.reduce((sum, trade) => {
       const amount = parseFloat(trade.amount) || 0;
       const fees = parseFloat(trade.fees) || 0;
-      // For profit: amount should be positive, add it
-      // For loss: amount can be negative (already includes sign), just add it
-      // This handles both cases where user enters -20 or where type determines sign
-      if (trade.type === 'profit') {
-        return sum + Math.abs(amount) - fees;
-      } else if (trade.type === 'loss') {
-        return sum - Math.abs(amount) - fees;
-      }
-      return sum - fees;
+      // Always: amount - fees (type is just a label)
+      return sum + (amount - fees);
     }, 0);
   };
 
@@ -161,8 +160,8 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
     <>
       <main className="dashboard-grid">
         <div className="main-content">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', gap: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div className="journal-entries-header">
+            <div className="journal-entries-header-left">
               <div className="journal-entries-icon" style={{ width: '3rem', height: '3rem', fontSize: '1rem' }}>
                 <FileText size={26} strokeWidth={2.5} color="white" />
               </div>
@@ -173,7 +172,7 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                 </p>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <div className="journal-entries-header-right">
               <div className="journal-entries-search">
                 <Search size={16} className="journal-search-icon" />
                 <input
@@ -216,17 +215,7 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
               </div>
               <button
                 onClick={onAddJournal}
-                className="form-input hover:scale-110 transition-transform"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.5rem',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  minWidth: '140px',
-                  fontWeight: 500
-                }}
+                className="journal-add-button"
               >
                 <PlusCircle size={16} />
                 Add Journal
@@ -307,15 +296,73 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                         </div>
 
                         {hasTrades && (
-                          <div className="journal-entry-trades-summary">
-                            <Target size={14} />
-                            <span>{entry.tradeCount} {entry.tradeCount === 1 ? 'trade' : 'trades'}</span>
-                            {tickers.length > 0 && (
-                              <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                                • {tickers.slice(0, 3).join(', ')}{tickers.length > 3 ? ` +${tickers.length - 3}` : ''}
-                              </span>
+                          <>
+                            <div
+                              className="journal-entry-trades-summary"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedTrades(prev => ({
+                                  ...prev,
+                                  [entry.date]: !prev[entry.date]
+                                }));
+                              }}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              <Target size={14} />
+                              <span>{entry.tradeCount} {entry.tradeCount === 1 ? 'trade' : 'trades'}</span>
+                              {tickers.length > 0 && (
+                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                                  • {tickers.slice(0, 3).join(', ')}{tickers.length > 3 ? ` +${tickers.length - 3}` : ''}
+                                </span>
+                              )}
+                              {expandedTrades[entry.date] ? (
+                                <ChevronUp size={16} style={{ marginLeft: 'auto', color: 'var(--text-secondary)' }} />
+                              ) : (
+                                <ChevronDown size={16} style={{ marginLeft: 'auto', color: 'var(--text-secondary)' }} />
+                              )}
+                            </div>
+
+                            {expandedTrades[entry.date] && (
+                              <div className="journal-entry-trades-list">
+                                {entry.trades.map((trade, tradeIdx) => {
+                                  const tradeAmount = parseFloat(trade.amount) || 0;
+                                  const tradeFees = parseFloat(trade.fees) || 0;
+                                  // Always: amount - fees
+                                  const tradeNet = tradeAmount - tradeFees;
+
+                                  return (
+                                    <div key={tradeIdx} className="journal-trade-item">
+                                      <div className="journal-trade-item-left">
+                                        <div className="journal-trade-icon">
+                                          {trade.type === 'profit' ? (
+                                            <TrendingUp size={12} color="var(--accent-green)" />
+                                          ) : trade.type === 'loss' ? (
+                                            <TrendingDown size={12} color="var(--accent-red)" />
+                                          ) : (
+                                            <Minus size={12} color="var(--text-secondary)" />
+                                          )}
+                                        </div>
+                                        <div className="journal-trade-info">
+                                          <span className="journal-trade-symbol">{trade.symbol}</span>
+                                          <span className="journal-trade-category">• {trade.category}</span>
+                                        </div>
+                                      </div>
+                                      <div className="journal-trade-item-right">
+                                        {tradeFees > 0 && (
+                                          <span className="journal-trade-fees">
+                                            -{symbol}{tradeFees.toFixed(2)}
+                                          </span>
+                                        )}
+                                        <span className={`journal-trade-amount ${trade.type}`}>
+                                          {tradeNet >= 0 ? '+' : ''}{symbol}{tradeNet.toFixed(2)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             )}
-                          </div>
+                          </>
                         )}
 
                         {uniqueTags.length > 0 && (
@@ -347,22 +394,15 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                                     style={{
                                       display: 'inline-flex',
                                       alignItems: 'center',
-                                      gap: '0.25rem',
+                                      gap: '0.375rem',
                                       padding: '0.25rem 0.5rem',
-                                      borderRadius: '999px',
+                                      borderRadius: '0.5rem',
                                       fontSize: '0.75rem',
-                                      background: 'var(--bg-secondary)',
-                                      border: '1px solid var(--border-color)',
-                                      color: 'var(--text-secondary)'
+                                      fontWeight: 500,
+                                      background: tagColor,
+                                      color: 'white'
                                     }}
                                   >
-                                    <div style={{
-                                      width: '8px',
-                                      height: '8px',
-                                      borderRadius: '2px',
-                                      background: tagColor,
-                                      flexShrink: 0
-                                    }} />
                                     {tagName}
                                   </span>
                                 );

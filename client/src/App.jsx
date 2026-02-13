@@ -297,14 +297,8 @@ function App() {
     return tradesArray.reduce((sum, trade) => {
       const amount = parseFloat(trade.amount) || 0;
       const fees = parseFloat(trade.fees) || 0;
-      // Always use absolute value to avoid sign issues
-      // The type (profit/loss) determines the actual sign
-      if (trade.type === 'profit') {
-        return sum + Math.abs(amount) - fees;
-      } else if (trade.type === 'loss') {
-        return sum - Math.abs(amount) - fees;
-      }
-      return sum - fees; // break-even still has fees
+      // Always: amount - fees (type is just a label)
+      return sum + (amount - fees);
     }, 0);
   };
 
@@ -1685,15 +1679,10 @@ function App() {
                   }
 
                   // Calculate current trade P&L - only if amount is entered
+                  // Always: amount - fees (type is just a label for validation)
                   let currentTradePnL = 0;
                   if (amount !== 0 || fees > 0) {
-                    if (tradeType === 'profit') {
-                      currentTradePnL = Math.abs(amount) - fees;
-                    } else if (tradeType === 'loss') {
-                      currentTradePnL = -(Math.abs(amount) + fees);
-                    } else {
-                      currentTradePnL = -fees;
-                    }
+                    currentTradePnL = amount - fees;
                   }
 
                   const totalDailyPnL = existingPnL + currentTradePnL;
@@ -2209,14 +2198,8 @@ function App() {
                           {todayTrades.map((trade) => {
                             const amount = parseFloat(trade.amount) || 0;
                             const fees = parseFloat(trade.fees) || 0;
-                            let pnl;
-                            if (trade.type === 'profit') {
-                              pnl = Math.abs(amount) - fees;
-                            } else if (trade.type === 'loss') {
-                              pnl = -(Math.abs(amount) + fees);
-                            } else {
-                              pnl = -fees;
-                            }
+                            // Always: amount - fees
+                            const pnl = amount - fees;
 
                             return (
                               <div
