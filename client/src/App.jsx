@@ -363,7 +363,8 @@ function App() {
 
     if (activeTab === 'Week' || isSameMonth(date, startOfMonth(currentDate))) {
       const dateKey = format(date, 'yyyy-MM-dd');
-      const existingJournal = journalEntries[dateKey] || '';
+      const existingJournal = journalEntries[dateKey]?.content || '';
+      const existingJournalTags = journalEntries[dateKey]?.tags || [];
 
       setSelectedDate(date);
       setJournalContent(existingJournal);
@@ -375,13 +376,13 @@ function App() {
       setTradesExpanded(false);
 
       // Reset form data when opening from calendar (for new entries)
-      // Pre-fill category with last used value
+      // Pre-fill tags with journal tags if they exist
       setFormData({
         symbol: '',
         amount: '',
         category: '',
         fees: '',
-        tags: []
+        tags: existingJournalTags
       });
       setTradeType('profit');
 
@@ -400,7 +401,7 @@ function App() {
   const handleViewJournalEntry = (dateString) => {
     const date = new Date(dateString);
     const dateKey = format(date, 'yyyy-MM-dd');
-    const existingJournal = journalEntries[dateKey] || '';
+    const existingJournal = journalEntries[dateKey]?.content || '';
 
     setSelectedDate(date);
     setJournalContent(existingJournal);
@@ -410,7 +411,8 @@ function App() {
   const handleAddJournal = () => {
     const today = new Date();
     const dateKey = format(today, 'yyyy-MM-dd');
-    const existingJournal = journalEntries[dateKey] || '';
+    const existingJournal = journalEntries[dateKey]?.content || '';
+    const existingJournalTags = journalEntries[dateKey]?.tags || [];
 
     setSelectedDate(today);
     setJournalContent(existingJournal);
@@ -419,13 +421,13 @@ function App() {
     setViewingJournal(false);
     setTradesExpanded(false);
 
-    // Reset form data
+    // Reset form data but keep existing journal tags
     setFormData({
       symbol: '',
       amount: '',
       category: '',
       fees: '',
-      tags: []
+      tags: existingJournalTags
     });
     setTradeType('profit');
   };
@@ -543,14 +545,15 @@ function App() {
   };
 
   const closeModal = async (shouldSave = true) => {
-    // Save journal content before closing only if shouldSave is true
-    if (shouldSave && selectedDate && journalContent) {
+    // Save journal content before closing only if shouldSave is true and content is not empty
+    const hasContent = journalContent && journalContent.replace(/<[^>]*>/g, '').trim() !== '';
+    if (shouldSave && selectedDate && hasContent) {
       const dateKey = format(selectedDate, 'yyyy-MM-dd');
       try {
-        await journalAPI.saveEntry(dateKey, journalContent);
+        await journalAPI.saveEntry(dateKey, journalContent, formData.tags);
         setJournalEntries(prev => ({
           ...prev,
-          [dateKey]: journalContent
+          [dateKey]: { content: journalContent, tags: formData.tags }
         }));
       } catch (error) {
         console.error('Failed to save journal:', error);
@@ -1067,13 +1070,14 @@ function App() {
         }
       }
 
-      // Save journal if there's content
-      if (journalContent && journalContent.trim() !== '') {
+      // Save journal if there's content (not just empty HTML tags or whitespace)
+      const hasJournalContent = journalContent && journalContent.replace(/<[^>]*>/g, '').trim() !== '';
+      if (hasJournalContent) {
         const dateKey = format(selectedDate, 'yyyy-MM-dd');
-        await journalAPI.saveEntry(dateKey, journalContent);
+        await journalAPI.saveEntry(dateKey, journalContent, formData.tags);
         setJournalEntries(prev => ({
           ...prev,
-          [dateKey]: journalContent
+          [dateKey]: { content: journalContent, tags: formData.tags }
         }));
         journalSaved = true;
       }
@@ -1318,11 +1322,20 @@ function App() {
             dayNormalized.setHours(0, 0, 0, 0);
             const isFuture = dayNormalized > today;
             const dateKey = format(day, 'yyyy-MM-dd');
-            const hasJournal = journalEntries[dateKey] && journalEntries[dateKey].trim() !== '';
+            const hasJournal = journalEntries[dateKey]?.content && journalEntries[dateKey].content.trim() !== '';
 
             const dayTrades = getTradesForDate(day);
             const dayPnL = calculatePnL(dayTrades);
             const hasTrades = dayTrades.length > 0;
+
+            // Get unique tags for this day (from both trades and journal)
+            const tradeTags = dayTrades.flatMap(trade => trade.tags || []);
+            const journalTags = journalEntries[dateKey]?.tags || [];
+            const dayTags = [...new Set([...tradeTags, ...journalTags])];
+            const uniqueTagsWithColors = dayTags
+              .map(tagName => availableTags.find(t => t.name === tagName))
+              .filter(Boolean)
+              .slice(0, 3); // Limit to 3 tags
 
             return (
               <div
@@ -1336,6 +1349,23 @@ function App() {
                   <span className={`day-pnl ${Math.abs(dayPnL) < 0.01 ? '' : (dayPnL >= 0 ? 'profit' : 'loss')}`}>
                     {Math.abs(dayPnL) < 0.01 ? '' : (dayPnL >= 0 ? '+' : '-')}{symbol}{Math.abs(dayPnL).toFixed(2)}
                   </span>
+                )}
+                {uniqueTagsWithColors.length > 0 && (
+                  <div className="day-tags">
+                    {uniqueTagsWithColors.map((tag, idx) => (
+                      <span
+                        key={idx}
+                        className="day-tag"
+                        style={{ backgroundColor: tag.color }}
+                        title={tag.name}
+                      />
+                    ))}
+                    {dayTags.length > 3 && (
+                      <span className="day-tag-more" title={`+${dayTags.length - 3} more`}>
+                        +{dayTags.length - 3}
+                      </span>
+                    )}
+                  </div>
                 )}
                 {hasJournal && (
                   <span
@@ -1396,11 +1426,20 @@ function App() {
             dayNormalized.setHours(0, 0, 0, 0);
             const isFuture = dayNormalized > today;
             const dateKey = format(day, 'yyyy-MM-dd');
-            const hasJournal = journalEntries[dateKey] && journalEntries[dateKey].trim() !== '';
+            const hasJournal = journalEntries[dateKey]?.content && journalEntries[dateKey].content.trim() !== '';
 
             const dayTrades = getTradesForDate(day);
             const dayPnL = calculatePnL(dayTrades);
             const hasTrades = dayTrades.length > 0;
+
+            // Get unique tags for this day (from both trades and journal)
+            const tradeTags = dayTrades.flatMap(trade => trade.tags || []);
+            const journalTags = journalEntries[dateKey]?.tags || [];
+            const dayTags = [...new Set([...tradeTags, ...journalTags])];
+            const uniqueTagsWithColors = dayTags
+              .map(tagName => availableTags.find(t => t.name === tagName))
+              .filter(Boolean)
+              .slice(0, 4); // Limit to 4 tags
 
             return (
               <div
@@ -1415,30 +1454,50 @@ function App() {
                   </div>
                   <div className="week-day-info">
                     <span className="week-day-name">{format(day, 'EEEE')}</span>
-                    {hasJournal && (
-                      <span
-                        className="journal-badge"
-                        style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleViewJournalEntry(format(day, 'yyyy-MM-dd'));
-                        }}
-                      >
-                        <FileText size={14} strokeWidth={1.5} color="#e2e8f0" />
-                        Journal
-                      </span>
-                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
+                      {hasJournal && (
+                        <span
+                          className="journal-badge"
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewJournalEntry(format(day, 'yyyy-MM-dd'));
+                          }}
+                        >
+                          <FileText size={14} strokeWidth={1.5} color="#e2e8f0" />
+                          Journal
+                        </span>
+                      )}
+                      {uniqueTagsWithColors.length > 0 && (
+                        <div className="week-tags">
+                          {uniqueTagsWithColors.map((tag, tidx) => (
+                            <span
+                              key={tidx}
+                              className="week-tag"
+                              style={{ backgroundColor: tag.color }}
+                              title={tag.name}
+                            >
+                              {tag.name}
+                            </span>
+                          ))}
+                          {dayTags.length > 4 && (
+                            <span className="week-tag-more" title={`+${dayTags.length - 4} more tags`}>
+                              +{dayTags.length - 4}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="week-day-right">
                   {hasTrades ? (
-                    <span className={Math.abs(dayPnL) < 0.01 ? 'text-slate-400' : (dayPnL >= 0 ? 'text-emerald-400' : 'text-red-400')} style={{ fontWeight: '600' }}>
+                    <span className={`week-day-pnl ${Math.abs(dayPnL) < 0.01 ? '' : (dayPnL >= 0 ? 'positive' : 'negative')}`} style={{ fontWeight: '600' }}>
                       {Math.abs(dayPnL) < 0.01 ? '' : (dayPnL >= 0 ? '+' : '-')}{symbol}{Math.abs(dayPnL).toFixed(2)}
                     </span>
                   ) : (
                     <span className="week-day-empty">—</span>
                   )}
-                  <ChevronRight className="h-4 w-4 text-slate-500 ml-2" size={16} />
                 </div>
               </div>
             );
@@ -1471,16 +1530,25 @@ function App() {
         const date = new Date(format(month, 'yyyy'), format(month, 'M') - 1, day);
         const isTodayDate = isToday(date);
         const dateKey = format(date, 'yyyy-MM-dd');
-        const hasJournal = journalEntries[dateKey] && journalEntries[dateKey].trim() !== '';
+        const hasJournal = journalEntries[dateKey]?.content && journalEntries[dateKey].content.trim() !== '';
 
         const dayTrades = getTradesForDate(date);
         const dayPnL = calculatePnL(dayTrades);
         const hasTrades = dayTrades.length > 0;
 
+        // Get tags for this day (from both trades and journal)
+        const tradeTags = dayTrades.flatMap(trade => trade.tags || []);
+        const journalTags = journalEntries[dateKey]?.tags || [];
+        const dayTags = [...new Set([...tradeTags, ...journalTags])];
+        const hasTags = dayTags.length > 0;
+        const tagsText = hasTags ? ` [${dayTags.join(', ')}]` : '';
+
         const title = hasTrades
-          ? `${format(date, 'MMM d')}: ${Math.abs(dayPnL) < 0.01 ? '' : (dayPnL >= 0 ? '+' : '-')}${symbol}${Math.abs(dayPnL).toFixed(2)}${hasJournal ? ' 📝' : ''}`
+          ? `${format(date, 'MMM d')}: ${Math.abs(dayPnL) < 0.01 ? '' : (dayPnL >= 0 ? '+' : '-')}${symbol}${Math.abs(dayPnL).toFixed(2)}${hasJournal ? ' 📝' : ''}${tagsText}`
           : hasJournal
-          ? `${format(date, 'MMM d')}: Has journal 📝`
+          ? `${format(date, 'MMM d')}: Has journal 📝${tagsText}`
+          : hasTags
+          ? `${format(date, 'MMM d')}${tagsText}`
           : `${format(date, 'MMM d')}: No trades`;
 
         const today = new Date();
@@ -1497,7 +1565,7 @@ function App() {
         cells.push(
           <div
             key={day}
-            className={`${dayClass} ${isTodayDate ? 'today' : ''} ${hasJournal ? 'has-journal' : ''}`}
+            className={`${dayClass} ${isTodayDate ? 'today' : ''} ${hasJournal ? 'has-journal' : ''} ${hasTags ? 'has-tags' : ''}`}
             title={title}
             onClick={() => !isFuture && openModal(date, false)}
             style={{ cursor: isFuture ? 'not-allowed' : 'pointer', opacity: isFuture ? 0.5 : 1 }}
@@ -2276,12 +2344,12 @@ function App() {
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '0.25rem',
-                                padding: '0.3rem 0.5rem',
-                                borderRadius: '999px',
-                                fontSize: '0.6875rem',
-                                background: isSelected ? tag.color : 'transparent',
-                                border: `1px solid ${isSelected ? tag.color : 'rgba(148, 163, 184, 0.3)'}`,
-                                color: isSelected ? 'white' : '#94a3b8',
+                                padding: '0.375rem 0.625rem',
+                                borderRadius: '0.5rem',
+                                fontSize: '0.75rem',
+                                background: isSelected ? tag.color : 'rgba(148, 163, 184, 0.08)',
+                                border: `1px solid ${isSelected ? tag.color : 'rgba(148, 163, 184, 0.2)'}`,
+                                color: isSelected ? 'white' : 'var(--text-primary)',
                                 cursor: 'pointer',
                                 transition: 'all 0.15s',
                                 whiteSpace: 'nowrap',
@@ -2312,24 +2380,26 @@ function App() {
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '0.25rem',
-                            padding: '0.3rem 0.5rem',
-                            borderRadius: '999px',
-                            fontSize: '0.6875rem',
+                            padding: '0.375rem 0.625rem',
+                            borderRadius: '0.5rem',
+                            fontSize: '0.75rem',
                             background: 'transparent',
-                            border: '1px dashed rgba(148, 163, 184, 0.4)',
-                            color: '#94a3b8',
+                            border: '1px dashed rgba(148, 163, 184, 0.3)',
+                            color: 'var(--text-secondary)',
                             cursor: 'pointer',
                             transition: 'all 0.15s',
                             whiteSpace: 'nowrap',
                             fontWeight: 500
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.borderColor = '#3b82f6';
-                            e.currentTarget.style.color = '#3b82f6';
+                            e.currentTarget.style.borderColor = 'var(--accent-blue)';
+                            e.currentTarget.style.color = 'var(--accent-blue)';
+                            e.currentTarget.style.background = 'rgba(59, 130, 246, 0.08)';
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.borderColor = 'rgba(148, 163, 184, 0.4)';
-                            e.currentTarget.style.color = '#94a3b8';
+                            e.currentTarget.style.borderColor = 'rgba(148, 163, 184, 0.3)';
+                            e.currentTarget.style.color = 'var(--text-secondary)';
+                            e.currentTarget.style.background = 'transparent';
                           }}
                         >
                           + add
@@ -3066,6 +3136,7 @@ function App() {
           onAddJournal={handleAddJournal}
           onDeleteEntry={handleDeleteJournal}
           trades={trades}
+          availableTags={availableTags}
         />
       ) : (
         <>

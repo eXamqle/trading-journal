@@ -80,12 +80,24 @@ export function initDatabase() {
       UNIQUE(trade_id, tag_id)
     );
 
+    CREATE TABLE IF NOT EXISTS journal_tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      journal_entry_id INTEGER NOT NULL,
+      tag_id INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (journal_entry_id) REFERENCES journal_entries(id) ON DELETE CASCADE,
+      FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
+      UNIQUE(journal_entry_id, tag_id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_trades_user_date ON trades(user_id, date DESC);
     CREATE INDEX IF NOT EXISTS idx_trades_user_category ON trades(user_id, category);
     CREATE INDEX IF NOT EXISTS idx_journal_user_date ON journal_entries(user_id, date DESC);
     CREATE INDEX IF NOT EXISTS idx_tags_user ON tags(user_id);
     CREATE INDEX IF NOT EXISTS idx_trade_tags_trade ON trade_tags(trade_id);
     CREATE INDEX IF NOT EXISTS idx_trade_tags_tag ON trade_tags(tag_id);
+    CREATE INDEX IF NOT EXISTS idx_journal_tags_entry ON journal_tags(journal_entry_id);
+    CREATE INDEX IF NOT EXISTS idx_journal_tags_tag ON journal_tags(tag_id);
   `);
 
   // Create default user if none exists

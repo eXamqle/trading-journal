@@ -14,7 +14,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import { useCurrency } from './contexts/CurrencyContext';
 
-function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal, onDeleteEntry }) {
+function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal, onDeleteEntry, availableTags = [] }) {
   const { symbol } = useCurrency();
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('');
@@ -53,14 +53,17 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
   // Convert journalEntries object to array with trade data
   const entriesArray = useMemo(() => {
     return Object.entries(journalEntries)
-      .filter(([date, content]) => content && content.trim() !== '')
-      .map(([date, content]) => {
+      .filter(([date, entry]) => entry?.content && entry.content.trim() !== '')
+      .map(([date, entry]) => {
         const dayTrades = getTradesForDate(date);
         const dayPnL = calculatePnL(dayTrades);
+        const content = entry?.content || '';
+        const tags = entry?.tags || [];
 
         return {
           date,
           content,
+          tags,
           textContent: content.replace(/<[^>]*>/g, '').trim(),
           wordCount: content.replace(/<[^>]*>/g, '').trim().split(/\s+/).length,
           trades: dayTrades,
@@ -259,10 +262,13 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                     // Get unique tickers from trades
                     const tickers = [...new Set(entry.trades.map(t => t.symbol).filter(Boolean))];
 
-                    // Get unique tags from all trades
-                    const allTags = entry.trades.flatMap(t => t.tags || []);
+                    // Get unique tags from trades and journal
+                    const tradeTags = entry.trades.flatMap(t => t.tags || []);
+                    const journalTags = entry.tags || [];
+                    const allTags = [...tradeTags, ...journalTags];
                     const uniqueTags = allTags.reduce((acc, tag) => {
-                      if (!acc.find(t => t.name === tag.name)) {
+                      const tagName = typeof tag === 'string' ? tag : tag.name;
+                      if (!acc.find(t => (typeof t === 'string' ? t : t.name) === tagName)) {
                         acc.push(tag);
                       }
                       return acc;
@@ -328,31 +334,39 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                               gap: '0.375rem',
                               flex: 1
                             }}>
-                              {uniqueTags.slice(0, 5).map((tag, idx) => (
-                                <span
-                                  key={idx}
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '0.25rem',
-                                    padding: '0.25rem 0.5rem',
-                                    borderRadius: '999px',
-                                    fontSize: '0.75rem',
-                                    background: 'var(--bg-secondary)',
-                                    border: '1px solid var(--border-color)',
-                                    color: 'var(--text-secondary)'
-                                  }}
-                                >
-                                  <div style={{
-                                    width: '8px',
-                                    height: '8px',
-                                    borderRadius: '2px',
-                                    background: tag.color,
-                                    flexShrink: 0
-                                  }} />
-                                  {tag.name}
-                                </span>
-                              ))}
+                              {uniqueTags.slice(0, 5).map((tag, idx) => {
+                                // Handle both string tags (from journal) and object tags (from trades)
+                                const tagName = typeof tag === 'string' ? tag : tag.name;
+                                const tagColor = typeof tag === 'string'
+                                  ? availableTags.find(t => t.name === tag)?.color || '#3b82f6'
+                                  : tag.color;
+
+                                return (
+                                  <span
+                                    key={idx}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '0.25rem',
+                                      padding: '0.25rem 0.5rem',
+                                      borderRadius: '999px',
+                                      fontSize: '0.75rem',
+                                      background: 'var(--bg-secondary)',
+                                      border: '1px solid var(--border-color)',
+                                      color: 'var(--text-secondary)'
+                                    }}
+                                  >
+                                    <div style={{
+                                      width: '8px',
+                                      height: '8px',
+                                      borderRadius: '2px',
+                                      background: tagColor,
+                                      flexShrink: 0
+                                    }} />
+                                    {tagName}
+                                  </span>
+                                );
+                              })}
                               {uniqueTags.length > 5 && (
                                 <span style={{
                                   padding: '0.25rem 0.5rem',
