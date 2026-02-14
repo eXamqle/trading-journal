@@ -35,6 +35,9 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
   const [rowsPerPageOpen, setRowsPerPageOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [equityChartWidth, setEquityChartWidth] = useState(1000);
+  const [isCompactViewport, setIsCompactViewport] = useState(() => (
+    typeof window !== 'undefined' ? window.innerWidth <= 835 : false
+  ));
 
   // Refs for dropdown containers
   const periodDropdownRef = useRef(null);
@@ -130,6 +133,16 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
     window.addEventListener('resize', syncChartWidth);
     return () => window.removeEventListener('resize', syncChartWidth);
   }, [activeTab]);
+
+  useEffect(() => {
+    const syncViewportSize = () => {
+      setIsCompactViewport(window.innerWidth <= 835);
+    };
+
+    syncViewportSize();
+    window.addEventListener('resize', syncViewportSize);
+    return () => window.removeEventListener('resize', syncViewportSize);
+  }, []);
 
   // Filter trades based on period
   const filteredByPeriod = useMemo(() => {
@@ -1306,43 +1319,43 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                 <table className="analyze-table">
                   <thead>
                     <tr>
-                      <th>#</th>
-                      <th onClick={() => handleSort('date')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                      <th className="analyze-col-index">#</th>
+                      <th className="analyze-col-date" onClick={() => handleSort('date')} style={{ cursor: 'pointer', userSelect: 'none' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                           Date {getSortIcon('date')}
                         </div>
                       </th>
-                      <th onClick={() => handleSort('symbol')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                      <th className="analyze-col-symbol" onClick={() => handleSort('symbol')} style={{ cursor: 'pointer', userSelect: 'none' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                           Symbol {getSortIcon('symbol')}
                         </div>
                       </th>
-                      <th onClick={() => handleSort('type')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                      <th className="analyze-col-type" onClick={() => handleSort('type')} style={{ cursor: 'pointer', userSelect: 'none' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                           Type {getSortIcon('type')}
                         </div>
                       </th>
-                      <th onClick={() => handleSort('category')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                      <th className="analyze-col-category" onClick={() => handleSort('category')} style={{ cursor: 'pointer', userSelect: 'none' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                           Category {getSortIcon('category')}
                         </div>
                       </th>
-                      <th className="text-right" onClick={() => handleSort('amount')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                      <th className="text-right analyze-col-amount" onClick={() => handleSort('amount')} style={{ cursor: 'pointer', userSelect: 'none' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.25rem' }}>
                           Amount {getSortIcon('amount')}
                         </div>
                       </th>
-                      <th className="text-right" onClick={() => handleSort('fees')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                      <th className="text-right analyze-col-fees" onClick={() => handleSort('fees')} style={{ cursor: 'pointer', userSelect: 'none' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.25rem' }}>
                           Fees {getSortIcon('fees')}
                         </div>
                       </th>
-                      <th className="text-right" onClick={() => handleSort('netPL')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                      <th className="text-right analyze-col-net" onClick={() => handleSort('netPL')} style={{ cursor: 'pointer', userSelect: 'none' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.25rem' }}>
                           Net P/L {getSortIcon('netPL')}
                         </div>
                       </th>
-                      <th style={{ width: '60px', textAlign: 'center' }}>Actions</th>
+                      <th className="analyze-col-actions" style={{ width: '60px', textAlign: 'center' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1365,22 +1378,25 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                             onClick={() => onEditTrade && onEditTrade(trade)}
                             style={{ cursor: onEditTrade ? 'pointer' : 'default' }}
                           >
-                            <td>{(currentPage - 1) * rowsPerPage + index + 1}</td>
-                            <td>{format(new Date(trade.date), 'MMM d, yyyy')}</td>
-                            <td><strong>{trade.symbol}</strong></td>
-                            <td>
+                            <td className="analyze-col-index">{(currentPage - 1) * rowsPerPage + index + 1}</td>
+                            <td className="analyze-col-date">
+                              <span className="date-full">{format(new Date(trade.date), 'MMM d, yyyy')}</span>
+                              <span className="date-short">{format(new Date(trade.date), 'MMM d, yy')}</span>
+                            </td>
+                            <td className="analyze-col-symbol"><strong>{trade.symbol}</strong></td>
+                            <td className="analyze-col-type">
                               <span className={`analyze-type-badge analyze-type-${trade.type}`}>
                                 {trade.type === 'break-even' ? 'Break Even' :
                                  trade.type.charAt(0).toUpperCase() + trade.type.slice(1)}
                               </span>
                             </td>
-                            <td>{trade.category}</td>
-                            <td className="text-right">{symbol}{amount.toFixed(2)}</td>
-                            <td className="text-right">{symbol}{fees.toFixed(2)}</td>
-                            <td className={`text-right ${netPL >= 0 ? 'text-profit' : 'text-loss'}`}>
+                            <td className="analyze-col-category">{trade.category}</td>
+                            <td className="text-right analyze-col-amount">{symbol}{amount.toFixed(2)}</td>
+                            <td className="text-right analyze-col-fees">{symbol}{fees.toFixed(2)}</td>
+                            <td className={`text-right analyze-col-net ${netPL >= 0 ? 'text-profit' : 'text-loss'}`}>
                               {netPL >= 0 ? '+' : '-'}{symbol}{Math.abs(netPL).toFixed(2)}
                             </td>
-                            <td style={{ textAlign: 'center' }}>
+                            <td className="analyze-col-actions" style={{ textAlign: 'center' }}>
                               {onDeleteTrade && (
                                 <button
                                   onClick={(e) => {
@@ -1423,39 +1439,23 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
 
               {/* Pagination Controls */}
               {filteredTrades.length > 0 && totalPages > 1 && (
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '1rem',
-                  borderTop: '1px solid var(--border-color)'
-                }}>
-                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                <div className="analyze-pagination">
+                  <div className="analyze-pagination-summary">
                     Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredTrades.length)} of {filteredTrades.length} trades
                   </div>
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <div className="analyze-pagination-controls">
                     <button
                       onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                       disabled={currentPage === 1}
-                      style={{
-                        padding: '0.5rem 0.75rem',
-                        background: currentPage === 1 ? 'var(--bg-secondary)' : 'var(--bg-color)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '0.375rem',
-                        color: currentPage === 1 ? 'var(--text-secondary)' : 'var(--text-primary)',
-                        cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-                        fontSize: '0.875rem',
-                        fontWeight: '500',
-                        transition: 'all 0.2s'
-                      }}
+                      className={`analyze-pagination-btn${currentPage === 1 ? ' is-disabled' : ''}`}
                     >
                       Previous
                     </button>
 
-                    <div style={{ display: 'flex', gap: '0.25rem' }}>
+                    <div className="analyze-pagination-pages">
                       {(() => {
                         const pages = [];
-                        const maxVisiblePages = 5;
+                        const maxVisiblePages = isCompactViewport ? 3 : 5;
                         let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
                         let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
 
@@ -1468,24 +1468,13 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                             <button
                               key={1}
                               onClick={() => setCurrentPage(1)}
-                              style={{
-                                padding: '0.5rem 0.75rem',
-                                background: 'var(--bg-color)',
-                                border: '1px solid var(--border-color)',
-                                borderRadius: '0.375rem',
-                                color: 'var(--text-primary)',
-                                cursor: 'pointer',
-                                fontSize: '0.875rem',
-                                fontWeight: '500',
-                                minWidth: '2.5rem',
-                                transition: 'all 0.2s'
-                              }}
+                              className="analyze-pagination-btn"
                             >
                               1
                             </button>
                           );
                           if (startPage > 2) {
-                            pages.push(<span key="ellipsis1" style={{ padding: '0 0.25rem', color: 'var(--text-secondary)' }}>...</span>);
+                            pages.push(<span key="ellipsis1" className="analyze-pagination-ellipsis">...</span>);
                           }
                         }
 
@@ -1494,18 +1483,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                             <button
                               key={i}
                               onClick={() => setCurrentPage(i)}
-                              style={{
-                                padding: '0.5rem 0.75rem',
-                                background: currentPage === i ? 'var(--accent-blue)' : 'var(--bg-color)',
-                                border: '1px solid var(--border-color)',
-                                borderRadius: '0.375rem',
-                                color: currentPage === i ? '#fff' : 'var(--text-primary)',
-                                cursor: 'pointer',
-                                fontSize: '0.875rem',
-                                fontWeight: '500',
-                                minWidth: '2.5rem',
-                                transition: 'all 0.2s'
-                              }}
+                              className={`analyze-pagination-btn${currentPage === i ? ' is-active' : ''}`}
                             >
                               {i}
                             </button>
@@ -1514,24 +1492,13 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
 
                         if (endPage < totalPages) {
                           if (endPage < totalPages - 1) {
-                            pages.push(<span key="ellipsis2" style={{ padding: '0 0.25rem', color: 'var(--text-secondary)' }}>...</span>);
+                            pages.push(<span key="ellipsis2" className="analyze-pagination-ellipsis">...</span>);
                           }
                           pages.push(
                             <button
                               key={totalPages}
                               onClick={() => setCurrentPage(totalPages)}
-                              style={{
-                                padding: '0.5rem 0.75rem',
-                                background: 'var(--bg-color)',
-                                border: '1px solid var(--border-color)',
-                                borderRadius: '0.375rem',
-                                color: 'var(--text-primary)',
-                                cursor: 'pointer',
-                                fontSize: '0.875rem',
-                                fontWeight: '500',
-                                minWidth: '2.5rem',
-                                transition: 'all 0.2s'
-                              }}
+                              className="analyze-pagination-btn"
                             >
                               {totalPages}
                             </button>
@@ -1545,17 +1512,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                     <button
                       onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                       disabled={currentPage === totalPages}
-                      style={{
-                        padding: '0.5rem 0.75rem',
-                        background: currentPage === totalPages ? 'var(--bg-secondary)' : 'var(--bg-color)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '0.375rem',
-                        color: currentPage === totalPages ? 'var(--text-secondary)' : 'var(--text-primary)',
-                        cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-                        fontSize: '0.875rem',
-                        fontWeight: '500',
-                        transition: 'all 0.2s'
-                      }}
+                      className={`analyze-pagination-btn${currentPage === totalPages ? ' is-disabled' : ''}`}
                     >
                       Next
                     </button>
