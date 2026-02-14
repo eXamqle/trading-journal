@@ -1766,10 +1766,10 @@ function App() {
                             >
                               <span
                                 className="week-tag"
-                                style={{ backgroundColor: tag.color }}
-                              >
-                                {tag.name}
-                              </span>
+                                style={{
+                                  backgroundColor: tag.color
+                                }}
+                              />
                               <span className="tag-hover-tooltip">
                                 <span className="tag-hover-title">{tag.name}</span>
                                 {tag.description && <span className="tag-hover-desc">{tag.description}</span>}
@@ -1934,6 +1934,35 @@ function App() {
       : allTodayTrades;
     const todayTradesPnL = calculatePnL(todayTrades);
     const todayTradeCount = todayTrades.length;
+    const amount = parseFloat(formData.amount) || 0;
+    const fees = parseFloat(formData.fees) || 0;
+    let editingTradePnL = 0;
+    if (editingTrade) {
+      const editAmount = parseFloat(editingTrade.amount) || 0;
+      const editFees = parseFloat(editingTrade.fees) || 0;
+      if (editingTrade.type === 'profit') {
+        editingTradePnL = Math.abs(editAmount) - editFees;
+      } else if (editingTrade.type === 'loss') {
+        editingTradePnL = -(Math.abs(editAmount) + editFees);
+      } else {
+        editingTradePnL = -editFees;
+      }
+    }
+    const existingPnLWithoutEditedTrade = todayPnL - editingTradePnL;
+    const currentTradePnL = (amount !== 0 || fees > 0) ? (amount - fees) : 0;
+    const totalDailyPnL = existingPnLWithoutEditedTrade + currentTradePnL;
+    let headerPnlColor = '#10b981';
+    let HeaderPnlIcon = TrendingUp;
+    let headerPnlPrefix = '+';
+    if (Math.abs(totalDailyPnL) < 0.01) {
+      headerPnlColor = '#64748b';
+      HeaderPnlIcon = Minus;
+      headerPnlPrefix = '';
+    } else if (totalDailyPnL < 0) {
+      headerPnlColor = '#ef4444';
+      HeaderPnlIcon = TrendingDown;
+      headerPnlPrefix = '-';
+    }
     const isJournalTab = modalTab === 'journal';
     const primaryStart = isJournalTab ? '#8b5cf6' : '#3b82f6';
     const primaryEnd = isJournalTab ? '#7c3aed' : '#2563eb';
@@ -1956,70 +1985,24 @@ function App() {
                   {editingTrade ? 'Update Trade' : format(selectedDate, 'EEEE, MMM d')}
                 </h2>
 
-                {/* Daily total P&L - existing trades + current trade being entered */}
-                {modalTab === 'add' && (() => {
-                  const amount = parseFloat(formData.amount) || 0;
-                  const fees = parseFloat(formData.fees) || 0;
-
-                  // Calculate existing P&L, subtracting the trade being edited if applicable
-                  let existingPnL = todayPnL;
-                  if (editingTrade) {
-                    const editAmount = parseFloat(editingTrade.amount) || 0;
-                    const editFees = parseFloat(editingTrade.fees) || 0;
-                    let editPnL = 0;
-                    if (editingTrade.type === 'profit') {
-                      editPnL = Math.abs(editAmount) - editFees;
-                    } else if (editingTrade.type === 'loss') {
-                      editPnL = -(Math.abs(editAmount) + editFees);
-                    } else {
-                      editPnL = -editFees;
-                    }
-                    existingPnL = todayPnL - editPnL;
-                  }
-
-                  // Calculate current trade P&L - only if amount is entered
-                  // Always: amount - fees (type is just a label for validation)
-                  let currentTradePnL = 0;
-                  if (amount !== 0 || fees > 0) {
-                    currentTradePnL = amount - fees;
-                  }
-
-                  const totalDailyPnL = existingPnL + currentTradePnL;
-
-                  let displayColor = '#10b981';
-                  let DisplayIcon = TrendingUp;
-                  let prefix = '+';
-
-                  if (Math.abs(totalDailyPnL) < 0.01) {
-                    displayColor = '#64748b';
-                    DisplayIcon = Minus;
-                    prefix = '';
-                  } else if (totalDailyPnL < 0) {
-                    displayColor = '#ef4444';
-                    DisplayIcon = TrendingDown;
-                    prefix = '-';
-                  }
-
-                  return (
-                    <div style={{
-                      height: '2.5rem',
-                      boxSizing: 'border-box',
-                      padding: '0 0.75rem',
-                      background: `${displayColor}15`,
-                      borderRadius: '0.5rem',
-                      border: `1px solid ${displayColor}40`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      marginLeft: 'auto'
-                    }}>
-                      <DisplayIcon size={16} color={displayColor} strokeWidth={2.5} />
-                      <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: displayColor }}>
-                        {prefix}{symbol}{Math.abs(totalDailyPnL).toFixed(2)}
-                      </span>
-                    </div>
-                  );
-                })()}
+                {/* Daily total P&L - keep visible in both Trade and Journal tabs */}
+                <div style={{
+                  height: '2.5rem',
+                  boxSizing: 'border-box',
+                  padding: '0 0.75rem',
+                  background: `${headerPnlColor}15`,
+                  borderRadius: '0.5rem',
+                  border: `1px solid ${headerPnlColor}40`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  marginLeft: 'auto'
+                }}>
+                  <HeaderPnlIcon size={16} color={headerPnlColor} strokeWidth={2.5} />
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: headerPnlColor }}>
+                    {headerPnlPrefix}{symbol}{Math.abs(totalDailyPnL).toFixed(2)}
+                  </span>
+                </div>
               </div>
 
               {!journalOnlyMode && (
@@ -3033,6 +3016,27 @@ function App() {
     if (!readerModalOpen || !selectedDate) return null;
 
     const hasContent = journalContent && journalContent.trim() !== '';
+    const readerTrades = getTradesForDate(selectedDate);
+    const readerTradeCount = readerTrades.length;
+    const readerPnL = calculatePnL(readerTrades);
+    const readerTagNames = [...new Set(readerTrades.flatMap((trade) => (
+      Array.isArray(trade.tags)
+        ? trade.tags
+          .map((tag) => (typeof tag === 'string' ? tag : tag?.name))
+          .filter(Boolean)
+        : []
+    )))];
+    const readerTagDetails = readerTagNames
+      .map((tagName) => {
+        const match = availableTags.find((tag) => tag.name === tagName);
+        return {
+          name: tagName,
+          color: match?.color || '#3b82f6',
+          description: match?.description || ''
+        };
+      });
+    const readerPnLClass = Math.abs(readerPnL) < 0.01 ? 'neutral' : (readerPnL >= 0 ? 'profit' : 'loss');
+    const readerPnLPrefix = Math.abs(readerPnL) < 0.01 ? '' : (readerPnL >= 0 ? '+' : '-');
 
     return (
       <div
@@ -3041,25 +3045,57 @@ function App() {
       >
         <div
           className="modal-content"
-          style={{ maxWidth: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+          style={{ maxWidth: '820px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
         >
           <button className="close-modal" onClick={handleCloseReader}>
             <X size={20} />
           </button>
 
-          <div className="modal-header" style={{ textAlign: 'left', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)', flexShrink: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+          <div className="modal-header" style={{ textAlign: 'left', padding: 'clamp(1rem, 3vw, 1.65rem) clamp(1rem, 3.5vw, 2rem) clamp(0.9rem, 2.4vw, 1.15rem)', borderBottom: '1px solid var(--border-color)', flexShrink: 0 }}>
+            <div className="reader-date-line">
               <FileText size={24} color="#6366f1" />
               <h2 className="modal-title" style={{ textAlign: 'left', margin: 0, fontSize: '1.25rem' }}>
                 {format(selectedDate, 'EEEE, MMMM d, yyyy')}
               </h2>
+              {readerTradeCount > 0 && (
+                <>
+                  <span className="reader-date-dot">•</span>
+                  <span className="reader-inline-meta">{readerTradeCount} {readerTradeCount === 1 ? 'trade' : 'trades'}</span>
+                  <span className={`journal-entry-inline-pnl reader-date-pnl ${readerPnLClass}`}>
+                    {readerPnLPrefix}{symbol}{Math.abs(readerPnL).toFixed(2)}
+                  </span>
+                </>
+              )}
             </div>
-            <p className="modal-subtitle" style={{ textAlign: 'left', margin: 0 }}>
-              Journal Entry
-            </p>
+            <div className="reader-subtitle-row">
+              <p className="modal-subtitle" style={{ textAlign: 'left', margin: 0 }}>
+                Journal Entry
+              </p>
+              {readerTagDetails.length > 0 && (
+                <div className="reader-inline-tags">
+                  {readerTagDetails.map((tag) => (
+                    <span
+                      key={`${format(selectedDate, 'yyyy-MM-dd')}-${tag.name}`}
+                      className="tag-chip reader-tag-chip tag-tooltip-anchor"
+                      style={{
+                        backgroundColor: `${tag.color}1A`,
+                        borderColor: `${tag.color}45`,
+                        color: tag.color
+                      }}
+                    >
+                      {tag.name}
+                      <span className="tag-hover-tooltip">
+                        <span className="tag-hover-title">{tag.name}</span>
+                        {tag.description && <span className="tag-hover-desc">{tag.description}</span>}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="modal-body" style={{ padding: '1.5rem 1.75rem', overflow: 'hidden', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+          <div className="modal-body" style={{ padding: 'clamp(1rem, 3vw, 1.75rem) clamp(1rem, 3.5vw, 2rem)', overflow: 'hidden', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
             {hasContent ? (
               <div
                 className="journal-view-content"
@@ -3067,19 +3103,19 @@ function App() {
                 style={{
                   flex: 1,
                   overflowY: 'auto',
-                  padding: '1.25rem',
+                  padding: 'clamp(1rem, 3vw, 1.5rem)',
                   background: 'var(--bg-secondary)',
                   borderRadius: '0.75rem',
                   border: '1px solid var(--border-color)',
                   lineHeight: '1.8',
                   fontSize: '0.9375rem',
-                  marginBottom: '1rem'
+                  marginBottom: '1.25rem'
                 }}
               />
             ) : (
               <div style={{
                 textAlign: 'center',
-                padding: '3rem 1.5rem',
+                padding: 'clamp(2rem, 6vw, 3.25rem) clamp(1rem, 3.5vw, 1.75rem)',
                 background: 'rgba(148, 163, 184, 0.05)',
                 borderRadius: '0.75rem',
                 border: '1px dashed var(--border-color)',
@@ -3088,7 +3124,7 @@ function App() {
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginBottom: '1rem'
+                marginBottom: '1.25rem'
               }}>
                 <FileText size={48} style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }} />
                 <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
@@ -3100,7 +3136,7 @@ function App() {
               </div>
             )}
 
-            <div style={{ flexShrink: 0, paddingTop: '0.5rem' }}>
+            <div style={{ flexShrink: 0, paddingTop: '0.75rem' }}>
               <button
                 onClick={handleEditJournalFromReader}
                 style={{

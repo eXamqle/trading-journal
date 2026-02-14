@@ -19,7 +19,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import { useCurrency } from './contexts/CurrencyContext';
 
-function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal, onDeleteEntry }) {
+function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal, onDeleteEntry, availableTags = [] }) {
   const { symbol } = useCurrency();
   const [searchQuery, setSearchQuery] = useState('');
   const [quickFilterLabel, setQuickFilterLabel] = useState('');
@@ -451,14 +451,26 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                                     {monthGroup.entries.map((entry) => {
                                       const hasTrades = entry.tradeCount > 0;
                                       const hasImages = entry.content.includes('<img');
-                                      const taggedTradesCount = entry.trades.filter((trade) => (
-                                        Array.isArray(trade.tags) && trade.tags.length > 0
-                                      )).length;
-                                      const tagCoverageClass = taggedTradesCount === 0
-                                        ? 'empty'
-                                        : taggedTradesCount === entry.tradeCount
-                                          ? 'complete'
-                                          : 'partial';
+                                      const entryTagNames = hasTrades
+                                        ? [...new Set(entry.trades.flatMap((trade) => (
+                                          Array.isArray(trade.tags)
+                                            ? trade.tags
+                                              .map((tag) => (typeof tag === 'string' ? tag : tag?.name))
+                                              .filter(Boolean)
+                                            : []
+                                        )))]
+                                        : [];
+                                      const entryTagDetails = entryTagNames
+                                        .map((tagName) => {
+                                          const match = availableTags.find((tag) => tag.name === tagName);
+                                          return {
+                                            name: tagName,
+                                            color: match?.color || '#3b82f6',
+                                            description: match?.description || ''
+                                          };
+                                        })
+                                        .slice(0, 6);
+                                      const hiddenTagCount = Math.max(0, entryTagNames.length - entryTagDetails.length);
 
                                       return (
                                         <div
@@ -478,6 +490,35 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                                             <div className="journal-entry-row-date">
                                               <CalendarIcon size={14} />
                                               <span className="journal-entry-row-day">{format(parseISO(entry.date), 'EEE, MMM d')}</span>
+                                              {hasTrades && (
+                                                <span className={`journal-entry-inline-pnl ${getPnLClass(entry.pnl)}`}>
+                                                  {formatPnL(entry.pnl)}
+                                                </span>
+                                              )}
+                                              {entryTagDetails.length > 0 && (
+                                                <div className="journal-entry-inline-tags">
+                                                  {entryTagDetails.map((tag) => (
+                                                    <span
+                                                      key={`${entry.date}-${tag.name}`}
+                                                      className="tag-chip journal-entry-inline-tag tag-tooltip-anchor"
+                                                      style={{
+                                                        backgroundColor: `${tag.color}1A`,
+                                                        borderColor: `${tag.color}45`,
+                                                        color: tag.color
+                                                      }}
+                                                    >
+                                                      {tag.name}
+                                                      <span className="tag-hover-tooltip">
+                                                        <span className="tag-hover-title">{tag.name}</span>
+                                                        {tag.description && <span className="tag-hover-desc">{tag.description}</span>}
+                                                      </span>
+                                                    </span>
+                                                  ))}
+                                                  {hiddenTagCount > 0 && (
+                                                    <span className="tag-chip tag-chip-more journal-entry-inline-tag-more">+{hiddenTagCount}</span>
+                                                  )}
+                                                </div>
+                                              )}
                                               {hasImages && (
                                                 <span className="journal-entry-row-image" title="Contains image">
                                                   <ImageIcon size={13} />
@@ -492,18 +533,7 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                                           <div className="journal-entry-row-right">
                                             {hasTrades && (
                                               <span className="journal-entry-trade-count">
-                                                <Target size={12} />
                                                 {entry.tradeCount} {entry.tradeCount === 1 ? 'trade' : 'trades'}
-                                              </span>
-                                            )}
-                                            {hasTrades && (
-                                              <span className={`journal-entry-pnl-badge ${getPnLClass(entry.pnl)}`}>
-                                                {formatPnL(entry.pnl)}
-                                              </span>
-                                            )}
-                                            {hasTrades && (
-                                              <span className={`journal-entry-tag-coverage ${tagCoverageClass}`}>
-                                                {taggedTradesCount}/{entry.tradeCount} tagged
                                               </span>
                                             )}
                                             <button
