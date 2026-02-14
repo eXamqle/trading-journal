@@ -5,7 +5,6 @@ import { useCurrency } from './contexts/CurrencyContext';
 import { authAPI } from './api/auth';
 import { tagsAPI } from './api/tags';
 import AddTagModal from './AddTagModal';
-import { getTagColorMeta } from './tagColors';
 
 function Profile({ availableTags, setAvailableTags, onTagsChanged }) {
   const { user, updateUser } = useAuth();
@@ -232,7 +231,7 @@ function Profile({ availableTags, setAvailableTags, onTagsChanged }) {
   return (
     <div className="profile-container">
       <div className="profile-tabs-wrapper">
-        <div className="profile-tabs" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr' }}>
+        <div className="profile-tabs">
           <button
             className={`profile-tab-button ${activeTab === 'account' ? 'active' : ''}`}
             onClick={() => setActiveTab('account')}
@@ -365,7 +364,7 @@ function Profile({ availableTags, setAvailableTags, onTagsChanged }) {
                   <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: '1.5' }}>
                     Choose your preferred currency symbol for displaying P&L and amounts
                   </p>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="profile-currency-grid">
                     <button
                       type="button"
                       onClick={() => setCurrency('USD')}
@@ -538,7 +537,6 @@ function Profile({ availableTags, setAvailableTags, onTagsChanged }) {
                     </div>
                   ) : (
                     availableTags.map((tag, index) => {
-                      const colorMeta = getTagColorMeta(tag.color);
                       return (
                         <button
                           type="button"
@@ -562,10 +560,6 @@ function Profile({ availableTags, setAvailableTags, onTagsChanged }) {
                                 }}
                               >
                                 {tag.name}
-                              </span>
-                              <span className="tag-list-color-chip">
-                                <span className="tag-list-color-dot" style={{ backgroundColor: tag.color }} />
-                                {colorMeta.label}
                               </span>
                             </div>
                             <span className={`tag-list-desc ${tag.description ? '' : 'tag-list-desc-muted'}`}>

@@ -373,6 +373,54 @@ function App() {
     return tradesArray.reduce((sum, trade) => sum + getTradeNet(trade), 0);
   };
 
+  const formatMobileKValue = (absoluteValue) => {
+    // Keep cents without rounding up so the compact view matches the raw value.
+    const cents = Math.max(0, Math.trunc(absoluteValue * 100));
+    const whole = Math.floor(cents / 100).toString();
+    const fraction = (cents % 100).toString().padStart(2, '0');
+    const fixed = `${whole}.${fraction}`;
+
+    if (Number(whole) < 1000) {
+      return fixed;
+    }
+
+    const kCount = Math.max(1, whole.length - 3);
+    const divisor = 10 ** (kCount + 2);
+    const scaledHundredths = Math.trunc(cents / divisor);
+    const integerPart = Math.floor(scaledHundredths / 100);
+    const fracPart = (scaledHundredths % 100).toString().padStart(2, '0');
+    const scaled = fracPart === '00'
+      ? `${integerPart}`
+      : fracPart.endsWith('0')
+        ? `${integerPart}.${fracPart[0]}`
+        : `${integerPart}.${fracPart}`;
+
+    return `${scaled}${'K'.repeat(kCount)}`;
+  };
+
+  const formatDayCellPnL = (value) => {
+    if (Math.abs(value) < 0.01) return '';
+
+    const prefix = value >= 0 ? '+' : '-';
+    const absolute = Math.abs(value);
+    const isCompactViewport = typeof window !== 'undefined' && window.innerWidth <= 1200;
+    const shouldCompact = isCompactViewport;
+    const formattedValue = shouldCompact ? formatMobileKValue(absolute) : absolute.toFixed(2);
+
+    return `${prefix}${symbol}${formattedValue}`;
+  };
+
+  const formatWeekRowPnL = (value) => {
+    if (Math.abs(value) < 0.01) return '';
+
+    const prefix = value >= 0 ? '+' : '-';
+    const absolute = Math.abs(value);
+    const isCompactViewport = typeof window !== 'undefined' && window.innerWidth <= 768;
+    const formattedValue = isCompactViewport ? formatMobileKValue(absolute) : absolute.toFixed(2);
+
+    return `${prefix}${symbol}${formattedValue}`;
+  };
+
   // Get trades for a specific date range
   const getTradesInRange = (startDate, endDate) => {
     return trades.filter(trade => {
@@ -1630,7 +1678,7 @@ function App() {
         </div>
 
         <div
-          className="calendar-grid"
+          className={`calendar-grid ${isSevenDayWeek ? 'calendar-grid-seven' : 'calendar-grid-five'}`}
           style={{ gridTemplateColumns: `repeat(${numDays}, 1fr)` }}
           key={`grid-${isSevenDayWeek ? '7day' : '5day'}-${format(currentDate, 'yyyy-MM')}`}
         >
@@ -1665,7 +1713,7 @@ function App() {
 
             return (
               <div
-                className={`day-cell ${!isSameMonth(day, monthStart) ? 'disabled' : ''} ${isSameDay(day, new Date()) ? 'today' : ''} ${isFuture ? 'disabled' : ''}`}
+                className={`day-cell ${isSevenDayWeek ? 'day-cell-seven' : 'day-cell-five'} ${!isSameMonth(day, monthStart) ? 'disabled' : ''} ${isSameDay(day, new Date()) ? 'today' : ''} ${isFuture ? 'disabled' : ''}`}
                 key={idx}
                 onClick={() => !isFuture && openModal(day, false)}
                 style={{ cursor: isFuture ? 'not-allowed' : 'pointer' }}
@@ -1673,7 +1721,7 @@ function App() {
                 <span className="day-number">{format(day, 'd')}</span>
                 {hasTrades && (
                   <span className={`day-pnl ${Math.abs(dayPnL) < 0.01 ? '' : (dayPnL >= 0 ? 'profit' : 'loss')}`}>
-                    {Math.abs(dayPnL) < 0.01 ? '' : (dayPnL >= 0 ? '+' : '-')}{symbol}{Math.abs(dayPnL).toFixed(2)}
+                    {formatDayCellPnL(dayPnL)}
                   </span>
                 )}
                 {uniqueTagsWithColors.length > 0 && (
@@ -1797,57 +1845,60 @@ function App() {
                   </div>
                   <div className="week-day-info">
                     <span className="week-day-name">{format(day, 'EEEE')}</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
-                      {hasJournal && (
-                        <span
-                          className="journal-badge"
-                          style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleViewJournalEntry(format(day, 'yyyy-MM-dd'));
-                          }}
-                        >
-                          <FileText size={14} strokeWidth={1.5} color="#e2e8f0" />
-                          Journal
-                        </span>
-                      )}
-                      {uniqueTagsWithColors.length > 0 && (
-                        <div className="week-tags">
-                          {uniqueTagsWithColors.map((tag, tidx) => (
-                            <span
-                              key={tidx}
-                              className="tag-tooltip-anchor"
-                            >
+                    {(hasJournal || uniqueTagsWithColors.length > 0) && (
+                      <div className="week-day-meta">
+                        {hasJournal && (
+                          <span
+                            className="journal-badge"
+                            title="Open journal entry"
+                            aria-label="Open journal entry"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewJournalEntry(format(day, 'yyyy-MM-dd'));
+                            }}
+                          >
+                            <FileText size={14} strokeWidth={1.5} color="#e2e8f0" />
+                            <span className="journal-badge-label">Journal</span>
+                          </span>
+                        )}
+                        {uniqueTagsWithColors.length > 0 && (
+                          <div className="week-tags">
+                            {uniqueTagsWithColors.map((tag, tidx) => (
                               <span
-                                className="week-tag"
-                                style={{
-                                  backgroundColor: tag.color
-                                }}
-                              />
-                              <span className="tag-hover-tooltip">
-                                <span className="tag-hover-title">{tag.name}</span>
-                                {tag.description && <span className="tag-hover-desc">{tag.description}</span>}
+                                key={tidx}
+                                className="tag-tooltip-anchor"
+                              >
+                                <span
+                                  className="week-tag"
+                                  style={{
+                                    backgroundColor: tag.color
+                                  }}
+                                />
+                                <span className="tag-hover-tooltip">
+                                  <span className="tag-hover-title">{tag.name}</span>
+                                  {tag.description && <span className="tag-hover-desc">{tag.description}</span>}
+                                </span>
                               </span>
-                            </span>
-                          ))}
-                          {matchedDayTags.length > 4 && (
-                            <span className="week-tag-more tag-tooltip-anchor">
-                              +{matchedDayTags.length - 4}
-                              <span className="tag-hover-tooltip">
-                                <span className="tag-hover-title">+{matchedDayTags.length - 4} more tags</span>
-                                <span className="tag-hover-desc">{matchedDayTags.slice(4).map((tag) => tag.name).join(' • ')}</span>
+                            ))}
+                            {matchedDayTags.length > 4 && (
+                              <span className="week-tag-more tag-tooltip-anchor">
+                                +{matchedDayTags.length - 4}
+                                <span className="tag-hover-tooltip">
+                                  <span className="tag-hover-title">+{matchedDayTags.length - 4} more tags</span>
+                                  <span className="tag-hover-desc">{matchedDayTags.slice(4).map((tag) => tag.name).join(' • ')}</span>
+                                </span>
                               </span>
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="week-day-right">
                   {hasTrades ? (
-                    <span className={`week-day-pnl ${Math.abs(dayPnL) < 0.01 ? '' : (dayPnL >= 0 ? 'positive' : 'negative')}`} style={{ fontWeight: '600' }}>
-                      {Math.abs(dayPnL) < 0.01 ? '' : (dayPnL >= 0 ? '+' : '-')}{symbol}{Math.abs(dayPnL).toFixed(2)}
+                    <span className={`week-day-pnl ${Math.abs(dayPnL) < 0.01 ? '' : (dayPnL >= 0 ? 'positive' : 'negative')}`}>
+                      {formatWeekRowPnL(dayPnL)}
                     </span>
                   ) : (
                     <span className="week-day-empty">—</span>
@@ -1928,7 +1979,6 @@ function App() {
             <span>Net</span>
             <span>Trades</span>
             <span>Win %</span>
-            <span>Pattern Signal</span>
             <span></span>
           </div>
           <div className="year-review-table-body">
@@ -1949,10 +1999,6 @@ function App() {
                 <span className="year-review-cell year-review-trades">{row.tradeCount > 0 ? row.tradeCount : '—'}</span>
                 <span className="year-review-cell year-review-winrate">
                   {row.tradeCount > 0 ? `${row.winRate.toFixed(0)}%` : '—'}
-                </span>
-                <span className="year-review-cell year-review-pattern">
-                  <span className="year-review-pattern-good">{row.bestTag ? `+${row.bestTag.name}` : '—'}</span>
-                  <span className="year-review-pattern-bad">{row.worstTag ? ` / -${row.worstTag.name}` : ''}</span>
                 </span>
                 <span className="year-review-cell year-review-open">
                   Inspect
@@ -3521,9 +3567,9 @@ function App() {
       ) : (
         <>
           <div className="nav-container">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div className="view-tabs" style={{ marginBottom: 0 }}>
+            <div className={`calendar-toolbar${activeTab === 'Statistics' ? ' calendar-toolbar-statistics' : ''}`}>
+              <div className="calendar-toolbar-main">
+                <div className="view-tabs calendar-toolbar-tabs">
                   {['Week', 'Month', 'Year', 'Statistics'].map(tab => (
                     <button
                       key={tab}
@@ -3534,27 +3580,27 @@ function App() {
                     </button>
                   ))}
                 </div>
-                <button
-                  className="tab-btn tab-btn-outlined"
-                  style={{
-                    marginBottom: 0,
-                    opacity: (activeTab === 'Year' || activeTab === 'Statistics') ? 0.5 : 1,
-                    cursor: (activeTab === 'Year' || activeTab === 'Statistics') ? 'not-allowed' : 'pointer'
-                  }}
-                  onClick={() => {
-                    if (activeTab !== 'Year' && activeTab !== 'Statistics') {
-                      setIsSevenDayWeek(!isSevenDayWeek);
-                    }
-                  }}
-                  disabled={activeTab === 'Year' || activeTab === 'Statistics'}
-                >
-                  <CalendarIcon size={16} />
-                  {isSevenDayWeek ? '7-Day' : '5-Day'}
-                </button>
+                {activeTab !== 'Statistics' && (
+                  <button
+                    className="tab-btn tab-btn-outlined calendar-week-toggle"
+                    style={{
+                      opacity: activeTab === 'Year' ? 0.5 : 1,
+                      cursor: activeTab === 'Year' ? 'not-allowed' : 'pointer'
+                    }}
+                    onClick={() => {
+                      if (activeTab !== 'Year') {
+                        setIsSevenDayWeek(!isSevenDayWeek);
+                      }
+                    }}
+                    disabled={activeTab === 'Year'}
+                  >
+                    <CalendarIcon size={16} />
+                    {isSevenDayWeek ? '7-Day' : '5-Day'}
+                  </button>
+                )}
               </div>
               <button
-                className="tab-btn tab-btn-outlined tab-btn-journal"
-                style={{ marginBottom: 0 }}
+                className="tab-btn tab-btn-outlined tab-btn-journal calendar-journal-btn"
                 onClick={() => setCurrentView('journalEntries')}
               >
                 <FileText size={16} />

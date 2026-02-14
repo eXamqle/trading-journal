@@ -34,6 +34,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [rowsPerPageOpen, setRowsPerPageOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [equityChartWidth, setEquityChartWidth] = useState(1000);
 
   // Refs for dropdown containers
   const periodDropdownRef = useRef(null);
@@ -41,6 +42,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
   const categoryDropdownRef = useRef(null);
   const rowsPerPageDropdownRef = useRef(null);
   const exportDropdownRef = useRef(null);
+  const equityChartContainerRef = useRef(null);
 
   const periods = ['Custom Range', 'This Week', 'This Month', 'Last 30 Days', 'This Year', 'All Time'];
   const types = ['All Types', 'Profit', 'Loss', 'Break Even'];
@@ -99,6 +101,35 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
       return () => window.removeEventListener('keydown', handleEscape);
     }
   }, [customDateModal]);
+
+  useEffect(() => {
+    if (activeTab !== 'performance') {
+      return undefined;
+    }
+
+    const container = equityChartContainerRef.current;
+    if (!container) {
+      return undefined;
+    }
+
+    const syncChartWidth = () => {
+      const nextWidth = Math.max(320, Math.floor(container.getBoundingClientRect().width));
+      setEquityChartWidth((currentWidth) => (
+        currentWidth === nextWidth ? currentWidth : nextWidth
+      ));
+    };
+
+    syncChartWidth();
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(syncChartWidth);
+      observer.observe(container);
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener('resize', syncChartWidth);
+    return () => window.removeEventListener('resize', syncChartWidth);
+  }, [activeTab]);
 
   // Filter trades based on period
   const filteredByPeriod = useMemo(() => {
@@ -931,22 +962,35 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                   return ticks;
                 };
 
-                const yTicks = getNiceTicks(minY - padding, maxY + padding);
+                const width = Math.max(320, Math.min(1000, equityChartWidth));
+                const isCompactChart = width < 720;
+                const isPhoneChart = width < 480;
+                const height = isPhoneChart ? 198 : 220;
+                const marginLeft = isPhoneChart ? 44 : (isCompactChart ? 52 : 60);
+                const marginRight = isPhoneChart ? 12 : 20;
+                const marginTop = isPhoneChart ? 12 : 15;
+                const marginBottom = isPhoneChart ? 28 : 30;
+                const chartWidth = width - marginLeft - marginRight;
+                const chartHeight = height - marginTop - marginBottom;
+                const yTickCount = isPhoneChart ? 4 : (isCompactChart ? 5 : 6);
+
+                const yTicks = getNiceTicks(minY - padding, maxY + padding, yTickCount);
                 const displayMinY = Math.min(...yTicks);
                 const displayMaxY = Math.max(...yTicks);
                 const displayRange = displayMaxY - displayMinY;
 
-                const width = 1000;
-                const height = 220;
-                const marginLeft = 60;
-                const marginRight = 20;
-                const marginTop = 15;
-                const marginBottom = 30;
-                const chartWidth = width - marginLeft - marginRight;
-                const chartHeight = height - marginTop - marginBottom;
-
                 const xScale = (x) => marginLeft + (x / (dataPoints.length - 1)) * chartWidth;
                 const yScale = (y) => height - marginBottom - ((y - displayMinY) / displayRange) * chartHeight;
+
+                const formatAxisValue = (value) => {
+                  const absValue = Math.abs(value);
+                  if (isCompactChart && absValue >= 1000) {
+                    const inThousands = absValue / 1000;
+                    const decimals = inThousands >= 10 ? 0 : 1;
+                    return `${value < 0 ? '-' : ''}${symbol}${inThousands.toFixed(decimals)}K`;
+                  }
+                  return `${value < 0 ? '-' : ''}${symbol}${absValue.toFixed(0)}`;
+                };
 
                 const pathData = dataPoints.map((p, i) =>
                   `${i === 0 ? 'M' : 'L'} ${xScale(p.x)} ${yScale(p.y)}`
@@ -954,12 +998,44 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
 
                 const areaData = `M ${marginLeft} ${height - marginBottom} L ${pathData.substring(2)} L ${xScale(dataPoints[dataPoints.length - 1].x)} ${height - marginBottom} Z`;
 
+                const monthLabelSpacing = isPhoneChart ? 72 : (isCompactChart ? 96 : 126);
+                const allMonthLabels = [];
+                const seenMonths = new Set();
+
+                dataPoints.forEach((point) => {
+                  if (!point.date) {
+                    return;
+                  }
+
+                  const date = new Date(point.date);
+                  const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+                  if (seenMonths.has(monthKey)) {
+                    return;
+                  }
+
+                  seenMonths.add(monthKey);
+                  allMonthLabels.push({
+                    x: xScale(point.x),
+                    label: format(date, isPhoneChart ? 'MMM yy' : 'MMM yyyy')
+                  });
+                });
+
+                const monthLabels = [];
+                let lastPlacedLabelX = -Infinity;
+                allMonthLabels.forEach((label, index) => {
+                  const isLastLabel = index === allMonthLabels.length - 1;
+                  if (label.x - lastPlacedLabelX >= monthLabelSpacing || isLastLabel) {
+                    monthLabels.push(label);
+                    lastPlacedLabelX = label.x;
+                  }
+                });
+
                 return (
-                  <div className="equity-chart-container">
+                  <div className="equity-chart-container" ref={equityChartContainerRef}>
                     <svg
+                      className="equity-chart-svg"
                       width="100%"
                       viewBox={`0 0 ${width} ${height}`}
-                      style={{ display: 'block', minWidth: '500px' }}
                     >
                       <defs>
                         <linearGradient id="areaGradient" x1="0" x2="0" y1="0" y2="1">
@@ -988,9 +1064,9 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                               textAnchor="end"
                               dominantBaseline="middle"
                               fill="var(--text-secondary)"
-                              fontSize="12"
+                              fontSize={isPhoneChart ? '9' : (isCompactChart ? '10' : '12')}
                             >
-                              {value >= 0 ? '' : '-'}{symbol}{Math.abs(value).toFixed(0)}
+                              {formatAxisValue(value)}
                             </text>
                           </g>
                         );
@@ -1004,7 +1080,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                         d={pathData}
                         fill="none"
                         stroke="#3b82f6"
-                        strokeWidth="3"
+                        strokeWidth={isPhoneChart ? '2.4' : '3'}
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         style={{
@@ -1022,10 +1098,10 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                             key={i}
                             cx={xScale(point.x)}
                             cy={yScale(point.y)}
-                            r={hoveredPoint === i ? 7 : 4}
+                            r={hoveredPoint === i ? (isPhoneChart ? 5.5 : 7) : (isPhoneChart ? 3 : 4)}
                             fill="var(--bg-color)"
                             stroke="#3b82f6"
-                            strokeWidth="2.5"
+                            strokeWidth={isPhoneChart ? '2' : '2.5'}
                             style={{
                               cursor: 'pointer',
                               transition: 'all 0.2s ease',
@@ -1048,35 +1124,18 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                       />
 
                       {/* Month labels */}
-                      {(() => {
-                        const monthLabels = [];
-                        const seenMonths = new Set();
-                        dataPoints.forEach((point, i) => {
-                          if (point.date) {
-                            const date = new Date(point.date);
-                            const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
-                            if (!seenMonths.has(monthKey)) {
-                              seenMonths.add(monthKey);
-                              monthLabels.push({
-                                x: xScale(point.x),
-                                label: format(date, 'MMM yyyy')
-                              });
-                            }
-                          }
-                        });
-                        return monthLabels.map((label, i) => (
-                          <text
-                            key={i}
-                            x={label.x}
-                            y={height - marginBottom + 20}
-                            textAnchor="middle"
-                            fill="var(--text-secondary)"
-                            fontSize="11"
-                          >
-                            {label.label}
-                          </text>
-                        ));
-                      })()}
+                      {monthLabels.map((label, i) => (
+                        <text
+                          key={i}
+                          x={label.x}
+                          y={height - marginBottom + 20}
+                          textAnchor="middle"
+                          fill="var(--text-secondary)"
+                          fontSize={isPhoneChart ? '9' : '11'}
+                        >
+                          {label.label}
+                        </text>
+                      ))}
 
                       {/* Y-axis */}
                       <line
@@ -1093,26 +1152,26 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                     {hoveredPoint !== null && hoveredPoint > 0 && dataPoints[hoveredPoint] && (
                       <div style={{
                         position: 'absolute',
-                        top: '1rem',
-                        right: '1rem',
+                        top: isPhoneChart ? '0.5rem' : '1rem',
+                        right: isPhoneChart ? '0.5rem' : '1rem',
                         background: 'var(--bg-color)',
                         border: '1px solid var(--border-color)',
                         borderRadius: '0.5rem',
-                        padding: '0.75rem',
+                        padding: isPhoneChart ? '0.55rem' : '0.75rem',
                         boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
                         pointerEvents: 'none',
                         animation: 'fadeIn 0.2s ease-out'
                       }}>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                        <div style={{ fontSize: isPhoneChart ? '0.6875rem' : '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
                           {format(new Date(dataPoints[hoveredPoint].date), 'MMM d, yyyy')}
                         </div>
-                        <div style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+                        <div style={{ fontSize: isPhoneChart ? '0.8125rem' : '0.875rem', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
                           {dataPoints[hoveredPoint].symbol}
                         </div>
-                        <div style={{ fontSize: '0.875rem', fontWeight: '600', color: dataPoints[hoveredPoint].netPL >= 0 ? '#10b981' : '#ef4444' }}>
+                        <div style={{ fontSize: isPhoneChart ? '0.8125rem' : '0.875rem', fontWeight: '600', color: dataPoints[hoveredPoint].netPL >= 0 ? '#10b981' : '#ef4444' }}>
                           {dataPoints[hoveredPoint].netPL >= 0 ? '+' : '-'}{symbol}{Math.abs(dataPoints[hoveredPoint].netPL).toFixed(2)}
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)' }}>
+                        <div style={{ fontSize: isPhoneChart ? '0.6875rem' : '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)' }}>
                           Total: {dataPoints[hoveredPoint].y >= 0 ? '+' : '-'}{symbol}{Math.abs(dataPoints[hoveredPoint].y).toFixed(2)}
                         </div>
                       </div>

@@ -217,6 +217,39 @@ input, textarea, [contenteditable="true"], code {
   padding: 0 2rem;
 }
 
+.calendar-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.calendar-toolbar-main {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  flex-wrap: wrap;
+  flex: 1 1 auto;
+}
+
+.calendar-toolbar-tabs,
+.calendar-week-toggle,
+.calendar-journal-btn {
+  margin-bottom: 0;
+}
+
+.calendar-toolbar-tabs {
+  min-width: 0;
+}
+
+.calendar-week-toggle,
+.calendar-journal-btn {
+  flex-shrink: 0;
+}
+
 /* Dashboard Layout */
 .dashboard-grid {
   display: grid;
@@ -233,6 +266,346 @@ input, textarea, [contenteditable="true"], code {
 
 @media (max-width: 1024px) {
   .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .week-view-container,
+  .month-view-container {
+    margin-bottom: 0.6rem;
+  }
+
+  .week-days-list {
+    margin-bottom: 0.45rem;
+  }
+
+  .sidebar-section {
+    gap: 10px;
+  }
+
+  .sidebar-title {
+    font-size: 0.92rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .sidebar-section .info-card {
+    padding: 0.62rem 0.72rem;
+    border-radius: 0.58rem;
+  }
+
+  .info-card::before {
+    width: 2px;
+  }
+
+  .info-label {
+    font-size: 0.58rem;
+    margin-bottom: 4px;
+  }
+
+  .info-value {
+    font-size: 1.04rem;
+    line-height: 1.15;
+  }
+
+  .info-subtext {
+    font-size: 0.68rem;
+    margin-top: 3px;
+  }
+
+  .perf-row {
+    padding: 0.45rem 0;
+  }
+
+  .perf-label,
+  .perf-value {
+    font-size: 0.84rem;
+    line-height: 1.3;
+  }
+}
+
+@media (max-width: 1200px) {
+  .header,
+  .nav-container,
+  .dashboard-grid {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+
+  .calendar-toolbar {
+    align-items: center;
+    flex-wrap: nowrap;
+  }
+
+  .calendar-toolbar-main {
+    width: auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+  }
+
+  .journal-entries-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .journal-entries-header-left {
+    min-width: 0;
+  }
+
+  .journal-entries-header-right {
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr) minmax(140px, 180px) auto;
+  }
+}
+
+@media (max-width: 960px) {
+  .calendar-toolbar {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    flex-wrap: nowrap;
+  }
+
+  .calendar-toolbar-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.6rem;
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+  }
+
+  .calendar-toolbar-tabs {
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  .calendar-toolbar-tabs .tab-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .calendar-toolbar-statistics {
+    flex-wrap: wrap;
+  }
+
+  .calendar-toolbar-statistics .calendar-toolbar-main {
+    flex: 1 1 100%;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .calendar-toolbar-statistics .calendar-journal-btn {
+    margin-left: auto;
+  }
+
+  .journal-entries-header-right {
+    grid-template-columns: 1fr;
+  }
+
+  .journal-date-filter,
+  .journal-date-input,
+  .journal-add-button {
+    width: 100%;
+  }
+
+  .analyze-controls-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .analyze-controls-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+  }
+
+  .analyze-controls-actions .dropdown-container {
+    min-width: 0;
+  }
+
+  .analyze-dropdown-trigger,
+  .analyze-export-btn {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .analyze-tabs {
+    width: 100%;
+  }
+
+  .analyze-tab-trigger {
+    flex: 1;
+  }
+
+  .analyze-filters {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+  }
+
+  .analyze-filter-input,
+  .analyze-filter-dropdown {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+@media (max-width: 820px) {
+  .calendar-toolbar {
+    gap: 0.6rem;
+    margin-bottom: 0.9rem;
+  }
+
+  .calendar-toolbar-main {
+    gap: 0.5rem;
+  }
+
+  .calendar-toolbar-tabs .tab-btn {
+    padding: 7px 8px;
+    font-size: 0.8rem;
+  }
+
+  .calendar-week-toggle,
+  .calendar-journal-btn {
+    padding: 0.45rem 0.7rem;
+    font-size: 0.78rem;
+  }
+
+  .month-view-header,
+  .week-view-header,
+  .year-view-header {
+    gap: 1rem;
+  }
+
+  .month-view-date,
+  .week-view-date-range,
+  .year-view-year {
+    font-size: 1.35rem;
+  }
+
+  .day-number {
+    font-size: 0.73rem;
+  }
+
+  .day-cell.today .day-number {
+    width: 22px;
+    height: 22px;
+    font-size: 0.72rem;
+  }
+
+  .alltime-total-card,
+  .alltime-year-item {
+    padding: 1rem;
+  }
+
+  .alltime-stat-card {
+    padding: 0.85rem;
+  }
+
+  .alltime-stat-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 820px) {
+  .calendar-toolbar-tabs .tab-btn {
+    padding: 8px 12px;
+    font-size: 0.88rem;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 960px) {
+  .calendar-toolbar-statistics {
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .calendar-toolbar-statistics .calendar-toolbar-main {
+    flex: 1 1 auto;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .calendar-toolbar-statistics .calendar-journal-btn {
+    margin-left: 0;
+  }
+
+  .analyze-controls-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+    margin-bottom: 1rem;
+  }
+
+  .analyze-tabs {
+    width: auto;
+  }
+
+  .analyze-controls-actions {
+    width: auto;
+    display: flex;
+    grid-template-columns: none;
+    gap: 0.5rem;
+  }
+
+  .analyze-controls-actions .dropdown-container {
+    min-width: 0;
+  }
+
+  .analyze-dropdown-trigger,
+  .analyze-export-btn {
+    width: auto;
+    min-width: 150px;
+    padding: 0.6rem 0.9rem;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 640px) {
+  .calendar-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.6rem;
+  }
+
+  .calendar-toolbar-main {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: 0.55rem;
+  }
+
+  .calendar-toolbar-tabs,
+  .calendar-week-toggle,
+  .calendar-journal-btn {
+    width: 100%;
+  }
+
+  .calendar-week-toggle,
+  .calendar-journal-btn {
+    justify-content: center;
+  }
+
+  .day-number {
+    font-size: 0.7rem;
+  }
+
+  .day-cell.today .day-number {
+    width: 19px;
+    height: 19px;
+    font-size: 0.66rem;
+  }
+
+  .analyze-controls-actions,
+  .analyze-filters {
     grid-template-columns: 1fr;
   }
 }
@@ -434,6 +807,19 @@ input, textarea, [contenteditable="true"], code {
 .day-number {
   color: var(--text-secondary);
   font-size: 0.9rem;
+  position: absolute;
+  top: 0.45rem;
+  left: 0.45rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0;
+  margin: 0;
+  z-index: 2;
+}
+
+.calendar-grid-seven .day-number {
+  top: 2px;
+  left: 2px;
 }
 
 .day-cell.today {
@@ -446,6 +832,8 @@ input, textarea, [contenteditable="true"], code {
   color: white;
   width: 26px;
   height: 26px;
+  top: 0.3rem;
+  left: 0.3rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -477,6 +865,11 @@ input, textarea, [contenteditable="true"], code {
   font-size: 0.85rem;
   font-weight: 600;
   text-align: center;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  z-index: 1;
 }
 
 .day-pnl.profit {
@@ -1047,6 +1440,54 @@ input, textarea, [contenteditable="true"], code {
   color: #e2e8f0;
 }
 
+@media (max-width: 960px) {
+  .journal-entry-inline-tags,
+  .reader-inline-tags {
+    gap: 0.22rem;
+  }
+
+  .tag-chip.journal-entry-inline-tag,
+  .tag-chip.reader-tag-chip,
+  .tag-chip.journal-entry-inline-tag-more,
+  .tag-chip.reader-tag-chip-more {
+    width: 7px;
+    height: 7px;
+    min-width: 7px;
+    padding: 0;
+    border-radius: 999px;
+    font-size: 0;
+    line-height: 0;
+    overflow: hidden;
+    text-indent: -9999px;
+    flex-shrink: 0;
+  }
+
+  .tag-chip.journal-entry-inline-tag,
+  .tag-chip.reader-tag-chip {
+    background: currentColor !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .tag-chip.journal-entry-inline-tag-more,
+  .tag-chip.reader-tag-chip-more {
+    background: rgba(148, 163, 184, 0.9) !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .tag-chip.journal-entry-inline-tag,
+  .tag-chip.reader-tag-chip,
+  .tag-chip.journal-entry-inline-tag-more,
+  .tag-chip.reader-tag-chip-more {
+    width: 6px;
+    height: 6px;
+    min-width: 6px;
+  }
+}
+
 .today-trade-actions {
   margin-left: auto;
 }
@@ -1545,6 +1986,8 @@ input, textarea, [contenteditable="true"], code {
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--text-primary);
+  white-space: nowrap;
+  line-height: 1.1;
 }
 
 /* Week List View */
@@ -1715,7 +2158,8 @@ input, textarea, [contenteditable="true"], code {
 .week-day-info {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.18rem;
+  min-width: 0;
 }
 
 .week-day-name {
@@ -1724,12 +2168,22 @@ input, textarea, [contenteditable="true"], code {
   color: var(--text-primary);
 }
 
+.week-day-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  margin-top: 0.15rem;
+}
+
 .journal-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
   padding: 0.25rem 0.5rem;
-  margin-top: 0.25rem;
+  margin-top: 0;
   font-size: 0.6875rem;
   color: var(--accent-blue);
   font-weight: 600;
@@ -1750,8 +2204,10 @@ input, textarea, [contenteditable="true"], code {
   display: flex;
   gap: 0.375rem;
   align-items: center;
-  flex-wrap: wrap;
-  margin-top: 0.2rem;
+  flex-wrap: nowrap;
+  margin-top: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .week-tag {
@@ -1780,6 +2236,13 @@ input, textarea, [contenteditable="true"], code {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.week-day-pnl {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .week-day-empty {
@@ -1893,7 +2356,7 @@ input, textarea, [contenteditable="true"], code {
 
 .year-review-table-head {
   display: grid;
-  grid-template-columns: 1.25fr 1fr 0.7fr 0.7fr 1.5fr auto;
+  grid-template-columns: 1.35fr 1fr 0.7fr 0.75fr auto;
   align-items: center;
   gap: 0.5rem;
   padding: 0 0.65rem 0.45rem;
@@ -1906,6 +2369,11 @@ input, textarea, [contenteditable="true"], code {
   letter-spacing: 0.04em;
   color: var(--text-secondary);
   font-weight: 700;
+}
+
+.year-review-table-head span:first-child {
+  text-align: left;
+  justify-self: start;
 }
 
 .year-review-table-head span:last-child {
@@ -1928,11 +2396,12 @@ input, textarea, [contenteditable="true"], code {
   color: var(--text-primary);
   cursor: pointer;
   display: grid;
-  grid-template-columns: 1.25fr 1fr 0.7fr 0.7fr 1.5fr auto;
-  grid-template-areas: "month net trades winrate pattern open";
+  grid-template-columns: 1.35fr 1fr 0.7fr 0.75fr auto;
+  grid-template-areas: "month net trades winrate open";
   align-items: center;
   gap: 0.5rem;
   transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+  text-align: left;
 }
 
 .year-review-row:hover {
@@ -1954,6 +2423,8 @@ input, textarea, [contenteditable="true"], code {
   grid-area: month;
   font-weight: 600;
   color: var(--text-primary);
+  text-align: left;
+  justify-self: start;
 }
 
 .year-review-net {
@@ -2102,7 +2573,36 @@ input, textarea, [contenteditable="true"], code {
 
   .year-review-table-head,
   .year-review-row {
-    grid-template-columns: 1.1fr 0.9fr 0.65fr 0.65fr 1.25fr auto;
+    grid-template-columns: 1.2fr 0.95fr 0.65fr 0.65fr auto;
+  }
+
+  .year-review-row {
+    padding: 0.5rem 0.58rem;
+  }
+
+  .year-review-sidebar .info-card {
+    padding: 0.66rem;
+  }
+
+  .year-playbook-title {
+    font-size: 0.84rem;
+  }
+
+  .year-playbook-value {
+    font-size: 0.72rem;
+  }
+
+  .year-playbook-sub {
+    font-size: 0.7rem;
+  }
+
+  .year-review-queue-item {
+    padding: 0.34rem 0.44rem;
+  }
+
+  .year-review-queue-date,
+  .year-review-queue-pnl {
+    font-size: 0.68rem;
   }
 }
 
@@ -2147,23 +2647,21 @@ input, textarea, [contenteditable="true"], code {
     grid-template-areas:
       "month open"
       "net trades"
-      "winrate winrate"
-      "pattern pattern";
+      "winrate winrate";
     align-items: start;
     gap: 0.2rem 0.45rem;
-    padding: 0.58rem;
+    padding: 0.54rem;
   }
 
   .year-review-month {
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     padding-top: 0.02rem;
   }
 
   .year-review-net,
   .year-review-trades,
-  .year-review-winrate,
-  .year-review-pattern {
-    font-size: 0.76rem;
+  .year-review-winrate {
+    font-size: 0.72rem;
   }
 
   .year-review-winrate::before {
@@ -2171,16 +2669,37 @@ input, textarea, [contenteditable="true"], code {
     color: var(--text-secondary);
   }
 
-  .year-review-pattern {
-    white-space: normal;
-    overflow: visible;
-    text-overflow: clip;
-    line-height: 1.35;
+  .year-review-open {
+    font-size: 0.66rem;
+    margin-top: 0.03rem;
   }
 
-  .year-review-open {
-    font-size: 0.68rem;
-    margin-top: 0.03rem;
+  .year-review-sidebar .info-card {
+    padding: 0.54rem 0.58rem;
+  }
+
+  .year-playbook-title {
+    font-size: 0.78rem;
+  }
+
+  .year-playbook-value,
+  .year-playbook-sub {
+    font-size: 0.66rem;
+  }
+
+  .year-review-queue {
+    gap: 0.28rem;
+    margin-top: 0.4rem;
+  }
+
+  .year-review-queue-item {
+    padding: 0.3rem 0.4rem;
+    border-radius: 0.38rem;
+  }
+
+  .year-review-queue-date,
+  .year-review-queue-pnl {
+    font-size: 0.62rem;
   }
 }
 
@@ -2495,11 +3014,22 @@ input, textarea, [contenteditable="true"], code {
   gap: 0.5rem;
 }
 
+.analyze-controls-actions .analyze-dropdown-trigger,
+.analyze-controls-actions .analyze-export-btn {
+  min-width: 0;
+}
+
 /* Equity chart container */
 .equity-chart-container {
   position: relative;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  overflow: hidden;
+}
+
+.equity-chart-svg {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 .analyze-kpi-grid {
@@ -2926,7 +3456,7 @@ input, textarea, [contenteditable="true"], code {
 
 .profile-tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.25rem;
   padding: 0.25rem;
   background: var(--bg-secondary);
@@ -2945,6 +3475,7 @@ input, textarea, [contenteditable="true"], code {
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--text-secondary);
+  text-align: left;
 }
 
 .profile-tab-button.active {
@@ -2956,8 +3487,15 @@ input, textarea, [contenteditable="true"], code {
 .profile-tab-content {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.5rem;
+  min-width: 0;
+}
+
+.profile-currency-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
 }
 
 .profile-tab-panel {
@@ -3171,6 +3709,27 @@ input, textarea, [contenteditable="true"], code {
 }
 
 @media (max-width: 768px) {
+  .profile-tabs {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-tab-button {
+    padding: 0.55rem 0.5rem;
+  }
+
+  .profile-card-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .profile-update-button {
+    width: 100%;
+  }
+
+  .profile-currency-grid {
+    grid-template-columns: 1fr;
+  }
+
   .tags-toolbar {
     flex-direction: column;
     margin-bottom: 1rem;
@@ -4200,6 +4759,23 @@ button.new-tag-color-picker:focus {
   color: #94a3b8;
   animation: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: none;
+  width: 3rem;
+  height: 3rem;
+  flex-shrink: 0;
+}
+
+.journal-entries-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.journal-entries-subtitle {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
 }
 
 @keyframes scaleIn {
@@ -5134,6 +5710,11 @@ button.new-tag-color-picker:focus {
 @media (max-width: 1024px) {
   .journal-view-grid {
     grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .journal-entries-main-card {
+    min-height: 0;
   }
 
   .journal-coach-rail {
@@ -5155,6 +5736,19 @@ button.new-tag-color-picker:focus {
 
   .journal-entries-header-left {
     width: 100%;
+  }
+
+  .journal-entries-icon {
+    width: 2.7rem;
+    height: 2.7rem;
+  }
+
+  .journal-entries-title {
+    font-size: 1.2rem;
+  }
+
+  .journal-entries-subtitle {
+    font-size: 0.78rem;
   }
 
   .journal-entries-header-right {
@@ -5376,6 +5970,15 @@ button.new-tag-color-picker:focus {
     padding: 0 1rem;
   }
 
+  .calendar-toolbar {
+    margin-bottom: 0.85rem;
+    gap: 0.65rem;
+  }
+
+  .calendar-toolbar-main {
+    gap: 0.55rem;
+  }
+
   /* Calendar adjustments */
   .calendar-header {
     flex-direction: column;
@@ -5406,13 +6009,52 @@ button.new-tag-color-picker:focus {
     gap: 0.4rem;
   }
 
+  .calendar-grid-seven {
+    gap: 0.28rem;
+  }
+
+  .calendar-grid-seven .weekday {
+    padding: 0.24rem 0.1rem;
+    font-size: 0.58rem;
+    letter-spacing: 0.02em;
+  }
+
   .day-cell {
     min-height: 70px;
     padding: 0.5rem;
   }
 
+  .calendar-grid-seven .day-cell {
+    min-height: 68px;
+    padding: 0.34rem;
+  }
+
   .day-number {
     font-size: 0.75rem;
+    top: 0.32rem;
+    left: 0.32rem;
+  }
+
+  .calendar-grid-seven .day-number {
+    font-size: 0.66rem;
+    top: 3px;
+    left: 3px;
+  }
+
+  .day-cell.today .day-number {
+    width: 18px;
+    height: 18px;
+    font-size: 0.62rem;
+    top: 0.18rem;
+    left: 0.18rem;
+  }
+
+  .calendar-grid-seven .day-cell.today .day-number {
+    width: 15px;
+    height: 15px;
+    font-size: 0.54rem;
+    top: 2px;
+    left: 2px;
   }
 
   .day-trades {
@@ -5422,6 +6064,48 @@ button.new-tag-color-picker:focus {
   .trade-badge {
     padding: 0.15rem 0.35rem;
     font-size: 0.65rem;
+  }
+
+  .calendar-grid-seven .day-pnl {
+    top: 24px;
+    left: 3px;
+    right: 3px;
+    font-size: 0.56rem;
+  }
+
+  .calendar-grid-seven .day-tags {
+    left: 3px;
+    right: 12px;
+    bottom: 3px;
+    gap: 2px;
+    max-width: 100%;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  .calendar-grid-seven .day-tags .tag-tooltip-anchor {
+    padding: 0;
+    margin: 0;
+  }
+
+  .calendar-grid-seven .day-tags .day-tag {
+    width: 4px;
+    height: 4px;
+  }
+
+  .calendar-grid-seven .day-tags .day-tag-more {
+    display: none;
+  }
+
+  .calendar-grid-seven .journal-indicator {
+    right: 2px;
+    bottom: 2px;
+    padding: 2px;
+  }
+
+  .calendar-grid-seven .journal-indicator svg {
+    width: 12px;
+    height: 12px;
   }
 
   /* Modal adjustments */
@@ -5482,6 +6166,10 @@ button.new-tag-color-picker:focus {
     -ms-overflow-style: none;
   }
 
+  .calendar-toolbar-tabs {
+    overflow-x: hidden;
+  }
+
   .view-tabs::-webkit-scrollbar {
     display: none;
   }
@@ -5494,7 +6182,7 @@ button.new-tag-color-picker:focus {
 
   /* Analyze chart */
   .equity-chart-container {
-    margin: 0 -0.5rem;
+    margin: 0;
   }
 
   .analyze-controls-row {
@@ -5507,15 +6195,35 @@ button.new-tag-color-picker:focus {
 
   /* Sidebar */
   .sidebar-section {
-    gap: 12px;
+    gap: 8px;
   }
 
   .info-card {
-    padding: 10px;
+    padding: 0.56rem 0.62rem;
+    border-radius: 0.52rem;
   }
 
   .info-value {
-    font-size: 1.2rem;
+    font-size: 0.96rem;
+  }
+
+  .info-label {
+    font-size: 0.54rem;
+    margin-bottom: 3px;
+  }
+
+  .info-subtext {
+    font-size: 0.64rem;
+    margin-top: 2px;
+  }
+
+  .perf-row {
+    padding: 0.35rem 0;
+  }
+
+  .perf-label,
+  .perf-value {
+    font-size: 0.78rem;
   }
 
   /* Footer */
@@ -5532,6 +6240,81 @@ button.new-tag-color-picker:focus {
   /* Week view */
   .week-view-date-range {
     font-size: 1.25rem;
+  }
+
+  .week-days-list {
+    padding: 0.55rem;
+    gap: 0.45rem;
+    border-radius: 0.65rem;
+  }
+
+  .week-day-item {
+    padding: 0.52rem 0.68rem;
+    border-radius: 0.45rem;
+  }
+
+  .week-day-left {
+    gap: 0.62rem;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .week-day-number {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.42rem;
+    font-size: 0.94rem;
+    flex-shrink: 0;
+  }
+
+  .week-day-info {
+    gap: 0.06rem;
+  }
+
+  .week-day-name {
+    font-size: 0.92rem;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .week-day-meta {
+    margin-top: 0.06rem;
+    gap: 0.28rem;
+  }
+
+  .journal-badge {
+    padding: 0.14rem 0.34rem;
+    font-size: 0.62rem;
+    gap: 0.16rem;
+    border-radius: 0.3rem;
+  }
+
+  .journal-badge svg {
+    width: 11px;
+    height: 11px;
+  }
+
+  .week-tags {
+    gap: 0.22rem;
+  }
+
+  .week-tag {
+    width: 5px;
+    height: 5px;
+  }
+
+  .week-tag-more {
+    font-size: 0.52rem;
+  }
+
+  .week-day-pnl {
+    font-size: 0.96rem;
+  }
+
+  .week-day-empty {
+    font-size: 1rem;
   }
 
   /* Profile */
@@ -5551,6 +6334,150 @@ button.new-tag-color-picker:focus {
 
   .journal-search {
     width: 100%;
+  }
+
+  .journal-year-toggle,
+  .journal-month-toggle {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .journal-year-meta-right,
+  .journal-month-meta-right {
+    margin-left: auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 640px) {
+  .calendar-grid-seven .day-cell {
+    padding: 0.38rem;
+  }
+
+  .week-days-list {
+    padding: 0.46rem;
+    gap: 0.35rem;
+  }
+
+  .week-day-item {
+    padding: 0.42rem 0.56rem;
+  }
+
+  .week-day-left {
+    gap: 0.5rem;
+  }
+
+  .week-day-number {
+    width: 1.78rem;
+    height: 1.78rem;
+    border-radius: 0.38rem;
+    font-size: 0.82rem;
+  }
+
+  .week-day-info {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 0.3rem;
+    row-gap: 0;
+  }
+
+  .week-day-name {
+    font-size: 0.84rem;
+  }
+
+  .week-day-meta {
+    margin-top: 0;
+    gap: 0.2rem;
+    justify-content: flex-end;
+  }
+
+  .journal-badge {
+    padding: 0.12rem 0.22rem;
+    font-size: 0.58rem;
+    gap: 0.12rem;
+  }
+
+  .journal-badge svg {
+    width: 10px;
+    height: 10px;
+  }
+
+  .journal-badge-label {
+    display: inline;
+  }
+
+  .week-tags {
+    gap: 0.16rem;
+  }
+
+  .week-tag {
+    width: 4px;
+    height: 4px;
+  }
+
+  .week-tag-more {
+    display: none;
+  }
+
+  .week-day-pnl {
+    font-size: 0.86rem;
+  }
+
+  .week-day-empty {
+    font-size: 0.9rem;
+  }
+
+  .calendar-grid-seven .day-pnl {
+    top: 22px;
+    left: 3px;
+    right: 3px;
+    font-size: 0.54rem;
+  }
+
+  .day-cell.today .day-number {
+    width: 16px;
+    height: 16px;
+    font-size: 0.56rem;
+  }
+
+  .calendar-grid-seven .day-cell.today .day-number {
+    width: 13px;
+    height: 13px;
+    font-size: 0.48rem;
+  }
+
+  .calendar-grid-seven .day-tags {
+    left: 4px;
+    right: 13px;
+    bottom: 4px;
+    gap: 2px;
+  }
+
+  .calendar-grid-seven .day-tags .day-tag {
+    width: 4px;
+    height: 4px;
+  }
+
+  .calendar-grid-seven .journal-indicator {
+    right: 3px;
+    bottom: 3px;
+    padding: 2px;
+  }
+}
+
+@media (max-width: 420px) {
+  .month-view-header {
+    gap: 0.6rem;
+  }
+
+  .month-view-date {
+    font-size: 1.08rem;
+  }
+
+  .premium-month-btn {
+    padding: 0.34rem;
   }
 }
 
@@ -5589,6 +6516,19 @@ button.new-tag-color-picker:focus {
     padding: 0 0.75rem;
   }
 
+  .calendar-toolbar {
+    gap: 0.55rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .calendar-toolbar-main {
+    gap: 0.45rem;
+  }
+
+  .profile-tabs {
+    grid-template-columns: 1fr;
+  }
+
   /* Calendar - make it more compact */
   .calendar-header {
     padding: 10px 12px;
@@ -5622,6 +6562,15 @@ button.new-tag-color-picker:focus {
     gap: 0.25rem;
   }
 
+  .calendar-grid-seven {
+    gap: 0.2rem;
+  }
+
+  .calendar-grid-seven .weekday {
+    padding: 0.2rem 0.08rem;
+    font-size: 0.52rem;
+  }
+
   .weekday {
     padding: 0.35rem;
     font-size: 0.65rem;
@@ -5632,14 +6581,79 @@ button.new-tag-color-picker:focus {
     padding: 0.35rem;
   }
 
+  .calendar-grid-seven .day-cell {
+    min-height: 56px;
+    padding: 0.24rem;
+  }
+
   .day-number {
     font-size: 0.7rem;
-    padding: 0.2rem;
+    top: 0.24rem;
+    left: 0.24rem;
+  }
+
+  .calendar-grid-seven .day-number {
+    font-size: 0.6rem;
+    top: 2.5px;
+    left: 2.5px;
+  }
+
+  .day-cell.today .day-number {
+    width: 14px;
+    height: 14px;
+    font-size: 0.5rem;
+    top: 0.16rem;
+    left: 0.16rem;
+  }
+
+  .calendar-grid-seven .day-cell.today .day-number {
+    width: 11px;
+    height: 11px;
+    font-size: 0.42rem;
+    top: 2px;
+    left: 2px;
   }
 
   .trade-badge {
     padding: 0.1rem 0.25rem;
     font-size: 0.6rem;
+  }
+
+  .calendar-grid-seven .day-pnl {
+    top: 21px;
+    left: 2px;
+    right: 2px;
+    font-size: 0.5rem;
+  }
+
+  .calendar-grid-seven .day-tags {
+    left: 3px;
+    right: 11px;
+    bottom: 3px;
+    gap: 1px;
+    max-width: 100%;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  .calendar-grid-seven .day-tags .day-tag {
+    width: 3px;
+    height: 3px;
+  }
+
+  .calendar-grid-seven .day-tags .day-tag-more {
+    display: none;
+  }
+
+  .calendar-grid-seven .journal-indicator {
+    right: 2px;
+    bottom: 2px;
+    padding: 2px;
+  }
+
+  .calendar-grid-seven .journal-indicator svg {
+    width: 11px;
+    height: 11px;
   }
 
   /* Modal - make more compact */
@@ -5736,24 +6750,71 @@ button.new-tag-color-picker:focus {
 
   /* Sidebar info cards */
   .info-card {
-    padding: 8px;
+    padding: 0.5rem 0.56rem;
   }
 
   .info-label {
-    font-size: 0.6rem;
+    font-size: 0.5rem;
   }
 
   .info-value {
-    font-size: 1.1rem;
+    font-size: 0.9rem;
   }
 
   .info-subtext {
-    font-size: 0.7rem;
+    font-size: 0.6rem;
   }
 
   /* Week view compact */
   .week-view-date-range {
     font-size: 1.1rem;
+  }
+
+  .week-days-list {
+    padding: 0.4rem;
+    gap: 0.3rem;
+  }
+
+  .week-day-item {
+    padding: 0.36rem 0.48rem;
+  }
+
+  .week-day-number {
+    width: 1.62rem;
+    height: 1.62rem;
+    font-size: 0.76rem;
+    border-radius: 0.34rem;
+  }
+
+  .week-day-name {
+    font-size: 0.78rem;
+  }
+
+  .journal-badge {
+    padding: 0.1rem;
+    min-width: 1rem;
+    justify-content: center;
+  }
+
+  .week-tags {
+    gap: 0.14rem;
+  }
+
+  .week-tag {
+    width: 3px;
+    height: 3px;
+  }
+
+  .week-tags .tag-tooltip-anchor:nth-child(n+4) {
+    display: none;
+  }
+
+  .week-day-pnl {
+    font-size: 0.8rem;
+  }
+
+  .week-day-empty {
+    font-size: 0.82rem;
   }
 
   .week-total-card {
@@ -5799,13 +6860,14 @@ button.new-tag-color-picker:focus {
     padding: 0 0.75rem;
   }
 
-  table {
+  .analyze-table {
     min-width: 500px;
     font-size: 0.85rem;
   }
 
   /* Make table cells more compact */
-  td, th {
+  .analyze-table td,
+  .analyze-table th {
     padding: 0.5rem !important;
   }
 
@@ -5905,8 +6967,31 @@ button.new-tag-color-picker:focus {
 
   /* Journal entries page mobile */
   .journal-entries-header-right {
-    flex-direction: column;
+    grid-template-columns: 1fr;
     align-items: stretch;
+  }
+
+  .journal-entries-header-left {
+    gap: 0.65rem;
+  }
+
+  .journal-entries-header-left > div:last-child {
+    min-width: 0;
+  }
+
+  .journal-entries-icon {
+    width: 2.4rem;
+    height: 2.4rem;
+  }
+
+  .journal-entries-title {
+    font-size: 1.12rem;
+    line-height: 1.2;
+  }
+
+  .journal-entries-subtitle {
+    font-size: 0.74rem;
+    line-height: 1.35;
   }
 
   .journal-entries-search {
@@ -5928,8 +7013,9 @@ button.new-tag-color-picker:focus {
 
   /* Calendar P/L numbers on mobile */
   .day-pnl {
-    top: 26px;
+    top: 28px;
     left: 4px;
+    right: 4px;
     font-size: 0.65rem;
   }
 
@@ -6000,6 +7086,19 @@ button.new-tag-color-picker:focus {
     max-width: 112px;
   }
 
+  .journal-year-meta-right,
+  .journal-month-meta-right {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+    gap: 0.35rem;
+  }
+
+  .journal-group-pnl {
+    font-size: 0.78rem;
+    padding: 0.16rem 0.36rem;
+  }
+
   .reader-tag-chip {
     max-width: 96px;
   }
@@ -6048,6 +7147,142 @@ button.new-tag-color-picker:focus {
   }
 }
 
+@media (max-width: 390px) {
+  .calendar-toolbar-tabs .tab-btn {
+    padding: 6px 5px;
+    font-size: 0.73rem;
+  }
+
+  .calendar-week-toggle,
+  .calendar-journal-btn {
+    font-size: 0.74rem;
+    padding: 0.5rem 0.55rem;
+  }
+
+  .month-view-date,
+  .week-view-date-range,
+  .year-view-year {
+    font-size: 1rem;
+  }
+
+  .month-view-header {
+    gap: 0.45rem;
+  }
+
+  .premium-month-btn {
+    padding: 0.36rem;
+  }
+
+  .day-number {
+    font-size: 0.62rem;
+    top: 0.22rem;
+    left: 0.22rem;
+  }
+
+  .day-cell.today .day-number {
+    width: 12px;
+    height: 12px;
+    font-size: 0.44rem;
+    top: 0.14rem;
+    left: 0.14rem;
+  }
+
+  .calendar-grid-seven .day-number {
+    font-size: 0.56rem;
+  }
+
+  .calendar-grid-seven .day-cell.today .day-number {
+    width: 10px;
+    height: 10px;
+    font-size: 0.38rem;
+    top: 1.5px;
+    left: 1.5px;
+  }
+
+  .calendar-grid-seven .day-tags {
+    left: 3px;
+    right: 10px;
+    bottom: 3px;
+    gap: 1px;
+  }
+
+  .calendar-grid-seven .day-tags .day-tag {
+    width: 2px;
+    height: 2px;
+  }
+
+  .calendar-grid-seven .day-pnl {
+    top: 20px;
+    left: 2px;
+    right: 2px;
+    font-size: 0.48rem;
+  }
+
+  .calendar-grid-seven .journal-indicator {
+    right: 2px;
+    bottom: 2px;
+    padding: 1px;
+  }
+
+  .journal-entries-icon {
+    width: 2.2rem;
+    height: 2.2rem;
+  }
+
+  .journal-entries-title {
+    font-size: 1rem;
+  }
+
+  .journal-entries-subtitle {
+    font-size: 0.7rem;
+  }
+
+  .tag-chip.journal-entry-inline-tag,
+  .tag-chip.reader-tag-chip,
+  .tag-chip.journal-entry-inline-tag-more,
+  .tag-chip.reader-tag-chip-more {
+    width: 5px;
+    height: 5px;
+    min-width: 5px;
+  }
+
+  .alltime-total-card {
+    padding: 0.8rem;
+    gap: 0.65rem;
+  }
+
+  .alltime-total-amount {
+    font-size: 1.25rem;
+  }
+
+  .alltime-stat-card {
+    padding: 0.72rem;
+    gap: 0.6rem;
+  }
+
+  .alltime-stat-icon {
+    width: 2.05rem;
+    height: 2.05rem;
+    border-radius: 0.55rem;
+  }
+
+  .alltime-stat-value {
+    font-size: 1.02rem;
+  }
+
+  .alltime-year-item {
+    padding: 0.8rem;
+  }
+
+  .alltime-year-name {
+    font-size: 1rem;
+  }
+
+  .alltime-year-total {
+    font-size: 1.1rem;
+  }
+}
+
 /* Extra small mobile devices (375px and below) */
 @media (max-width: 375px) {
   .journal-add-button {
@@ -6067,6 +7302,37 @@ button.new-tag-color-picker:focus {
     width: 100%;
   }
 
+  .week-days-list {
+    padding: 0.34rem;
+    gap: 0.24rem;
+  }
+
+  .week-day-item {
+    padding: 0.3rem 0.4rem;
+  }
+
+  .week-day-left {
+    gap: 0.4rem;
+  }
+
+  .week-day-number {
+    width: 1.45rem;
+    height: 1.45rem;
+    font-size: 0.7rem;
+  }
+
+  .week-day-name {
+    font-size: 0.72rem;
+  }
+
+  .week-day-pnl {
+    font-size: 0.74rem;
+  }
+
+  .week-day-empty {
+    font-size: 0.76rem;
+  }
+
   /* Make calendar even more compact */
   .day-cell {
     min-height: 50px;
@@ -6075,12 +7341,30 @@ button.new-tag-color-picker:focus {
 
   .day-number {
     font-size: 0.65rem;
-    padding: 0.15rem;
+    top: 0.2rem;
+    left: 0.2rem;
+  }
+
+  .day-cell.today .day-number {
+    width: 11px;
+    height: 11px;
+    font-size: 0.4rem;
+    top: 0.12rem;
+    left: 0.12rem;
+  }
+
+  .calendar-grid-seven .day-cell.today .day-number {
+    width: 9px;
+    height: 9px;
+    font-size: 0.34rem;
+    top: 1.5px;
+    left: 1.5px;
   }
 
   .day-pnl {
-    top: 22px;
+    top: 24px;
     left: 2px;
+    right: 2px;
     font-size: 0.6rem;
   }
 
@@ -6092,8 +7376,42 @@ button.new-tag-color-picker:focus {
   }
 
   .day-tags .day-tag {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
+  }
+
+  .calendar-grid-seven .day-tags .day-tag {
+    width: 2px;
+    height: 2px;
+  }
+
+  .calendar-grid-seven .day-tags {
+    left: 3px;
+    right: 9px;
+    bottom: 3px;
+    gap: 1px;
+  }
+
+  .calendar-grid-seven .day-pnl {
+    top: 19px;
+    left: 2px;
+    right: 2px;
+    font-size: 0.46rem;
+  }
+
+  .calendar-grid-seven .journal-indicator {
+    right: 2px;
+    bottom: 2px;
+    padding: 1px;
+  }
+
+  .tag-chip.journal-entry-inline-tag,
+  .tag-chip.reader-tag-chip,
+  .tag-chip.journal-entry-inline-tag-more,
+  .tag-chip.reader-tag-chip-more {
+    width: 4px;
+    height: 4px;
+    min-width: 4px;
   }
 
   /* Extra compact journal entries */

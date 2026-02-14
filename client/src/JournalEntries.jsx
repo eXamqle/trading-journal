@@ -343,12 +343,12 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
         <div className="main-content">
           <div className="journal-entries-header">
             <div className="journal-entries-header-left">
-              <div className="journal-entries-icon" style={{ width: '3rem', height: '3rem', fontSize: '1rem' }}>
+              <div className="journal-entries-icon">
                 <FileText size={26} strokeWidth={2.5} color="white" />
               </div>
               <div>
-                <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Journal</h2>
-                <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                <h2 className="journal-entries-title">Journal</h2>
+                <p className="journal-entries-subtitle">
                   {entriesArray.length} {entriesArray.length === 1 ? 'entry' : 'entries'} total • review, refine, and execute better
                 </p>
               </div>
