@@ -253,7 +253,7 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
     const journaledTradingDays = entriesArray.filter((entry) => tradingDayKeys.has(entry.date)).length;
     const disciplineScore = tradingDayKeys.size > 0
       ? Math.round((journaledTradingDays / tradingDayKeys.size) * 100)
-      : 100;
+      : 0;
 
     const mostRecentEntryDate = entriesArray
       .map((entry) => entry.date)
