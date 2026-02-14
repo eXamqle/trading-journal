@@ -504,37 +504,15 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                                           }}
                                         >
                                           <div className="journal-entry-row-main">
-                                            <div className="journal-entry-row-date">
-                                              <CalendarIcon size={14} />
-                                              <span className="journal-entry-row-day">{format(parseISO(entry.date), 'EEE, MMM d')}</span>
+                                            <div className="journal-entry-row-header">
+                                              <div className="journal-entry-row-date">
+                                                <CalendarIcon size={14} />
+                                                <span className="journal-entry-row-day">{format(parseISO(entry.date), 'EEE, MMM d')}</span>
+                                              </div>
                                               {hasTrades && (
                                                 <span className={`journal-entry-inline-pnl ${getPnLClass(entry.pnl)}`}>
                                                   {formatPnL(entry.pnl)}
                                                 </span>
-                                              )}
-                                              {entryTagDetails.length > 0 && (
-                                                <div className="journal-entry-inline-tags">
-                                                  {entryTagDetails.map((tag) => (
-                                                    <span
-                                                      key={`${entry.date}-${tag.name}`}
-                                                      className="tag-chip journal-entry-inline-tag tag-tooltip-anchor"
-                                                      style={{
-                                                        backgroundColor: `${tag.color}1A`,
-                                                        borderColor: `${tag.color}45`,
-                                                        color: tag.color
-                                                      }}
-                                                    >
-                                                      {tag.name}
-                                                      <span className="tag-hover-tooltip">
-                                                        <span className="tag-hover-title">{tag.name}</span>
-                                                        {tag.description && <span className="tag-hover-desc">{tag.description}</span>}
-                                                      </span>
-                                                    </span>
-                                                  ))}
-                                                  {hiddenTagCount > 0 && (
-                                                    <span className="tag-chip tag-chip-more journal-entry-inline-tag-more">+{hiddenTagCount}</span>
-                                                  )}
-                                                </div>
                                               )}
                                               {hasImages && (
                                                 <span className="journal-entry-row-image" title="Contains image">
@@ -542,9 +520,35 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                                                 </span>
                                               )}
                                             </div>
+
                                             <div className="journal-entry-row-preview">
                                               {getPreviewText(entry.textContent) || 'No text preview'}
                                             </div>
+
+                                            {entryTagDetails.length > 0 && (
+                                              <div className="journal-entry-tags-row">
+                                                {entryTagDetails.map((tag) => (
+                                                  <span
+                                                    key={`${entry.date}-${tag.name}`}
+                                                    className="tag-chip journal-entry-inline-tag tag-tooltip-anchor"
+                                                    style={{
+                                                      backgroundColor: `${tag.color}1A`,
+                                                      borderColor: `${tag.color}45`,
+                                                      color: tag.color
+                                                    }}
+                                                  >
+                                                    {tag.name}
+                                                    <span className="tag-hover-tooltip">
+                                                      <span className="tag-hover-title">{tag.name}</span>
+                                                      {tag.description && <span className="tag-hover-desc">{tag.description}</span>}
+                                                    </span>
+                                                  </span>
+                                                ))}
+                                                {hiddenTagCount > 0 && (
+                                                  <span className="tag-chip tag-chip-more journal-entry-inline-tag-more">+{hiddenTagCount}</span>
+                                                )}
+                                              </div>
+                                            )}
                                           </div>
 
                                           <div className="journal-entry-row-right">
