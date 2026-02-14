@@ -1,5 +1,7 @@
 import rateLimit from 'express-rate-limit';
 
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
 // General API rate limiter
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -7,6 +9,7 @@ export const apiLimiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => isDevelopment,
 });
 
 // Strict limiter for auth endpoints to prevent brute force
@@ -17,6 +20,7 @@ export const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true, // Don't count successful requests
+  skip: () => isDevelopment,
 });
 
 // Moderate limiter for creating/updating data
@@ -26,4 +30,5 @@ export const modifyLimiter = rateLimit({
   message: 'Too many requests, please slow down.',
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => isDevelopment,
 });

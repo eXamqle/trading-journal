@@ -27,7 +27,7 @@ router.get('/', (req, res) => {
 // Create new tag
 router.post('/', modifyLimiter, createTagValidation, (req, res) => {
   try {
-    const { name, color } = req.body;
+    const { name, color, description } = req.body;
 
     // Validation
     if (!name || !color) {
@@ -45,9 +45,9 @@ router.post('/', modifyLimiter, createTagValidation, (req, res) => {
     }
 
     const result = db.prepare(`
-      INSERT INTO tags (user_id, name, color)
-      VALUES (?, ?, ?)
-    `).run(req.userId, name, color);
+      INSERT INTO tags (user_id, name, color, description)
+      VALUES (?, ?, ?, ?)
+    `).run(req.userId, name, color, description || null);
 
     const tag = db.prepare('SELECT * FROM tags WHERE id = ?').get(result.lastInsertRowid);
 
@@ -62,7 +62,7 @@ router.post('/', modifyLimiter, createTagValidation, (req, res) => {
 router.put('/:id', modifyLimiter, updateTagValidation, (req, res) => {
   try {
     const { id } = req.params;
-    const { name, color } = req.body;
+    const { name, color, description } = req.body;
 
     // Check if tag exists and belongs to user
     const existingTag = db.prepare('SELECT * FROM tags WHERE id = ? AND user_id = ?').get(id, req.userId);
@@ -84,11 +84,13 @@ router.put('/:id', modifyLimiter, updateTagValidation, (req, res) => {
       UPDATE tags
       SET name = ?,
           color = ?,
+          description = ?,
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ? AND user_id = ?
     `).run(
       name || existingTag.name,
       color || existingTag.color,
+      description !== undefined ? description : existingTag.description,
       id,
       req.userId
     );

@@ -3,15 +3,15 @@ import {
   Search,
   Calendar as CalendarIcon,
   Target,
-  ChevronLeft,
-  ChevronRight,
   X,
   PlusCircle,
   FileText,
   Trash2,
   Image as ImageIcon,
   ChevronDown,
-  ChevronUp,
+  AlertTriangle,
+  BarChart3,
+  Clock3,
   TrendingUp,
   TrendingDown,
   Minus
@@ -19,20 +19,24 @@ import {
 import { format, parseISO } from 'date-fns';
 import { useCurrency } from './contexts/CurrencyContext';
 
-function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal, onDeleteEntry, availableTags = [] }) {
+function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal, onDeleteEntry }) {
   const { symbol } = useCurrency();
   const [searchQuery, setSearchQuery] = useState('');
+  const [quickFilterLabel, setQuickFilterLabel] = useState('');
   const [dateFilter, setDateFilter] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [expandedTrades, setExpandedTrades] = useState({});
-  const entriesPerPage = 10;
+  const [expandedYears, setExpandedYears] = useState({});
+  const [expandedMonths, setExpandedMonths] = useState({});
+
+  const today = new Date();
+  const currentYear = format(today, 'yyyy');
+  const currentMonthKey = format(today, 'yyyy-MM');
 
   // Helper function to get trades for a specific date
   const getTradesForDate = (dateString) => {
     const entryDate = new Date(dateString);
     entryDate.setHours(0, 0, 0, 0);
 
-    return trades.filter(trade => {
+    return trades.filter((trade) => {
       const tradeDate = new Date(trade.date);
       tradeDate.setHours(0, 0, 0, 0);
       return tradeDate.getTime() === entryDate.getTime();
@@ -40,31 +44,31 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
   };
 
   // Helper function to calculate P&L
+  const getTradeNet = (trade) => {
+    const amount = parseFloat(trade.amount) || 0;
+    const fees = parseFloat(trade.fees) || 0;
+    return amount - fees;
+  };
+
   const calculatePnL = (tradesArray) => {
-    return tradesArray.reduce((sum, trade) => {
-      const amount = parseFloat(trade.amount) || 0;
-      const fees = parseFloat(trade.fees) || 0;
-      // Always: amount - fees (type is just a label)
-      return sum + (amount - fees);
-    }, 0);
+    return tradesArray.reduce((sum, trade) => sum + getTradeNet(trade), 0);
   };
 
   // Convert journalEntries object to array with trade data
   const entriesArray = useMemo(() => {
     return Object.entries(journalEntries)
-      .filter(([date, entry]) => entry?.content && entry.content.trim() !== '')
+      .filter(([, entry]) => entry?.content && entry.content.trim() !== '')
       .map(([date, entry]) => {
         const dayTrades = getTradesForDate(date);
         const dayPnL = calculatePnL(dayTrades);
         const content = entry?.content || '';
-        const tags = entry?.tags || [];
+        const textContent = content.replace(/<[^>]*>/g, '').trim();
 
         return {
           date,
           content,
-          tags,
-          textContent: content.replace(/<[^>]*>/g, '').trim(),
-          wordCount: content.replace(/<[^>]*>/g, '').trim().split(/\s+/).length,
+          textContent,
+          wordCount: textContent ? textContent.split(/\s+/).length : 0,
           trades: dayTrades,
           pnl: dayPnL,
           tradeCount: dayTrades.length
@@ -76,22 +80,29 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
   const filteredEntries = useMemo(() => {
     let filtered = entriesArray;
 
-    // Apply text search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(entry => {
+      filtered = filtered.filter((entry) => {
         const dateStr = format(parseISO(entry.date), 'MMM d, yyyy').toLowerCase();
         const content = entry.textContent.toLowerCase();
-        // Also search in ticker symbols and tags
-        const tickers = entry.trades.map(t => t.symbol?.toLowerCase() || '').join(' ');
-        const tags = entry.trades.flatMap(t => t.tags?.map(tag => tag.name.toLowerCase()) || []).join(' ');
-        return dateStr.includes(query) || content.includes(query) || tickers.includes(query) || tags.includes(query);
+        const tickers = entry.trades.map((t) => t.symbol?.toLowerCase() || '').join(' ');
+        const categories = entry.trades.map((t) => t.category?.toLowerCase() || '').join(' ');
+        const tags = entry.trades
+          .flatMap((t) => (Array.isArray(t.tags) ? t.tags : []))
+          .map((tag) => (typeof tag === 'string' ? tag : tag?.name || ''))
+          .join(' ')
+          .toLowerCase();
+
+        return dateStr.includes(query)
+          || content.includes(query)
+          || tickers.includes(query)
+          || categories.includes(query)
+          || tags.includes(query);
       });
     }
 
-    // Apply date filter
     if (dateFilter) {
-      filtered = filtered.filter(entry => entry.date === dateFilter);
+      filtered = filtered.filter((entry) => entry.date === dateFilter);
     }
 
     return filtered;
@@ -104,61 +115,211 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
     return sorted;
   }, [filteredEntries]);
 
-  // Pagination calculations
-  const totalPages = Math.ceil(sortedEntries.length / entriesPerPage);
-  const startIndex = (currentPage - 1) * entriesPerPage;
-  const endIndex = startIndex + entriesPerPage;
-  const paginatedEntries = sortedEntries.slice(startIndex, endIndex);
+  // Group entries by year -> month
+  const groupedEntries = useMemo(() => {
+    const groups = {};
 
-  // Reset to page 1 when search or date filter changes
-  useMemo(() => {
-    setCurrentPage(1);
-  }, [searchQuery, dateFilter]);
+    sortedEntries.forEach((entry) => {
+      const parsedDate = parseISO(entry.date);
+      const year = format(parsedDate, 'yyyy');
+      const monthKey = format(parsedDate, 'yyyy-MM');
+      const monthLabel = format(parsedDate, 'MMMM');
 
-  const getPreviewText = (text, maxLength = 120) => {
+      if (!groups[year]) {
+        groups[year] = {
+          year,
+          entriesCount: 0,
+          pnl: 0,
+          months: {}
+        };
+      }
+
+      if (!groups[year].months[monthKey]) {
+        groups[year].months[monthKey] = {
+          key: monthKey,
+          label: monthLabel,
+          entriesCount: 0,
+          pnl: 0,
+          entries: []
+        };
+      }
+
+      groups[year].entriesCount += 1;
+      groups[year].pnl += entry.pnl;
+      groups[year].months[monthKey].entriesCount += 1;
+      groups[year].months[monthKey].pnl += entry.pnl;
+      groups[year].months[monthKey].entries.push(entry);
+    });
+
+    return Object.values(groups)
+      .sort((a, b) => Number(b.year) - Number(a.year))
+      .map((yearGroup) => ({
+        ...yearGroup,
+        months: Object.values(yearGroup.months).sort((a, b) => b.key.localeCompare(a.key))
+      }));
+  }, [sortedEntries]);
+
+  const hasActiveFilters = searchQuery.trim().length > 0 || Boolean(dateFilter);
+
+  const toggleYear = (year, defaultExpanded) => {
+    setExpandedYears((prev) => ({
+      ...prev,
+      [year]: !(prev[year] ?? defaultExpanded)
+    }));
+  };
+
+  const toggleMonth = (monthKey, defaultExpanded) => {
+    setExpandedMonths((prev) => ({
+      ...prev,
+      [monthKey]: !(prev[monthKey] ?? defaultExpanded)
+    }));
+  };
+
+  const applyCoachFilter = (query, label) => {
+    if (!query) return;
+    setSearchQuery(query);
+    setDateFilter('');
+    setQuickFilterLabel(label || query);
+  };
+
+  const clearCoachFilter = () => {
+    setQuickFilterLabel('');
+    setSearchQuery('');
+  };
+
+  const getPreviewText = (text, maxLength = 110) => {
+    if (!text) return '';
     if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + '...';
+    return `${text.substring(0, maxLength)}...`;
   };
 
-  const goToPage = (page) => {
-    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  const formatPnL = (value) => {
+    const prefix = Math.abs(value) < 0.01 ? '' : value >= 0 ? '+' : '-';
+    return `${prefix}${symbol}${Math.abs(value).toFixed(2)}`;
   };
 
-  // Calculate statistics
-  const stats = useMemo(() => {
-    // All-time trading statistics (from all trades, not just journal entries)
-    const totalTrades = trades.length;
-    const totalPnL = calculatePnL(trades);
+  const getPnLClass = (value) => {
+    if (Math.abs(value) < 0.01) return 'neutral';
+    return value >= 0 ? 'profit' : 'loss';
+  };
 
-    // Calculate win rate from all trades
-    const profitTrades = trades.filter(t => t.type === 'profit').length;
-    const lossTrades = trades.filter(t => t.type === 'loss').length;
-    const winRate = totalTrades > 0 ? ((profitTrades / totalTrades) * 100).toFixed(1) : '0.0';
+  const renderHeaderPnL = (value) => {
+    const pnlClass = getPnLClass(value);
+    const PnLIcon = pnlClass === 'profit' ? TrendingUp : pnlClass === 'loss' ? TrendingDown : Minus;
 
-    // Journaling statistics (only from journal entries)
-    const totalEntries = entriesArray.length;
-    const avgWordsPerEntry = totalEntries > 0
-      ? Math.round(entriesArray.reduce((sum, entry) => sum + entry.wordCount, 0) / totalEntries)
-      : 0;
+    return (
+      <span className={`journal-group-pnl ${pnlClass}`}>
+        <PnLIcon size={12} strokeWidth={2.25} />
+        <span>{formatPnL(value)}</span>
+      </span>
+    );
+  };
 
-    // Days with journal entries that were profitable
-    const profitableDays = entriesArray.filter(entry => entry.pnl > 0).length;
+  const coachInsights = useMemo(() => {
+    const now = new Date();
+    const cutoff = new Date(now);
+    cutoff.setHours(0, 0, 0, 0);
+    cutoff.setDate(cutoff.getDate() - 29);
+
+    const toDateKey = (value) => {
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) return '';
+      parsed.setHours(0, 0, 0, 0);
+      return format(parsed, 'yyyy-MM-dd');
+    };
+
+    const tradingDayKeys = new Set(
+      trades
+        .map((trade) => toDateKey(trade.date))
+        .filter(Boolean)
+    );
+
+    const journaledTradingDays = entriesArray.filter((entry) => tradingDayKeys.has(entry.date)).length;
+    const disciplineScore = tradingDayKeys.size > 0
+      ? Math.round((journaledTradingDays / tradingDayKeys.size) * 100)
+      : 100;
+
+    const mostRecentEntryDate = entriesArray
+      .map((entry) => entry.date)
+      .sort((a, b) => new Date(b) - new Date(a))[0] || null;
+
+    const daysSinceLastEntry = mostRecentEntryDate
+      ? Math.max(0, Math.floor((now.getTime() - new Date(mostRecentEntryDate).getTime()) / (1000 * 60 * 60 * 24)))
+      : null;
+
+    const recentTrades = trades.filter((trade) => {
+      const tradeDate = new Date(trade.date);
+      tradeDate.setHours(0, 0, 0, 0);
+      return tradeDate >= cutoff;
+    });
+
+    const categoryStats = new Map();
+    const tagStats = new Map();
+
+    recentTrades.forEach((trade) => {
+      const net = getTradeNet(trade);
+      const categoryName = (trade.category || 'Uncategorized').trim() || 'Uncategorized';
+      const categoryAgg = categoryStats.get(categoryName) || { name: categoryName, pnl: 0, count: 0 };
+      categoryAgg.pnl += net;
+      categoryAgg.count += 1;
+      categoryStats.set(categoryName, categoryAgg);
+
+      const tagNames = Array.isArray(trade.tags)
+        ? trade.tags
+          .map((tag) => (typeof tag === 'string' ? tag : tag?.name))
+          .filter(Boolean)
+        : [];
+
+      tagNames.forEach((tagName) => {
+        const cleanName = tagName.trim();
+        if (!cleanName) return;
+        const tagAgg = tagStats.get(cleanName) || { name: cleanName, pnl: 0, count: 0 };
+        tagAgg.pnl += net;
+        tagAgg.count += 1;
+        tagStats.set(cleanName, tagAgg);
+      });
+    });
+
+    const categories = [...categoryStats.values()];
+    const qualifiedCategories = categories.filter((item) => item.count >= 2);
+    const bestCategory = [...(qualifiedCategories.length > 0 ? qualifiedCategories : categories)]
+      .sort((a, b) => b.pnl - a.pnl)[0] || null;
+    const worstCategory = [...qualifiedCategories]
+      .sort((a, b) => a.pnl - b.pnl)
+      .find((item) => item.pnl < 0) || null;
+
+    const tags = [...tagStats.values()];
+    const qualifiedTags = tags.filter((item) => item.count >= 2);
+    const worstTag = [...qualifiedTags]
+      .sort((a, b) => a.pnl - b.pnl)
+      .find((item) => item.pnl < 0) || null;
+
+    const lossQueue = [...entriesArray]
+      .filter((entry) => entry.tradeCount > 0 && entry.pnl < 0)
+      .sort((a, b) => a.pnl - b.pnl)
+      .slice(0, 4);
+
+    const fallbackQueue = [...entriesArray]
+      .filter((entry) => entry.tradeCount > 0)
+      .sort((a, b) => b.tradeCount - a.tradeCount)
+      .slice(0, 4);
 
     return {
-      totalEntries,
-      totalTrades,
-      totalPnL,
-      avgWordsPerEntry,
-      profitableDays,
-      winRate,
-      profitTrades,
-      lossTrades
+      disciplineScore,
+      journaledTradingDays,
+      tradingDaysCount: tradingDayKeys.size,
+      daysSinceLastEntry,
+      bestCategory: bestCategory && bestCategory.pnl > 0 ? bestCategory : null,
+      leakTag: worstTag,
+      leakCategory: worstCategory,
+      reviewQueue: lossQueue.length > 0 ? lossQueue : fallbackQueue,
+      reviewQueueIsLossBased: lossQueue.length > 0
     };
   }, [entriesArray, trades]);
 
   return (
     <>
-      <main className="dashboard-grid">
+      <main className="dashboard-grid journal-view-grid">
         <div className="main-content">
           <div className="journal-entries-header">
             <div className="journal-entries-header-left">
@@ -168,7 +329,7 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
               <div>
                 <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Journal</h2>
                 <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                  {entriesArray.length} {entriesArray.length === 1 ? 'entry' : 'entries'} total
+                  {entriesArray.length} {entriesArray.length === 1 ? 'entry' : 'entries'} total • review, refine, and execute better
                 </p>
               </div>
             </div>
@@ -180,48 +341,45 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                   className="journal-search-input"
                   placeholder="Search entries, tickers, tags..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setQuickFilterLabel('');
+                  }}
                 />
               </div>
-              <div style={{ position: 'relative' }}>
+              <div className="journal-date-filter">
                 <input
                   type="date"
-                  className="form-input"
-                  style={{ paddingRight: dateFilter ? '2.5rem' : '0.75rem', minWidth: '180px' }}
+                  className="form-input journal-date-input"
                   value={dateFilter}
                   onChange={(e) => setDateFilter(e.target.value)}
                 />
                 {dateFilter && (
                   <button
                     onClick={() => setDateFilter('')}
-                    style={{
-                      position: 'absolute',
-                      right: '0.5rem',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--text-secondary)',
-                      cursor: 'pointer',
-                      padding: '0.25rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
+                    className="journal-date-clear"
                   >
                     <X size={14} />
                   </button>
                 )}
               </div>
-              <button
-                onClick={onAddJournal}
-                className="journal-add-button"
-              >
+              <button onClick={onAddJournal} className="journal-add-button">
                 <PlusCircle size={16} />
                 Add Journal
               </button>
             </div>
           </div>
+
+          {quickFilterLabel && (
+            <div className="journal-active-filter">
+              <span className="journal-active-filter-label">Coach filter:</span>
+              <button type="button" className="journal-active-filter-chip" onClick={clearCoachFilter}>
+                {quickFilterLabel}
+                <X size={12} />
+              </button>
+            </div>
+          )}
+
           <div className="journal-entries-main-card">
             {sortedEntries.length === 0 ? (
               <div className="journal-empty-state">
@@ -241,320 +399,253 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                 )}
               </div>
             ) : (
-              <>
-                <div className="journal-entries-list-new">
-                  {paginatedEntries.map((entry, index) => {
-                    const hasTrades = entry.tradeCount > 0;
-                    const isProfitable = entry.pnl > 0;
-                    const hasImages = entry.content.includes('<img');
+              <div className="journal-groups">
+                {groupedEntries.map((yearGroup) => {
+                  const isYearDefaultExpanded = yearGroup.year === currentYear;
+                  const yearFallbackExpanded = hasActiveFilters ? true : isYearDefaultExpanded;
+                  const isYearExpanded = expandedYears[yearGroup.year] ?? yearFallbackExpanded;
 
-                    // Get unique tickers from trades
-                    const tickers = [...new Set(entry.trades.map(t => t.symbol).filter(Boolean))];
-
-                    // Get unique tags from trades and journal
-                    const tradeTags = entry.trades.flatMap(t => t.tags || []);
-                    const journalTags = entry.tags || [];
-                    const allTags = [...tradeTags, ...journalTags];
-                    const uniqueTags = allTags.reduce((acc, tag) => {
-                      const tagName = typeof tag === 'string' ? tag : tag.name;
-                      if (!acc.find(t => (typeof t === 'string' ? t : t.name) === tagName)) {
-                        acc.push(tag);
-                      }
-                      return acc;
-                    }, []);
-
-                    return (
-                      <div
-                        key={entry.date}
-                        className="journal-entry-card"
-                        onClick={() => onViewEntry(entry.date)}
-                        style={{ animationDelay: `${index * 0.03}s` }}
+                  return (
+                    <section key={yearGroup.year} className="journal-year-group">
+                      <button
+                        type="button"
+                        className="journal-year-toggle"
+                        onClick={() => toggleYear(yearGroup.year, yearFallbackExpanded)}
                       >
-                        <div className="journal-entry-card-header">
-                          <div className="journal-entry-date-new">
-                            <CalendarIcon size={16} />
-                            <span className="journal-entry-day">{format(parseISO(entry.date), 'EEEE')}</span>
-                            <span className="journal-entry-date-full">{format(parseISO(entry.date), 'MMM d, yyyy')}</span>
-                            {hasImages && (
-                              <span style={{ display: 'flex', alignItems: 'center', color: 'var(--text-secondary)', opacity: 0.7 }}>
-                                <ImageIcon size={14} />
-                              </span>
-                            )}
-                          </div>
-                          <div className="journal-entry-badges">
-                            <span className="journal-entry-word-badge">{entry.wordCount}w</span>
-                            {hasTrades && (
-                              <span className={`journal-entry-pnl-badge ${isProfitable ? 'profit' : 'loss'}`}>
-                                {entry.pnl >= 0 ? '+' : '-'}{symbol}{Math.abs(entry.pnl).toFixed(2)}
-                              </span>
-                            )}
-                          </div>
+                        <div className="journal-year-meta">
+                          <span className="journal-year-title">{yearGroup.year}</span>
+                          <span className="journal-year-count">{yearGroup.entriesCount} entries</span>
                         </div>
-
-                        <div className="journal-entry-preview-new">
-                          {getPreviewText(entry.textContent)}
+                        <div className="journal-year-meta-right">
+                          {renderHeaderPnL(yearGroup.pnl)}
+                          <ChevronDown size={16} className={`journal-collapse-icon ${isYearExpanded ? 'expanded' : ''}`} />
                         </div>
+                      </button>
 
-                        {hasTrades && (
-                          <>
-                            <div
-                              className="journal-entry-trades-summary"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setExpandedTrades(prev => ({
-                                  ...prev,
-                                  [entry.date]: !prev[entry.date]
-                                }));
-                              }}
-                              style={{ cursor: 'pointer' }}
-                            >
-                              <Target size={14} />
-                              <span>{entry.tradeCount} {entry.tradeCount === 1 ? 'trade' : 'trades'}</span>
-                              {tickers.length > 0 && (
-                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                                  • {tickers.slice(0, 3).join(', ')}{tickers.length > 3 ? ` +${tickers.length - 3}` : ''}
-                                </span>
-                              )}
-                              {expandedTrades[entry.date] ? (
-                                <ChevronUp size={16} style={{ marginLeft: 'auto', color: 'var(--text-secondary)' }} />
-                              ) : (
-                                <ChevronDown size={16} style={{ marginLeft: 'auto', color: 'var(--text-secondary)' }} />
-                              )}
-                            </div>
+                      {isYearExpanded && (
+                        <div className="journal-month-groups">
+                          {yearGroup.months.map((monthGroup) => {
+                            const isMonthDefaultExpanded = monthGroup.key === currentMonthKey;
+                            const monthFallbackExpanded = hasActiveFilters ? true : isMonthDefaultExpanded;
+                            const isMonthExpanded = expandedMonths[monthGroup.key] ?? monthFallbackExpanded;
 
-                            {expandedTrades[entry.date] && (
-                              <div className="journal-entry-trades-list">
-                                {entry.trades.map((trade, tradeIdx) => {
-                                  const tradeAmount = parseFloat(trade.amount) || 0;
-                                  const tradeFees = parseFloat(trade.fees) || 0;
-                                  // Always: amount - fees
-                                  const tradeNet = tradeAmount - tradeFees;
+                            return (
+                              <div key={monthGroup.key} className="journal-month-group">
+                                <button
+                                  type="button"
+                                  className="journal-month-toggle"
+                                  onClick={() => toggleMonth(monthGroup.key, monthFallbackExpanded)}
+                                >
+                                  <div className="journal-month-meta">
+                                    <span className="journal-month-title">{monthGroup.label}</span>
+                                    <span className="journal-month-count">{monthGroup.entriesCount} entries</span>
+                                  </div>
+                                  <div className="journal-month-meta-right">
+                                    {renderHeaderPnL(monthGroup.pnl)}
+                                    <ChevronDown size={14} className={`journal-collapse-icon ${isMonthExpanded ? 'expanded' : ''}`} />
+                                  </div>
+                                </button>
 
-                                  return (
-                                    <div key={tradeIdx} className="journal-trade-item">
-                                      <div className="journal-trade-item-left">
-                                        <div className="journal-trade-icon">
-                                          {trade.type === 'profit' ? (
-                                            <TrendingUp size={12} color="var(--accent-green)" />
-                                          ) : trade.type === 'loss' ? (
-                                            <TrendingDown size={12} color="var(--accent-red)" />
-                                          ) : (
-                                            <Minus size={12} color="var(--text-secondary)" />
-                                          )}
+                                {isMonthExpanded && (
+                                  <div className="journal-entry-rows">
+                                    {monthGroup.entries.map((entry) => {
+                                      const hasTrades = entry.tradeCount > 0;
+                                      const hasImages = entry.content.includes('<img');
+                                      const taggedTradesCount = entry.trades.filter((trade) => (
+                                        Array.isArray(trade.tags) && trade.tags.length > 0
+                                      )).length;
+                                      const tagCoverageClass = taggedTradesCount === 0
+                                        ? 'empty'
+                                        : taggedTradesCount === entry.tradeCount
+                                          ? 'complete'
+                                          : 'partial';
+
+                                      return (
+                                        <div
+                                          key={entry.date}
+                                          className="journal-entry-row"
+                                          role="button"
+                                          tabIndex={0}
+                                          onClick={() => onViewEntry(entry.date)}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                              e.preventDefault();
+                                              onViewEntry(entry.date);
+                                            }
+                                          }}
+                                        >
+                                          <div className="journal-entry-row-main">
+                                            <div className="journal-entry-row-date">
+                                              <CalendarIcon size={14} />
+                                              <span className="journal-entry-row-day">{format(parseISO(entry.date), 'EEE, MMM d')}</span>
+                                              {hasImages && (
+                                                <span className="journal-entry-row-image" title="Contains image">
+                                                  <ImageIcon size={13} />
+                                                </span>
+                                              )}
+                                            </div>
+                                            <div className="journal-entry-row-preview">
+                                              {getPreviewText(entry.textContent) || 'No text preview'}
+                                            </div>
+                                          </div>
+
+                                          <div className="journal-entry-row-right">
+                                            {hasTrades && (
+                                              <span className="journal-entry-trade-count">
+                                                <Target size={12} />
+                                                {entry.tradeCount} {entry.tradeCount === 1 ? 'trade' : 'trades'}
+                                              </span>
+                                            )}
+                                            {hasTrades && (
+                                              <span className={`journal-entry-pnl-badge ${getPnLClass(entry.pnl)}`}>
+                                                {formatPnL(entry.pnl)}
+                                              </span>
+                                            )}
+                                            {hasTrades && (
+                                              <span className={`journal-entry-tag-coverage ${tagCoverageClass}`}>
+                                                {taggedTradesCount}/{entry.tradeCount} tagged
+                                              </span>
+                                            )}
+                                            <button
+                                              type="button"
+                                              className="journal-entry-delete"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                onDeleteEntry(entry.date);
+                                              }}
+                                              title="Delete journal entry"
+                                            >
+                                              <Trash2 size={15} />
+                                            </button>
+                                          </div>
                                         </div>
-                                        <div className="journal-trade-info">
-                                          <span className="journal-trade-symbol">{trade.symbol}</span>
-                                          <span className="journal-trade-category">• {trade.category}</span>
-                                        </div>
-                                      </div>
-                                      <div className="journal-trade-item-right">
-                                        {tradeFees > 0 && (
-                                          <span className="journal-trade-fees">
-                                            -{symbol}{tradeFees.toFixed(2)}
-                                          </span>
-                                        )}
-                                        <span className={`journal-trade-amount ${trade.type}`}>
-                                          {tradeNet >= 0 ? '+' : ''}{symbol}{tradeNet.toFixed(2)}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
+                                      );
+                                    })}
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </>
-                        )}
-
-                        {uniqueTags.length > 0 && (
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            gap: '0.5rem',
-                            marginTop: '0.5rem',
-                            paddingTop: '0.5rem',
-                            borderTop: '1px solid var(--border-color)'
-                          }}>
-                            <div style={{
-                              display: 'flex',
-                              flexWrap: 'wrap',
-                              gap: '0.375rem',
-                              flex: 1
-                            }}>
-                              {uniqueTags.slice(0, 5).map((tag, idx) => {
-                                // Handle both string tags (from journal) and object tags (from trades)
-                                const tagName = typeof tag === 'string' ? tag : tag.name;
-                                const tagColor = typeof tag === 'string'
-                                  ? availableTags.find(t => t.name === tag)?.color || '#3b82f6'
-                                  : tag.color;
-
-                                return (
-                                  <span
-                                    key={idx}
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '0.375rem',
-                                      padding: '0.25rem 0.5rem',
-                                      borderRadius: '0.5rem',
-                                      fontSize: '0.75rem',
-                                      fontWeight: 500,
-                                      background: tagColor,
-                                      color: 'white'
-                                    }}
-                                  >
-                                    {tagName}
-                                  </span>
-                                );
-                              })}
-                              {uniqueTags.length > 5 && (
-                                <span style={{
-                                  padding: '0.25rem 0.5rem',
-                                  fontSize: '0.75rem',
-                                  color: 'var(--text-secondary)'
-                                }}>
-                                  +{uniqueTags.length - 5} more
-                                </span>
-                              )}
-                            </div>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onDeleteEntry(entry.date);
-                              }}
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                color: 'var(--text-secondary)',
-                                cursor: 'pointer',
-                                padding: '0.25rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                opacity: 0.6,
-                                transition: 'opacity 0.2s, color 0.2s'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.opacity = '1';
-                                e.currentTarget.style.color = '#ef4444';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.opacity = '0.6';
-                                e.currentTarget.style.color = 'var(--text-secondary)';
-                              }}
-                              title="Delete journal entry"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        )}
-
-                        {uniqueTags.length === 0 && (
-                          <div style={{
-                            display: 'flex',
-                            justifyContent: 'flex-end',
-                            marginTop: '0.5rem',
-                            paddingTop: '0.5rem',
-                            borderTop: '1px solid var(--border-color)'
-                          }}>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onDeleteEntry(entry.date);
-                              }}
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                color: 'var(--text-secondary)',
-                                cursor: 'pointer',
-                                padding: '0.25rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                opacity: 0.6,
-                                transition: 'opacity 0.2s, color 0.2s'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.opacity = '1';
-                                e.currentTarget.style.color = '#ef4444';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.opacity = '0.6';
-                                e.currentTarget.style.color = 'var(--text-secondary)';
-                              }}
-                              title="Delete journal entry"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {totalPages > 1 && (
-                  <div className="journal-pagination">
-                    <button
-                      className="journal-pagination-btn"
-                      onClick={() => goToPage(currentPage - 1)}
-                      disabled={currentPage === 1}
-                    >
-                      <ChevronLeft size={16} />
-                      Previous
-                    </button>
-
-                    <div className="journal-pagination-info">
-                      <span className="journal-pagination-text">
-                        Page {currentPage} of {totalPages}
-                      </span>
-                      <span className="journal-pagination-count">
-                        Showing {startIndex + 1}-{Math.min(endIndex, sortedEntries.length)} of {sortedEntries.length}
-                      </span>
-                    </div>
-
-                    <button
-                      className="journal-pagination-btn"
-                      onClick={() => goToPage(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                    >
-                      Next
-                      <ChevronRight size={16} />
-                    </button>
-                  </div>
-                )}
-              </>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </section>
+                  );
+                })}
+              </div>
             )}
           </div>
         </div>
 
-        <aside className="sidebar-section">
-          <h2 className="sidebar-title">Statistics</h2>
+        <aside className="sidebar-section journal-coach-rail">
+          <h2 className="sidebar-title">Profitability Coach</h2>
 
-          <div className="info-card">
-            <span className="info-label">Total P&L</span>
-            <div className={`info-value ${stats.totalPnL >= 0 ? 'positive' : 'negative'}`}>
-              {stats.totalPnL >= 0 ? '+' : '-'}{symbol}{Math.abs(stats.totalPnL).toFixed(2)}
+          <div className="info-card journal-coach-card">
+            <div className="journal-coach-head">
+              <BarChart3 size={14} />
+              Edge Signal (30D)
             </div>
-            <div className="info-subtext">All-time trading</div>
+            <div className="journal-coach-main">
+              {coachInsights.bestCategory ? coachInsights.bestCategory.name : 'Not enough edge data'}
+            </div>
+            <div className="journal-coach-sub">
+              {coachInsights.bestCategory
+                ? `${formatPnL(coachInsights.bestCategory.pnl)} across ${coachInsights.bestCategory.count} trades`
+                : 'Need at least a few tagged/market trades to identify your edge.'}
+            </div>
+            {coachInsights.bestCategory && (
+              <button
+                type="button"
+                className="journal-coach-action"
+                onClick={() => applyCoachFilter(coachInsights.bestCategory.name, `Market: ${coachInsights.bestCategory.name}`)}
+              >
+                Filter to {coachInsights.bestCategory.name}
+              </button>
+            )}
           </div>
 
-          <div className="info-card">
-            <span className="info-label">Win Rate</span>
-            <div className="info-value">{stats.winRate}%</div>
-            <div className="info-subtext">{stats.profitTrades}W / {stats.lossTrades}L</div>
+          <div className="info-card journal-coach-card danger">
+            <div className="journal-coach-head">
+              <AlertTriangle size={14} />
+              Biggest Money Leak (30D)
+            </div>
+            <div className="journal-coach-main">
+              {coachInsights.leakTag
+                ? `You lose most on "${coachInsights.leakTag.name}" tagged trades`
+                : coachInsights.leakCategory
+                  ? `You lose most in ${coachInsights.leakCategory.name}`
+                  : 'No repeated losing pattern found'}
+            </div>
+            <div className="journal-coach-sub">
+              {coachInsights.leakTag
+                ? `Net ${formatPnL(coachInsights.leakTag.pnl)} across ${coachInsights.leakTag.count} trades.`
+                : coachInsights.leakCategory
+                  ? `Net ${formatPnL(coachInsights.leakCategory.pnl)} across ${coachInsights.leakCategory.count} trades.`
+                  : 'A leak only appears when a tag or market repeats with at least 2 trades and negative net P/L.'}
+            </div>
+            {(coachInsights.leakTag || coachInsights.leakCategory) && (
+              <button
+                type="button"
+                className="journal-coach-action"
+                onClick={() => {
+                  if (coachInsights.leakTag) {
+                    applyCoachFilter(coachInsights.leakTag.name, `Leak tag: ${coachInsights.leakTag.name}`);
+                    return;
+                  }
+                  if (coachInsights.leakCategory) {
+                    applyCoachFilter(coachInsights.leakCategory.name, `Leak market: ${coachInsights.leakCategory.name}`);
+                  }
+                }}
+              >
+                Review this leak
+              </button>
+            )}
           </div>
 
-          <div className="info-card">
-            <span className="info-label">Total Trades</span>
-            <div className="info-value">{stats.totalTrades}</div>
-            <div className="info-subtext">All-time</div>
+          <div className="info-card journal-coach-card">
+            <div className="journal-coach-head">
+              <Clock3 size={14} />
+              Discipline
+            </div>
+            <div className="journal-coach-metric">{coachInsights.disciplineScore}%</div>
+            <div className="journal-coach-sub">
+              Journaled {coachInsights.journaledTradingDays}/{coachInsights.tradingDaysCount || 0} trading days
+            </div>
+            <div className="journal-coach-sub">
+              {coachInsights.daysSinceLastEntry === null
+                ? 'No journal entries yet.'
+                : coachInsights.daysSinceLastEntry === 0
+                  ? 'Updated today.'
+                  : `${coachInsights.daysSinceLastEntry} day${coachInsights.daysSinceLastEntry > 1 ? 's' : ''} since last journal entry.`}
+            </div>
           </div>
 
-          <div className="info-card">
-            <span className="info-label">Journal Entries</span>
-            <div className="info-value">{stats.totalEntries}</div>
-            <div className="info-subtext">{stats.avgWordsPerEntry} avg words</div>
+          <div className="info-card journal-coach-card queue">
+            <div className="journal-coach-head">
+              <Target size={14} />
+              Review Queue
+            </div>
+            <div className="journal-coach-sub">
+              {coachInsights.reviewQueueIsLossBased
+                ? 'Most damaging days first. Review these before your next session.'
+                : 'No red journal days found. Reviewing highest-activity entries instead.'}
+            </div>
+            <div className="journal-review-list">
+              {coachInsights.reviewQueue.length > 0 ? coachInsights.reviewQueue.map((entry) => (
+                <button
+                  key={entry.date}
+                  type="button"
+                  className="journal-review-item"
+                  onClick={() => onViewEntry(entry.date)}
+                >
+                  <span className="journal-review-item-date">{format(parseISO(entry.date), 'EEE, MMM d')}</span>
+                  <span className={`journal-review-item-pnl ${getPnLClass(entry.pnl)}`}>
+                    {formatPnL(entry.pnl)}
+                  </span>
+                </button>
+              )) : (
+                <div className="journal-coach-sub">No entries with linked trades yet.</div>
+              )}
+            </div>
           </div>
         </aside>
       </main>

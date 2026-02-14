@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { User, Shield, Tag, Plus, X, Settings } from 'lucide-react';
+import { User, Shield, Tag, Plus, X, Settings, Edit3 } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import { useCurrency } from './contexts/CurrencyContext';
 import { authAPI } from './api/auth';
 import { tagsAPI } from './api/tags';
-import ColorPicker from './ColorPicker';
+import AddTagModal from './AddTagModal';
+import { getTagColorMeta } from './tagColors';
 
 function Profile({ availableTags, setAvailableTags }) {
   const { user, updateUser } = useAuth();
@@ -19,10 +20,8 @@ function Profile({ availableTags, setAvailableTags }) {
     newPassword: '',
     confirmPassword: ''
   });
-  const [newTagName, setNewTagName] = useState('');
-  const [newTagColor, setNewTagColor] = useState('#3b82f6');
-  const [showColorPicker, setShowColorPicker] = useState(false);
-  const [editingTagIndex, setEditingTagIndex] = useState(null);
+  const [showTagModal, setShowTagModal] = useState(false);
+  const [editingTag, setEditingTag] = useState(null);
   const [alertModal, setAlertModal] = useState({ open: false, message: '', title: 'Notice' });
   const [confirmModal, setConfirmModal] = useState({ open: false, message: '', title: 'Confirm', onConfirm: null });
   const [showSuccess, setShowSuccess] = useState(false);
@@ -65,20 +64,6 @@ function Profile({ availableTags, setAvailableTags }) {
     }
   }, [confirmModal]);
 
-  // Handle Escape key for color picker
-  useEffect(() => {
-    const handleEscape = (e) => {
-      if (e.key === 'Escape' && showColorPicker) {
-        setShowColorPicker(false);
-        setEditingTagIndex(null);
-      }
-    };
-
-    if (showColorPicker) {
-      window.addEventListener('keydown', handleEscape);
-      return () => window.removeEventListener('keydown', handleEscape);
-    }
-  }, [showColorPicker]);
 
   const handleAccountChange = (e) => {
     const { id, value } = e.target;
@@ -146,26 +131,54 @@ function Profile({ availableTags, setAvailableTags }) {
     }
   };
 
-  const handleAddTag = async () => {
-    const trimmedName = newTagName.trim();
-    if (!trimmedName) {
-      setAlertModal({ open: true, message: 'Please enter a tag name.', title: 'Validation Error' });
-      return;
-    }
-    if (availableTags.find(t => t.name.toLowerCase() === trimmedName.toLowerCase())) {
+  const handleSaveTag = async (tagData) => {
+    const trimmedName = tagData.name.trim();
+
+    // Check for duplicate tag names (excluding the current tag if editing)
+    const isDuplicate = availableTags.find(t =>
+      t.name.toLowerCase() === trimmedName.toLowerCase() &&
+      t.id !== tagData.id
+    );
+
+    if (isDuplicate) {
       setAlertModal({ open: true, message: 'A tag with this name already exists.', title: 'Duplicate Tag' });
       return;
     }
 
     try {
-      const { data } = await tagsAPI.create({ name: trimmedName, color: newTagColor });
-      setAvailableTags([...availableTags, { name: data.tag.name, color: data.tag.color, id: data.tag.id }]);
-      setNewTagName('');
-      setNewTagColor('#3b82f6');
+      if (tagData.id) {
+        // Update existing tag
+        await tagsAPI.update(tagData.id, {
+          name: trimmedName,
+          color: tagData.color,
+          description: tagData.description
+        });
+        const updatedTags = availableTags.map(tag =>
+          tag.id === tagData.id
+            ? { ...tag, name: trimmedName, color: tagData.color, description: tagData.description }
+            : tag
+        );
+        setAvailableTags(updatedTags);
+      } else {
+        // Create new tag
+        const { data } = await tagsAPI.create({
+          name: trimmedName,
+          color: tagData.color,
+          description: tagData.description
+        });
+        setAvailableTags([...availableTags, {
+          name: data.tag.name,
+          color: data.tag.color,
+          description: data.tag.description,
+          id: data.tag.id
+        }]);
+      }
+      setShowTagModal(false);
+      setEditingTag(null);
     } catch (error) {
       setAlertModal({
         open: true,
-        message: error.response?.data?.message || 'Failed to create tag. Please try again.',
+        message: error.response?.data?.message || `Failed to ${tagData.id ? 'update' : 'create'} tag. Please try again.`,
         title: 'Error'
       });
     }
@@ -176,6 +189,8 @@ function Profile({ availableTags, setAvailableTags }) {
     try {
       await tagsAPI.delete(tag.id);
       setAvailableTags(availableTags.filter((_, i) => i !== index));
+      setShowTagModal(false);
+      setEditingTag(null);
     } catch (error) {
       setAlertModal({
         open: true,
@@ -185,21 +200,6 @@ function Profile({ availableTags, setAvailableTags }) {
     }
   };
 
-  const handleUpdateTagColor = async (index, newColor) => {
-    const tag = availableTags[index];
-    try {
-      await tagsAPI.update(tag.id, { name: tag.name, color: newColor });
-      const updatedTags = [...availableTags];
-      updatedTags[index].color = newColor;
-      setAvailableTags(updatedTags);
-    } catch (error) {
-      setAlertModal({
-        open: true,
-        message: error.response?.data?.message || 'Failed to update tag color. Please try again.',
-        title: 'Error'
-      });
-    }
-  };
 
   return (
     <div className="profile-container">
@@ -481,156 +481,76 @@ function Profile({ availableTags, setAvailableTags }) {
                 <p>Create and manage tags for organizing your trades</p>
               </div>
               <div className="profile-card-body">
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <label style={{ fontSize: '0.875rem', fontWeight: '500', color: 'var(--text-primary)', marginBottom: '0.75rem', display: 'block' }}>
-                    Add New Tag
-                  </label>
-                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end' }}>
-                    <div style={{ flex: 1 }}>
-                      <input
-                        type="text"
-                        placeholder="Tag name (e.g., Momentum, Support/Resistance)"
-                        value={newTagName}
-                        onChange={(e) => setNewTagName(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
-                        style={{
-                          width: '100%',
-                          height: '2.5rem',
-                          padding: '0 0.75rem',
-                          border: '1px solid var(--border-color)',
-                          background: 'var(--bg-color)',
-                          borderRadius: '0.5rem',
-                          fontSize: '0.875rem',
-                          color: 'var(--text-primary)'
-                        }}
-                      />
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                      <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Color</label>
-                      <button
-                        type="button"
-                        className="new-tag-color-picker"
-                        style={{ backgroundColor: newTagColor }}
-                        onClick={() => {
-                          setEditingTagIndex(null);
-                          setShowColorPicker(true);
-                        }}
-                      />
-                    </div>
-                    <button
-                      onClick={handleAddTag}
-                      className="profile-update-button"
-                      style={{
-                        height: '2.5rem',
-                        padding: '0 1rem',
-                        whiteSpace: 'nowrap',
-                        margin: 0
-                      }}
-                    >
-                      <Plus size={16} />
-                      Add Tag
-                    </button>
+                <div className="tags-toolbar">
+                  <div className="tags-toolbar-copy">
+                    <p className="tags-toolbar-title">
+                      Your Tags <span>({availableTags.length})</span>
+                    </p>
+                    <p className="tags-toolbar-subtitle">Click a tag card to edit it.</p>
                   </div>
+                  <button
+                    onClick={() => {
+                      setEditingTag(null);
+                      setShowTagModal(true);
+                    }}
+                    className="journal-add-button tags-add-button"
+                    style={{
+                      margin: 0
+                    }}
+                  >
+                    <Plus size={16} />
+                    Add Tag
+                  </button>
                 </div>
 
-                <div>
-                  <label style={{ fontSize: '0.875rem', fontWeight: '500', color: 'var(--text-primary)', marginBottom: '0.75rem', display: 'block' }}>
-                    Your Tags ({availableTags.length})
-                  </label>
+                <div className="tag-list">
                   {availableTags.length === 0 ? (
-                    <div style={{
-                      padding: '2rem',
-                      textAlign: 'center',
-                      background: 'var(--bg-color)',
-                      border: '1px dashed var(--border-color)',
-                      borderRadius: '0.5rem',
-                      color: 'var(--text-secondary)'
-                    }}>
+                    <div className="tag-list-empty">
                       No tags yet. Add your first tag above to get started!
                     </div>
                   ) : (
-                    <div className="tags-table">
-                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                        <thead>
-                          <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                            <th style={{ textAlign: 'left', padding: '0.75rem', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                              Preview
-                            </th>
-                            <th style={{ textAlign: 'left', padding: '0.75rem', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                              Tag Name
-                            </th>
-                            <th style={{ textAlign: 'left', padding: '0.75rem', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                              Color
-                            </th>
-                            <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                              Actions
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {availableTags.map((tag, index) => (
-                            <tr key={index} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                              <td style={{ padding: '0.75rem' }}>
-                                <span
-                                  style={{
-                                    display: 'inline-block',
-                                    padding: '0.25rem 0.75rem',
-                                    backgroundColor: tag.color,
-                                    color: 'white',
-                                    borderRadius: '0.375rem',
-                                    fontSize: '0.75rem',
-                                    fontWeight: '500'
-                                  }}
-                                >
-                                  {tag.name}
-                                </span>
-                              </td>
-                              <td style={{ padding: '0.75rem', fontSize: '0.875rem', color: 'var(--text-primary)', fontWeight: '500' }}>
+                    availableTags.map((tag, index) => {
+                      const colorMeta = getTagColorMeta(tag.color);
+                      return (
+                        <button
+                          type="button"
+                          key={tag.id || index}
+                          className="tag-list-item"
+                          onClick={() => {
+                            setEditingTag(tag);
+                            setShowTagModal(true);
+                          }}
+                          aria-label={`Edit ${tag.name} tag`}
+                        >
+                          <span className="tag-list-accent" style={{ backgroundColor: tag.color }} />
+                          <div className="tag-list-item-left">
+                            <div className="tag-list-top-row">
+                              <span
+                                className="tag-list-badge"
+                                style={{
+                                  backgroundColor: `${tag.color}1A`,
+                                  borderColor: `${tag.color}4D`,
+                                  color: tag.color
+                                }}
+                              >
                                 {tag.name}
-                              </td>
-                              <td style={{ padding: '0.75rem' }}>
-                                <button
-                                  type="button"
-                                  className="tags-table-color-picker"
-                                  style={{ backgroundColor: tag.color }}
-                                  onClick={() => {
-                                    setEditingTagIndex(index);
-                                    setShowColorPicker(true);
-                                  }}
-                                />
-                              </td>
-                              <td style={{ padding: '0.75rem', textAlign: 'center' }}>
-                                <button
-                                  onClick={() => handleDeleteTag(index)}
-                                  style={{
-                                    background: 'transparent',
-                                    border: 'none',
-                                    color: 'var(--text-secondary)',
-                                    cursor: 'pointer',
-                                    padding: '0.5rem',
-                                    borderRadius: '0.375rem',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    transition: 'all 0.2s'
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-                                    e.currentTarget.style.color = '#ef4444';
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.background = 'transparent';
-                                    e.currentTarget.style.color = 'var(--text-secondary)';
-                                  }}
-                                >
-                                  <X size={16} />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                              </span>
+                              <span className="tag-list-color-chip">
+                                <span className="tag-list-color-dot" style={{ backgroundColor: tag.color }} />
+                                {colorMeta.label}
+                              </span>
+                            </div>
+                            <span className={`tag-list-desc ${tag.description ? '' : 'tag-list-desc-muted'}`}>
+                              {tag.description || 'No description yet'}
+                            </span>
+                          </div>
+                          <span className="tag-list-edit-pill">
+                            <Edit3 size={13} className="tag-list-edit-icon" />
+                            Edit
+                          </span>
+                        </button>
+                      );
+                    })
                   )}
                 </div>
               </div>
@@ -639,20 +559,20 @@ function Profile({ availableTags, setAvailableTags }) {
         )}
       </div>
 
-      {showColorPicker && (
-        <ColorPicker
-          color={editingTagIndex !== null ? availableTags[editingTagIndex].color : newTagColor}
-          onChange={(newColor) => {
-            if (editingTagIndex !== null) {
-              handleUpdateTagColor(editingTagIndex, newColor);
-            } else {
-              setNewTagColor(newColor);
+      {showTagModal && (
+        <AddTagModal
+          onClose={() => {
+            setShowTagModal(false);
+            setEditingTag(null);
+          }}
+          onSave={handleSaveTag}
+          onDelete={(tagId) => {
+            const tagIndex = availableTags.findIndex(t => t.id === tagId);
+            if (tagIndex !== -1) {
+              handleDeleteTag(tagIndex);
             }
           }}
-          onClose={() => {
-            setShowColorPicker(false);
-            setEditingTagIndex(null);
-          }}
+          editingTag={editingTag}
         />
       )}
 

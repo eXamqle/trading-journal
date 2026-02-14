@@ -12,7 +12,7 @@ router.get('/', (req, res) => {
   try {
     const { startDate, endDate } = req.query;
 
-    let query = 'SELECT id, date, content FROM journal_entries WHERE user_id = ?';
+    let query = 'SELECT date, content FROM journal_entries WHERE user_id = ?';
     const params = [req.userId];
 
     if (startDate) {
@@ -29,28 +29,11 @@ router.get('/', (req, res) => {
 
     const entries = db.prepare(query).all(...params);
 
-    // Get tags for all entries
-    const entriesWithTags = entries.map(entry => {
-      const tags = db.prepare(`
-        SELECT t.name, t.color
-        FROM journal_tags jt
-        JOIN tags t ON jt.tag_id = t.id
-        WHERE jt.journal_entry_id = ?
-      `).all(entry.id);
-
-      return {
-        date: entry.date,
-        content: entry.content,
-        tags: tags.map(tag => tag.name)
-      };
-    });
-
-    // Convert to object format { "2024-01-15": { content: "...", tags: [...] }, ... }
+    // Convert to object format { "2024-01-15": { content: "..." }, ... }
     const entriesObject = {};
-    entriesWithTags.forEach(entry => {
+    entries.forEach(entry => {
       entriesObject[entry.date] = {
-        content: entry.content,
-        tags: entry.tags
+        content: entry.content
       };
     });
 
@@ -67,25 +50,16 @@ router.get('/:date', (req, res) => {
     const { date } = req.params;
 
     const entry = db.prepare(
-      'SELECT id, date, content FROM journal_entries WHERE user_id = ? AND date = ?'
+      'SELECT date, content FROM journal_entries WHERE user_id = ? AND date = ?'
     ).get(req.userId, date);
 
     if (!entry) {
       return res.status(404).json({ message: 'Journal entry not found' });
     }
 
-    // Get tags for this entry
-    const tags = db.prepare(`
-      SELECT t.name, t.color
-      FROM journal_tags jt
-      JOIN tags t ON jt.tag_id = t.id
-      WHERE jt.journal_entry_id = ?
-    `).all(entry.id);
-
     res.json({
       date: entry.date,
-      content: entry.content,
-      tags: tags.map(tag => tag.name)
+      content: entry.content
     });
   } catch (error) {
     console.error('Get journal entry error:', error);
@@ -97,7 +71,7 @@ router.get('/:date', (req, res) => {
 router.put('/:date', (req, res) => {
   try {
     const { date } = req.params;
-    const { content, tags = [] } = req.body;
+    const { content } = req.body;
 
     if (!content) {
       return res.status(400).json({ message: 'Content is required' });
@@ -127,31 +101,15 @@ router.put('/:date', (req, res) => {
           UPDATE journal_entries
           SET content = ?, updated_at = CURRENT_TIMESTAMP
           WHERE user_id = ? AND date = ?
-        `).run(content, req.userId, date);
+        `).run(cleanedContent, req.userId, date);
         journalEntryId = existingEntry.id;
       } else {
         // Create new entry
         const result = db.prepare(`
           INSERT INTO journal_entries (user_id, date, content)
           VALUES (?, ?, ?)
-        `).run(req.userId, date, content);
+        `).run(req.userId, date, cleanedContent);
         journalEntryId = result.lastInsertRowid;
-      }
-
-      // Delete existing journal tags
-      db.prepare('DELETE FROM journal_tags WHERE journal_entry_id = ?').run(journalEntryId);
-
-      // Add new tags if provided
-      if (tags && tags.length > 0) {
-        const insertJournalTag = db.prepare('INSERT INTO journal_tags (journal_entry_id, tag_id) VALUES (?, ?)');
-
-        tags.forEach(tagName => {
-          // Find tag by name and user_id
-          const tag = db.prepare('SELECT id FROM tags WHERE user_id = ? AND name = ?').get(req.userId, tagName);
-          if (tag) {
-            insertJournalTag.run(journalEntryId, tag.id);
-          }
-        });
       }
 
       return journalEntryId;
@@ -159,7 +117,7 @@ router.put('/:date', (req, res) => {
 
     saveJournal();
 
-    res.json({ date, content, tags });
+    res.json({ date, content: cleanedContent });
   } catch (error) {
     console.error('Save journal entry error:', error);
     res.status(500).json({ message: 'Failed to save journal entry' });

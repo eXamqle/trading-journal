@@ -13,6 +13,42 @@ const router = express.Router();
 // All routes require authentication
 router.use(authenticateToken);
 
+const normalizeTagName = (tag) => {
+  if (typeof tag === 'string') {
+    const trimmed = tag.trim();
+    return trimmed || null;
+  }
+
+  if (tag && typeof tag === 'object' && typeof tag.name === 'string') {
+    const trimmed = tag.name.trim();
+    return trimmed || null;
+  }
+
+  return null;
+};
+
+const normalizeTagNames = (tags) => {
+  if (!Array.isArray(tags)) {
+    return [];
+  }
+
+  const uniqueNames = [];
+  const seen = new Set();
+
+  for (const tag of tags) {
+    const name = normalizeTagName(tag);
+    if (!name) continue;
+
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+
+    seen.add(key);
+    uniqueNames.push(name);
+  }
+
+  return uniqueNames;
+};
+
 // Get all trades for the authenticated user
 router.get('/', (req, res) => {
   try {
@@ -121,18 +157,29 @@ router.post('/', modifyLimiter, createTradeValidation, (req, res) => {
     const tradeId = result.lastInsertRowid;
 
     // Handle tags if provided
-    if (tags && Array.isArray(tags) && tags.length > 0) {
+    const normalizedTags = normalizeTagNames(tags);
+    if (normalizedTags.length > 0) {
       const insertTradeTag = db.prepare('INSERT INTO trade_tags (trade_id, tag_id) VALUES (?, ?)');
+      const findTagByName = db.prepare('SELECT id FROM tags WHERE user_id = @userId AND LOWER(name) = LOWER(@tagName)');
+      const createTag = db.prepare(`
+        INSERT INTO tags (user_id, name, color, description)
+        VALUES (@userId, @tagName, @color, @description)
+      `);
 
-      for (const tagName of tags) {
+      for (const tagName of normalizedTags) {
         // Find or create the tag
-        let tag = db.prepare('SELECT id FROM tags WHERE user_id = ? AND LOWER(name) = LOWER(?)').get(req.userId, tagName);
+        let tag = findTagByName.get({ userId: req.userId, tagName });
 
         if (!tag) {
           // Create new tag with a random color
           const colors = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6'];
           const randomColor = colors[Math.floor(Math.random() * colors.length)];
-          const tagResult = db.prepare('INSERT INTO tags (user_id, name, color) VALUES (?, ?, ?)').run(req.userId, tagName, randomColor);
+          const tagResult = createTag.run({
+            userId: req.userId,
+            tagName,
+            color: randomColor,
+            description: null
+          });
           tag = { id: tagResult.lastInsertRowid };
         }
 
@@ -208,22 +255,34 @@ router.put('/:id', modifyLimiter, updateTradeValidation, (req, res) => {
 
     // Update tags if provided
     if (tags !== undefined && Array.isArray(tags)) {
+      const normalizedTags = normalizeTagNames(tags);
+
       // Remove existing tag associations
       db.prepare('DELETE FROM trade_tags WHERE trade_id = ?').run(id);
 
       // Add new tag associations
-      if (tags.length > 0) {
+      if (normalizedTags.length > 0) {
         const insertTradeTag = db.prepare('INSERT INTO trade_tags (trade_id, tag_id) VALUES (?, ?)');
+        const findTagByName = db.prepare('SELECT id FROM tags WHERE user_id = @userId AND LOWER(name) = LOWER(@tagName)');
+        const createTag = db.prepare(`
+          INSERT INTO tags (user_id, name, color, description)
+          VALUES (@userId, @tagName, @color, @description)
+        `);
 
-        for (const tagName of tags) {
+        for (const tagName of normalizedTags) {
           // Find or create the tag
-          let tag = db.prepare('SELECT id FROM tags WHERE user_id = ? AND LOWER(name) = LOWER(?)').get(req.userId, tagName);
+          let tag = findTagByName.get({ userId: req.userId, tagName });
 
           if (!tag) {
             // Create new tag with a random color
             const colors = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6'];
             const randomColor = colors[Math.floor(Math.random() * colors.length)];
-            const tagResult = db.prepare('INSERT INTO tags (user_id, name, color) VALUES (?, ?, ?)').run(req.userId, tagName, randomColor);
+            const tagResult = createTag.run({
+              userId: req.userId,
+              tagName,
+              color: randomColor,
+              description: null
+            });
             tag = { id: tagResult.lastInsertRowid };
           }
 

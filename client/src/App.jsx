@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useLayoutEffect } from 'react';
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -120,6 +120,8 @@ function App() {
   });
   const [tradesExpanded, setTradesExpanded] = useState(false);
   const [editingTrade, setEditingTrade] = useState(null);
+  const [modalTabPanelHeight, setModalTabPanelHeight] = useState(null);
+  const [isModalTabAnimating, setIsModalTabAnimating] = useState(false);
 
   // Tags management
   const [availableTags, setAvailableTags] = useState([]);
@@ -175,17 +177,35 @@ function App() {
 
   // Handle Escape key for confirm modal
   useEffect(() => {
-    const handleEscape = (e) => {
-      if (e.key === 'Escape' && confirmModal.open) {
-        setConfirmModal({ ...confirmModal, open: false });
+    const handleConfirmKeyDown = (e) => {
+      if (!confirmModal.open) return;
+
+      if (e.key === 'Escape') {
+        setConfirmModal({ open: false, message: '', title: 'Confirm', onConfirm: null });
+        return;
+      }
+
+      if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+        const targetTag = e.target?.tagName?.toLowerCase();
+        const isTypingTarget =
+          targetTag === 'input' ||
+          targetTag === 'textarea' ||
+          targetTag === 'select' ||
+          e.target?.isContentEditable;
+
+        if (isTypingTarget) return;
+
+        e.preventDefault();
+        confirmModal.onConfirm && confirmModal.onConfirm();
+        setConfirmModal({ open: false, message: '', title: 'Confirm', onConfirm: null });
       }
     };
 
     if (confirmModal.open) {
-      window.addEventListener('keydown', handleEscape);
-      return () => window.removeEventListener('keydown', handleEscape);
+      window.addEventListener('keydown', handleConfirmKeyDown);
+      return () => window.removeEventListener('keydown', handleConfirmKeyDown);
     }
-  }, [confirmModal]);
+  }, [confirmModal.open, confirmModal.onConfirm]);
 
   // Handle Escape key for reader modal
   useEffect(() => {
@@ -259,7 +279,12 @@ function App() {
   const loadTags = async () => {
     try {
       const { data } = await tagsAPI.getAll();
-      setAvailableTags(data.tags.map(tag => ({ name: tag.name, color: tag.color, id: tag.id })));
+      setAvailableTags(data.tags.map(tag => ({
+        name: tag.name,
+        color: tag.color,
+        description: tag.description,
+        id: tag.id
+      })));
     } catch (error) {
       console.error('Failed to load tags:', error);
     }
@@ -279,6 +304,9 @@ function App() {
   const editorInitialized = useRef(false);
   const symbolInputRef = useRef(null);
   const hasAutoFocused = useRef(false);
+  const modalTradePanelRef = useRef(null);
+  const modalJournalPanelRef = useRef(null);
+  const modalTabAnimationTimeoutRef = useRef(null);
   const [activeFormats, setActiveFormats] = useState({
     bold: false,
     italic: false,
@@ -293,13 +321,14 @@ function App() {
   const categories = ['Crypto', 'Forex', 'Futures', 'Options', 'Stocks'];
 
   // Helper function to calculate P&L from trades
+  const getTradeNet = (trade) => {
+    const amount = parseFloat(trade.amount) || 0;
+    const fees = parseFloat(trade.fees) || 0;
+    return amount - fees;
+  };
+
   const calculatePnL = (tradesArray) => {
-    return tradesArray.reduce((sum, trade) => {
-      const amount = parseFloat(trade.amount) || 0;
-      const fees = parseFloat(trade.fees) || 0;
-      // Always: amount - fees (type is just a label)
-      return sum + (amount - fees);
-    }, 0);
+    return tradesArray.reduce((sum, trade) => sum + getTradeNet(trade), 0);
   };
 
   // Get trades for a specific date range
@@ -324,6 +353,163 @@ function App() {
     });
   };
 
+  const yearReviewData = useMemo(() => {
+    const yearStart = startOfYear(currentDate);
+    const yearEnd = endOfYear(currentDate);
+    const yearTrades = getTradesInRange(yearStart, yearEnd);
+    const months = Array.from({ length: 12 }, (_, i) => addMonths(yearStart, i));
+
+    const summarizeDimension = (items, minCount = 2) => {
+      const map = new Map();
+
+      items.forEach((item) => {
+        const name = (item.name || '').trim();
+        if (!name) return;
+        const agg = map.get(name) || { name, pnl: 0, count: 0 };
+        agg.pnl += item.net;
+        agg.count += 1;
+        map.set(name, agg);
+      });
+
+      const allValues = [...map.values()];
+      const qualifiedValues = allValues.filter((entry) => entry.count >= minCount);
+      const source = qualifiedValues.length > 0 ? qualifiedValues : allValues;
+      const best = [...source].sort((a, b) => b.pnl - a.pnl).find((entry) => entry.pnl > 0) || null;
+      const worst = [...source].sort((a, b) => a.pnl - b.pnl).find((entry) => entry.pnl < 0) || null;
+
+      return { best, worst, values: allValues };
+    };
+
+    const yearCategoryItems = yearTrades.map((trade) => ({
+      name: (trade.category || 'Uncategorized').trim() || 'Uncategorized',
+      net: getTradeNet(trade)
+    }));
+
+    const yearTagItems = yearTrades.flatMap((trade) => {
+      const tradeNet = getTradeNet(trade);
+      const tagNames = Array.isArray(trade.tags)
+        ? trade.tags
+          .map((tag) => (typeof tag === 'string' ? tag : tag?.name))
+          .filter(Boolean)
+        : [];
+
+      return tagNames.map((name) => ({ name, net: tradeNet }));
+    });
+
+    const categorySummary = summarizeDimension(yearCategoryItems, 2);
+    const tagSummary = summarizeDimension(yearTagItems, 2);
+
+    const repeatCandidates = [
+      categorySummary.best ? { ...categorySummary.best, source: 'Market' } : null,
+      tagSummary.best ? { ...tagSummary.best, source: 'Tag' } : null
+    ].filter(Boolean);
+
+    const leakCandidates = [
+      categorySummary.worst ? { ...categorySummary.worst, source: 'Market' } : null,
+      tagSummary.worst ? { ...tagSummary.worst, source: 'Tag' } : null
+    ].filter(Boolean);
+
+    const repeatItem = repeatCandidates.length > 0
+      ? [...repeatCandidates].sort((a, b) => b.pnl - a.pnl)[0]
+      : null;
+    const avoidItem = leakCandidates.length > 0
+      ? [...leakCandidates].sort((a, b) => a.pnl - b.pnl)[0]
+      : null;
+
+    const monthRows = months.map((monthDate) => {
+      const monthStart = startOfMonth(monthDate);
+      const monthEnd = endOfMonth(monthDate);
+      const monthTrades = getTradesInRange(monthStart, monthEnd);
+      const tradeNets = monthTrades.map((trade) => getTradeNet(trade));
+      const pnl = tradeNets.reduce((sum, value) => sum + value, 0);
+      const wins = tradeNets.filter((value) => value > 0).length;
+      const losses = tradeNets.filter((value) => value < 0).length;
+      const winRate = monthTrades.length > 0 ? (wins / monthTrades.length) * 100 : 0;
+      const avgWin = wins > 0 ? tradeNets.filter((value) => value > 0).reduce((sum, value) => sum + value, 0) / wins : 0;
+      const avgLoss = losses > 0 ? Math.abs(tradeNets.filter((value) => value < 0).reduce((sum, value) => sum + value, 0) / losses) : 0;
+      const activeDays = new Set(monthTrades.map((trade) => format(new Date(trade.date), 'yyyy-MM-dd'))).size;
+
+      const monthTagItems = monthTrades.flatMap((trade) => {
+        const tradeNet = getTradeNet(trade);
+        const tagNames = Array.isArray(trade.tags)
+          ? trade.tags
+            .map((tag) => (typeof tag === 'string' ? tag : tag?.name))
+            .filter(Boolean)
+          : [];
+        return tagNames.map((name) => ({ name, net: tradeNet }));
+      });
+
+      const monthTagSummary = summarizeDimension(monthTagItems, 2);
+
+      return {
+        key: format(monthDate, 'yyyy-MM'),
+        monthDate,
+        monthLabel: format(monthDate, 'MMM'),
+        monthLongLabel: format(monthDate, 'MMMM'),
+        pnl,
+        tradeCount: monthTrades.length,
+        wins,
+        losses,
+        winRate,
+        avgWin,
+        avgLoss,
+        activeDays,
+        bestTag: monthTagSummary.best,
+        worstTag: monthTagSummary.worst
+      };
+    });
+
+    const tradesByDay = new Map();
+    yearTrades.forEach((trade) => {
+      const dateKey = format(new Date(trade.date), 'yyyy-MM-dd');
+      const existing = tradesByDay.get(dateKey) || { dateKey, pnl: 0, tradeCount: 0 };
+      existing.pnl += getTradeNet(trade);
+      existing.tradeCount += 1;
+      tradesByDay.set(dateKey, existing);
+    });
+
+    const dailyRows = [...tradesByDay.values()].sort((a, b) => new Date(a.dateKey) - new Date(b.dateKey));
+
+    let runningEquity = 0;
+    let runningPeak = 0;
+    let maxDrawdown = 0;
+    dailyRows.forEach((day) => {
+      runningEquity += day.pnl;
+      runningPeak = Math.max(runningPeak, runningEquity);
+      maxDrawdown = Math.min(maxDrawdown, runningEquity - runningPeak);
+    });
+
+    const worstLossDays = [...dailyRows]
+      .filter((day) => day.pnl < 0)
+      .sort((a, b) => a.pnl - b.pnl)
+      .slice(0, 5);
+    const fallbackReviewDays = [...dailyRows]
+      .sort((a, b) => b.tradeCount - a.tradeCount)
+      .slice(0, 5);
+
+    const totalTrades = yearTrades.length;
+    const totalPnL = calculatePnL(yearTrades);
+    const expectancy = totalTrades > 0 ? totalPnL / totalTrades : 0;
+    const tradedMonths = monthRows.filter((row) => row.tradeCount > 0).length;
+    const profitableMonths = monthRows.filter((row) => row.tradeCount > 0 && row.pnl > 0).length;
+    const profitableMonthRate = tradedMonths > 0 ? (profitableMonths / tradedMonths) * 100 : 0;
+
+    return {
+      year: format(currentDate, 'yyyy'),
+      totalTrades,
+      totalPnL,
+      expectancy,
+      tradedMonths,
+      profitableMonths,
+      profitableMonthRate,
+      maxDrawdown: Math.abs(maxDrawdown),
+      monthRows,
+      repeatItem,
+      avoidItem,
+      reviewQueue: worstLossDays.length > 0 ? worstLossDays : fallbackReviewDays
+    };
+  }, [currentDate, trades]);
+
   const nextPeriod = () => {
     if (activeTab === 'Week') {
       setCurrentDate(addWeeks(currentDate, 1));
@@ -344,6 +530,75 @@ function App() {
     }
   };
 
+  const resetModalTabAnimation = () => {
+    if (modalTabAnimationTimeoutRef.current) {
+      clearTimeout(modalTabAnimationTimeoutRef.current);
+      modalTabAnimationTimeoutRef.current = null;
+    }
+    setIsModalTabAnimating(false);
+    setModalTabPanelHeight(null);
+  };
+
+  const getModalTabPanelElement = (tabName = modalTab) => {
+    return tabName === 'journal' ? modalJournalPanelRef.current : modalTradePanelRef.current;
+  };
+
+  const switchModalTab = (nextTab) => {
+    if (nextTab === modalTab) {
+      setViewingJournal(false);
+      return;
+    }
+
+    const currentPanel = getModalTabPanelElement(modalTab);
+    const currentHeight = currentPanel?.offsetHeight || 0;
+
+    if (currentHeight > 0) {
+      setModalTabPanelHeight(currentHeight);
+    } else {
+      setModalTabPanelHeight(null);
+    }
+
+    setViewingJournal(false);
+    setIsModalTabAnimating(true);
+    setModalTab(nextTab);
+  };
+
+  useLayoutEffect(() => {
+    if (!selectedDate || !isModalTabAnimating) return;
+
+    const targetPanel = getModalTabPanelElement(modalTab);
+    if (!targetPanel) return;
+
+    const targetHeight = targetPanel.offsetHeight;
+    requestAnimationFrame(() => {
+      setModalTabPanelHeight(targetHeight);
+    });
+
+    if (modalTabAnimationTimeoutRef.current) {
+      clearTimeout(modalTabAnimationTimeoutRef.current);
+    }
+
+    modalTabAnimationTimeoutRef.current = setTimeout(() => {
+      setModalTabPanelHeight(null);
+      setIsModalTabAnimating(false);
+      modalTabAnimationTimeoutRef.current = null;
+    }, 220);
+  }, [modalTab, isModalTabAnimating, selectedDate]);
+
+  useEffect(() => {
+    if (!selectedDate) {
+      resetModalTabAnimation();
+    }
+  }, [selectedDate]);
+
+  useEffect(() => {
+    return () => {
+      if (modalTabAnimationTimeoutRef.current) {
+        clearTimeout(modalTabAnimationTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const openModal = (date, forceViewMode = false) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -355,11 +610,11 @@ function App() {
       return;
     }
 
-    if (activeTab === 'Week' || isSameMonth(date, startOfMonth(currentDate))) {
+    if (activeTab === 'Week' || activeTab === 'Year' || isSameMonth(date, startOfMonth(currentDate))) {
       const dateKey = format(date, 'yyyy-MM-dd');
       const existingJournal = journalEntries[dateKey]?.content || '';
-      const existingJournalTags = journalEntries[dateKey]?.tags || [];
 
+      resetModalTabAnimation();
       setSelectedDate(date);
       setJournalContent(existingJournal);
 
@@ -370,13 +625,12 @@ function App() {
       setTradesExpanded(false);
 
       // Reset form data when opening from calendar (for new entries)
-      // Pre-fill tags with journal tags if they exist
       setFormData({
         symbol: '',
         amount: '',
         category: '',
         fees: '',
-        tags: existingJournalTags
+        tags: []
       });
       setTradeType('profit');
 
@@ -406,8 +660,8 @@ function App() {
     const today = new Date();
     const dateKey = format(today, 'yyyy-MM-dd');
     const existingJournal = journalEntries[dateKey]?.content || '';
-    const existingJournalTags = journalEntries[dateKey]?.tags || [];
 
+    resetModalTabAnimation();
     setSelectedDate(today);
     setJournalContent(existingJournal);
     setModalTab('journal');
@@ -415,13 +669,13 @@ function App() {
     setViewingJournal(false);
     setTradesExpanded(false);
 
-    // Reset form data but keep existing journal tags
+    // Reset form data
     setFormData({
       symbol: '',
       amount: '',
       category: '',
       fees: '',
-      tags: existingJournalTags
+      tags: []
     });
     setTradeType('profit');
   };
@@ -434,6 +688,7 @@ function App() {
   const handleEditJournalFromReader = () => {
     setReaderModalOpen(false);
     setViewingJournal(false);
+    resetModalTabAnimation();
     setModalTab('journal');
 
     // Clear form data to prevent accidentally creating duplicate trades
@@ -509,6 +764,8 @@ function App() {
     // Set the editing trade
     setEditingTrade(trade);
 
+    resetModalTabAnimation();
+
     // Set the selected date to the trade's date
     setSelectedDate(trade.date);
 
@@ -518,7 +775,11 @@ function App() {
       amount: trade.amount.toString(),
       category: trade.category,
       fees: trade.fees ? trade.fees.toString() : '',
-      tags: trade.tags || []
+      tags: Array.isArray(trade.tags)
+        ? trade.tags
+          .map((tag) => (typeof tag === 'string' ? tag : tag?.name))
+          .filter(Boolean)
+        : []
     });
 
     // Set the trade type
@@ -529,7 +790,7 @@ function App() {
 
     // Load existing journal content for this date if any
     const dateKey = format(trade.date, 'yyyy-MM-dd');
-    const existingJournal = journalEntries[dateKey] || '';
+    const existingJournal = journalEntries[dateKey]?.content || '';
     setJournalContent(existingJournal);
 
     // Reset other states
@@ -539,15 +800,19 @@ function App() {
   };
 
   const closeModal = async (shouldSave = true) => {
+    const normalizedJournalContent = typeof journalContent === 'string'
+      ? journalContent
+      : (journalContent?.content || '');
+
     // Save journal content before closing only if shouldSave is true and content is not empty
-    const hasContent = journalContent && journalContent.replace(/<[^>]*>/g, '').trim() !== '';
+    const hasContent = normalizedJournalContent && normalizedJournalContent.replace(/<[^>]*>/g, '').trim() !== '';
     if (shouldSave && selectedDate && hasContent) {
       const dateKey = format(selectedDate, 'yyyy-MM-dd');
       try {
-        await journalAPI.saveEntry(dateKey, journalContent, formData.tags);
+        await journalAPI.saveEntry(dateKey, normalizedJournalContent);
         setJournalEntries(prev => ({
           ...prev,
-          [dateKey]: { content: journalContent, tags: formData.tags }
+          [dateKey]: { content: normalizedJournalContent }
         }));
       } catch (error) {
         console.error('Failed to save journal:', error);
@@ -556,6 +821,7 @@ function App() {
       }
     }
 
+    resetModalTabAnimation();
     setSelectedDate(null);
     setModalTab('add');
     setTradeType('profit');
@@ -803,16 +1069,14 @@ function App() {
         // Alt+Left Arrow to switch to Add Trade tab
         if (e.altKey && e.key === 'ArrowLeft' && !journalOnlyMode) {
           e.preventDefault();
-          setModalTab('add');
-          setViewingJournal(false);
+          switchModalTab('add');
           return;
         }
 
         // Alt+Right Arrow to switch to Journal tab
         if (e.altKey && e.key === 'ArrowRight' && !journalOnlyMode) {
           e.preventDefault();
-          setModalTab('journal');
-          setViewingJournal(false);
+          switchModalTab('journal');
           return;
         }
 
@@ -1065,13 +1329,16 @@ function App() {
       }
 
       // Save journal if there's content (not just empty HTML tags or whitespace)
-      const hasJournalContent = journalContent && journalContent.replace(/<[^>]*>/g, '').trim() !== '';
+      const normalizedJournalContent = typeof journalContent === 'string'
+        ? journalContent
+        : (journalContent?.content || '');
+      const hasJournalContent = normalizedJournalContent && normalizedJournalContent.replace(/<[^>]*>/g, '').trim() !== '';
       if (hasJournalContent) {
         const dateKey = format(selectedDate, 'yyyy-MM-dd');
-        await journalAPI.saveEntry(dateKey, journalContent, formData.tags);
+        await journalAPI.saveEntry(dateKey, normalizedJournalContent);
         setJournalEntries(prev => ({
           ...prev,
-          [dateKey]: { content: journalContent, tags: formData.tags }
+          [dateKey]: { content: normalizedJournalContent }
         }));
         journalSaved = true;
       }
@@ -1143,6 +1410,17 @@ function App() {
           >
             <CalendarIcon size={20} />
             <span>Calendar</span>
+          </div>
+          <div
+            className="nav-link"
+            onClick={() => setCurrentView('journalEntries')}
+            style={{
+              marginRight: '12px',
+              cursor: 'pointer'
+            }}
+          >
+            <FileText size={20} />
+            <span>Journal</span>
           </div>
           <div className="profile-dropdown-container">
             <div
@@ -1322,10 +1600,13 @@ function App() {
             const dayPnL = calculatePnL(dayTrades);
             const hasTrades = dayTrades.length > 0;
 
-            // Get unique tags for this day (from both trades and journal)
-            const tradeTags = dayTrades.flatMap(trade => trade.tags || []);
-            const journalTags = journalEntries[dateKey]?.tags || [];
-            const dayTags = [...new Set([...tradeTags, ...journalTags])];
+            // Get unique tags for this day (from trades only)
+            const tradeTags = dayTrades.flatMap(trade =>
+              Array.isArray(trade.tags)
+                ? trade.tags.map(t => typeof t === 'string' ? t : t.name)
+                : []
+            );
+            const dayTags = [...new Set(tradeTags)];
             const uniqueTagsWithColors = dayTags
               .map(tagName => availableTags.find(t => t.name === tagName))
               .filter(Boolean)
@@ -1349,14 +1630,25 @@ function App() {
                     {uniqueTagsWithColors.map((tag, idx) => (
                       <span
                         key={idx}
-                        className="day-tag"
-                        style={{ backgroundColor: tag.color }}
-                        title={tag.name}
-                      />
+                        className="tag-tooltip-anchor"
+                      >
+                        <span
+                          className="day-tag"
+                          style={{ backgroundColor: tag.color }}
+                        />
+                        <span className="tag-hover-tooltip">
+                          <span className="tag-hover-title">{tag.name}</span>
+                          {tag.description && <span className="tag-hover-desc">{tag.description}</span>}
+                        </span>
+                      </span>
                     ))}
                     {dayTags.length > 3 && (
-                      <span className="day-tag-more" title={`+${dayTags.length - 3} more`}>
+                      <span className="day-tag-more tag-tooltip-anchor">
                         +{dayTags.length - 3}
+                        <span className="tag-hover-tooltip">
+                          <span className="tag-hover-title">+{dayTags.length - 3} more tags</span>
+                          <span className="tag-hover-desc">{dayTags.slice(3).join(' • ')}</span>
+                        </span>
                       </span>
                     )}
                   </div>
@@ -1426,10 +1718,13 @@ function App() {
             const dayPnL = calculatePnL(dayTrades);
             const hasTrades = dayTrades.length > 0;
 
-            // Get unique tags for this day (from both trades and journal)
-            const tradeTags = dayTrades.flatMap(trade => trade.tags || []);
-            const journalTags = journalEntries[dateKey]?.tags || [];
-            const dayTags = [...new Set([...tradeTags, ...journalTags])];
+            // Get unique tags for this day (from trades only)
+            const tradeTags = dayTrades.flatMap(trade =>
+              Array.isArray(trade.tags)
+                ? trade.tags.map(t => typeof t === 'string' ? t : t.name)
+                : []
+            );
+            const dayTags = [...new Set(tradeTags)];
             const uniqueTagsWithColors = dayTags
               .map(tagName => availableTags.find(t => t.name === tagName))
               .filter(Boolean)
@@ -1467,16 +1762,27 @@ function App() {
                           {uniqueTagsWithColors.map((tag, tidx) => (
                             <span
                               key={tidx}
-                              className="week-tag"
-                              style={{ backgroundColor: tag.color }}
-                              title={tag.name}
+                              className="tag-tooltip-anchor"
                             >
-                              {tag.name}
+                              <span
+                                className="week-tag"
+                                style={{ backgroundColor: tag.color }}
+                              >
+                                {tag.name}
+                              </span>
+                              <span className="tag-hover-tooltip">
+                                <span className="tag-hover-title">{tag.name}</span>
+                                {tag.description && <span className="tag-hover-desc">{tag.description}</span>}
+                              </span>
                             </span>
                           ))}
                           {dayTags.length > 4 && (
-                            <span className="week-tag-more" title={`+${dayTags.length - 4} more tags`}>
+                            <span className="week-tag-more tag-tooltip-anchor">
                               +{dayTags.length - 4}
+                              <span className="tag-hover-tooltip">
+                                <span className="tag-hover-title">+{dayTags.length - 4} more tags</span>
+                                <span className="tag-hover-desc">{dayTags.slice(4).join(' • ')}</span>
+                              </span>
                             </span>
                           )}
                         </div>
@@ -1502,78 +1808,14 @@ function App() {
   };
 
   const renderYearView = () => {
-    const yearStart = startOfYear(currentDate);
-    const currentYear = format(currentDate, 'yyyy');
-    const months = Array.from({ length: 12 }, (_, i) => addMonths(yearStart, i));
+    const formatSignedCurrency = (value) => {
+      const prefix = Math.abs(value) < 0.01 ? '' : value >= 0 ? '+' : '-';
+      return `${prefix}${symbol}${Math.abs(value).toFixed(2)}`;
+    };
 
-    const renderMiniCalendar = (month) => {
-      const monthStart = startOfMonth(month);
-      const startDay = getDay(monthStart);
-      const daysInMonth = getDaysInMonth(month);
-
-      // Create array of 35 cells (5 weeks x 7 days)
-      const cells = [];
-
-      // Add empty cells before month starts
-      for (let i = 0; i < startDay; i++) {
-        cells.push(<div key={`empty-${i}`} className="year-mini-day empty" title="" />);
-      }
-
-      // Add days of the month
-      for (let day = 1; day <= daysInMonth; day++) {
-        const date = new Date(format(month, 'yyyy'), format(month, 'M') - 1, day);
-        const isTodayDate = isToday(date);
-        const dateKey = format(date, 'yyyy-MM-dd');
-        const hasJournal = journalEntries[dateKey]?.content && journalEntries[dateKey].content.trim() !== '';
-
-        const dayTrades = getTradesForDate(date);
-        const dayPnL = calculatePnL(dayTrades);
-        const hasTrades = dayTrades.length > 0;
-
-        // Get tags for this day (from both trades and journal)
-        const tradeTags = dayTrades.flatMap(trade => trade.tags || []);
-        const journalTags = journalEntries[dateKey]?.tags || [];
-        const dayTags = [...new Set([...tradeTags, ...journalTags])];
-        const hasTags = dayTags.length > 0;
-        const tagsText = hasTags ? ` [${dayTags.join(', ')}]` : '';
-
-        const title = hasTrades
-          ? `${format(date, 'MMM d')}: ${Math.abs(dayPnL) < 0.01 ? '' : (dayPnL >= 0 ? '+' : '-')}${symbol}${Math.abs(dayPnL).toFixed(2)}${hasJournal ? ' 📝' : ''}${tagsText}`
-          : hasJournal
-          ? `${format(date, 'MMM d')}: Has journal 📝${tagsText}`
-          : hasTags
-          ? `${format(date, 'MMM d')}${tagsText}`
-          : `${format(date, 'MMM d')}: No trades`;
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const dateNormalized = new Date(date);
-        dateNormalized.setHours(0, 0, 0, 0);
-        const isFuture = dateNormalized > today;
-
-        let dayClass = 'year-mini-day neutral';
-        if (hasTrades) {
-          dayClass = `year-mini-day ${dayPnL >= 0 ? 'profit' : 'loss'}`;
-        }
-
-        cells.push(
-          <div
-            key={day}
-            className={`${dayClass} ${isTodayDate ? 'today' : ''} ${hasJournal ? 'has-journal' : ''} ${hasTags ? 'has-tags' : ''}`}
-            title={title}
-            onClick={() => !isFuture && openModal(date, false)}
-            style={{ cursor: isFuture ? 'not-allowed' : 'pointer', opacity: isFuture ? 0.5 : 1 }}
-          />
-        );
-      }
-
-      // Fill remaining cells to make 35
-      const remaining = 35 - cells.length;
-      for (let i = 0; i < remaining; i++) {
-        cells.push(<div key={`empty-end-${i}`} className="year-mini-day empty" title="" />);
-      }
-
-      return <div className="year-mini-calendar-grid">{cells}</div>;
+    const getPnLClass = (value) => {
+      if (Math.abs(value) < 0.01) return '';
+      return value >= 0 ? 'positive' : 'negative';
     };
 
     return (
@@ -1584,7 +1826,7 @@ function App() {
               <ChevronLeft className="h-5 w-5" />
             </button>
             <div className="year-view-title">
-              <span className="year-view-year">{currentYear}</span>
+              <span className="year-view-year">{yearReviewData.year}</span>
             </div>
             <button className="premium-month-btn hover:scale-110 transition-transform" onClick={nextPeriod}>
               <ChevronRight className="h-5 w-5" />
@@ -1592,34 +1834,79 @@ function App() {
           </div>
         </div>
 
-        <div className="year-months-grid">
-          {months.map((month, idx) => {
-            const monthStart = startOfMonth(month);
-            const monthEnd = endOfMonth(month);
-            const monthTrades = getTradesInRange(monthStart, monthEnd);
-            const monthTotal = calculatePnL(monthTrades);
-            const hasMonthTrades = monthTrades.length > 0;
+        <div className="year-review-kpis">
+          <div className="info-card year-review-kpi">
+            <span className="info-label">Net P&L</span>
+            <div className={`info-value ${getPnLClass(yearReviewData.totalPnL)}`}>
+              {formatSignedCurrency(yearReviewData.totalPnL)}
+            </div>
+            <div className="info-subtext">{yearReviewData.totalTrades} total trades</div>
+          </div>
+          <div className="info-card year-review-kpi">
+            <span className="info-label">Expectancy / Trade</span>
+            <div className={`info-value ${getPnLClass(yearReviewData.expectancy)}`}>
+              {formatSignedCurrency(yearReviewData.expectancy)}
+            </div>
+            <div className="info-subtext">Average outcome per trade</div>
+          </div>
+          <div className="info-card year-review-kpi">
+            <span className="info-label">Profitable Months</span>
+            <div className="info-value">
+              {yearReviewData.profitableMonths}/{yearReviewData.tradedMonths || 0}
+            </div>
+            <div className="info-subtext">{yearReviewData.profitableMonthRate.toFixed(0)}% of traded months</div>
+          </div>
+          <div className="info-card year-review-kpi">
+            <span className="info-label">Max Drawdown</span>
+            <div className={`info-value ${yearReviewData.maxDrawdown > 0 ? 'negative' : ''}`}>
+              -{symbol}{yearReviewData.maxDrawdown.toFixed(2)}
+            </div>
+            <div className="info-subtext">Largest peak-to-trough drop</div>
+          </div>
+        </div>
 
-            return (
-              <div
-                key={idx}
-                className="year-month-card"
-                style={{ animationDelay: `${idx * 40}ms` }}
+        <div className="year-review-table-card">
+          <div className="year-review-table-meta">
+            Click a month to open the calendar and review execution day by day.
+          </div>
+          <div className="year-review-table-head">
+            <span>Month</span>
+            <span>Net</span>
+            <span>Trades</span>
+            <span>Win %</span>
+            <span>Pattern Signal</span>
+            <span></span>
+          </div>
+          <div className="year-review-table-body">
+            {yearReviewData.monthRows.map((row) => (
+              <button
+                key={row.key}
+                type="button"
+                className={`year-review-row ${row.tradeCount === 0 ? 'empty' : ''}`}
+                onClick={() => {
+                  setCurrentDate(row.monthDate);
+                  setActiveTab('Month');
+                }}
               >
-                <div className="year-month-header">
-                  <span className="year-month-name">{format(month, 'MMM')}</span>
-                </div>
-                <div className="year-mini-calendar">
-                  {renderMiniCalendar(month)}
-                </div>
-                <div className={`year-month-total ${hasMonthTrades ? (Math.abs(monthTotal) < 0.01 ? 'text-slate-400' : (monthTotal >= 0 ? 'text-emerald-400' : 'text-red-400')) : 'text-slate-500'}`}>
-                  <span>
-                    {hasMonthTrades ? `${Math.abs(monthTotal) < 0.01 ? '' : (monthTotal >= 0 ? '+' : '-')}${symbol}${Math.abs(monthTotal).toFixed(2)}` : `${symbol}0`}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
+                <span className="year-review-cell year-review-month">{row.monthLongLabel}</span>
+                <span className={`year-review-cell year-review-net ${getPnLClass(row.pnl)}`}>
+                  {row.tradeCount > 0 ? formatSignedCurrency(row.pnl) : '—'}
+                </span>
+                <span className="year-review-cell year-review-trades">{row.tradeCount > 0 ? row.tradeCount : '—'}</span>
+                <span className="year-review-cell year-review-winrate">
+                  {row.tradeCount > 0 ? `${row.winRate.toFixed(0)}%` : '—'}
+                </span>
+                <span className="year-review-cell year-review-pattern">
+                  <span className="year-review-pattern-good">{row.bestTag ? `+${row.bestTag.name}` : '—'}</span>
+                  <span className="year-review-pattern-bad">{row.worstTag ? ` / -${row.worstTag.name}` : ''}</span>
+                </span>
+                <span className="year-review-cell year-review-open">
+                  Inspect
+                  <ChevronRight size={14} />
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -1634,12 +1921,24 @@ function App() {
     if (!selectedDate || readerModalOpen) return null;
 
     // Calculate today's stats for real-time insights
-    const todayTrades = getTradesForDate(selectedDate).sort((a, b) => {
+    const allTodayTrades = getTradesForDate(selectedDate).sort((a, b) => {
       // Sort by created_at timestamp (oldest first)
       return new Date(a.created_at) - new Date(b.created_at);
     });
-    const todayPnL = calculatePnL(todayTrades);
+    const todayPnL = calculatePnL(allTodayTrades);
+    const editingTradeId = editingTrade?.id !== undefined && editingTrade?.id !== null
+      ? String(editingTrade.id)
+      : null;
+    const todayTrades = editingTradeId
+      ? allTodayTrades.filter((trade) => String(trade.id) !== editingTradeId)
+      : allTodayTrades;
+    const todayTradesPnL = calculatePnL(todayTrades);
     const todayTradeCount = todayTrades.length;
+    const isJournalTab = modalTab === 'journal';
+    const primaryStart = isJournalTab ? '#8b5cf6' : '#3b82f6';
+    const primaryEnd = isJournalTab ? '#7c3aed' : '#2563eb';
+    const primaryShadow = isJournalTab ? 'rgba(139, 92, 246, 0.25)' : 'rgba(59, 130, 246, 0.25)';
+    const primaryShadowHover = isJournalTab ? 'rgba(139, 92, 246, 0.36)' : 'rgba(59, 130, 246, 0.35)';
 
     return (
       <div className="modal-overlay">
@@ -1687,17 +1986,15 @@ function App() {
 
                   const totalDailyPnL = existingPnL + currentTradePnL;
 
-                  let displayColor = '#10b981'; // green for profit
+                  let displayColor = '#10b981';
                   let DisplayIcon = TrendingUp;
                   let prefix = '+';
 
                   if (Math.abs(totalDailyPnL) < 0.01) {
-                    // Breakeven (close to $0)
                     displayColor = '#64748b';
                     DisplayIcon = Minus;
                     prefix = '';
                   } else if (totalDailyPnL < 0) {
-                    // Loss
                     displayColor = '#ef4444';
                     DisplayIcon = TrendingDown;
                     prefix = '-';
@@ -1705,7 +2002,9 @@ function App() {
 
                   return (
                     <div style={{
-                      padding: '0.5rem 0.75rem',
+                      height: '2.5rem',
+                      boxSizing: 'border-box',
+                      padding: '0 0.75rem',
                       background: `${displayColor}15`,
                       borderRadius: '0.5rem',
                       border: `1px solid ${displayColor}40`,
@@ -1734,11 +2033,11 @@ function App() {
                 }}>
                   <button
                     onClick={() => {
-                      setModalTab('add');
-                      setViewingJournal(false);
+                      switchModalTab('add');
                     }}
                     style={{
                       padding: '0.375rem 0.75rem',
+                      height: '2rem',
                       borderRadius: '0.375rem',
                       border: 'none',
                       background: modalTab === 'add' ? 'var(--accent-blue)' : 'transparent',
@@ -1758,11 +2057,11 @@ function App() {
                   </button>
                   <button
                     onClick={() => {
-                      setModalTab('journal');
-                      setViewingJournal(false);
+                      switchModalTab('journal');
                     }}
                     style={{
                       padding: '0.375rem 0.75rem',
+                      height: '2rem',
                       borderRadius: '0.375rem',
                       border: 'none',
                       background: modalTab === 'journal' ? '#8b5cf6' : 'transparent',
@@ -1786,17 +2085,20 @@ function App() {
           </div>
 
           <div className="modal-body modal-body-entry">
-
-            {viewingJournal ? (
-              <div className="journal-view-container" style={{ padding: '1rem 0' }}>
-                <div
-                  className="journal-view-content"
-                  dangerouslySetInnerHTML={{ __html: journalContent }}
-                  style={{ maxHeight: '60vh', overflowY: 'auto', padding: '0.5rem' }}
-                />
-              </div>
-            ) : modalTab === 'add' ? (
-              <div key="trade-tab" className="tab-content-animate">
+            <div
+              className={`modal-tab-panel-shell ${isModalTabAnimating ? 'animating' : ''}`}
+              style={modalTabPanelHeight !== null ? { height: `${modalTabPanelHeight}px` } : undefined}
+            >
+              {viewingJournal ? (
+                <div className="journal-view-container" style={{ padding: '1rem 0' }}>
+                  <div
+                    className="journal-view-content"
+                    dangerouslySetInnerHTML={{ __html: journalContent }}
+                    style={{ maxHeight: '60vh', overflowY: 'auto', padding: '0.5rem' }}
+                  />
+                </div>
+              ) : modalTab === 'add' ? (
+                <div ref={modalTradePanelRef} key="trade-tab" className="tab-content-animate modal-tab-panel">
                 <form onSubmit={(e) => { e.preventDefault(); handleSaveEntry(); }} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {/* Compact, focused input fields */}
                 <div className="modal-form-row">
@@ -2136,164 +2438,102 @@ function App() {
 
                 {/* Historic trades for this day (collapsible) */}
                 {todayTradeCount > 0 && (
-                  <div style={{ marginTop: '0.75rem' }}>
+                  <div className="today-trades-block">
                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-                      Today's Trades
+                      Trades
                     </label>
-                    <div style={{
-                      padding: '0.625rem 0.875rem',
-                      background: todayPnL >= 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                      borderRadius: '0.5rem',
-                      border: `1px solid ${todayPnL >= 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
-                    }}>
+                    <div className="today-trades-panel">
                       <button
                         type="button"
                         onClick={() => setTradesExpanded(!tradesExpanded)}
-                        style={{
-                          width: '100%',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          padding: 0
-                        }}
+                        className="today-trades-toggle"
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <span style={{
-                            fontSize: '0.75rem',
-                            fontWeight: 500,
-                            color: 'var(--text-secondary)'
-                          }}>
+                        <div className="today-trades-summary">
+                          <span className="today-trades-count">
                             {todayTradeCount} {todayTradeCount === 1 ? 'trade' : 'trades'}
                           </span>
-                          <span style={{
-                            fontSize: '0.875rem',
-                            fontWeight: 600,
-                            color: Math.abs(todayPnL) < 0.01 ? '#94a3b8' : (todayPnL >= 0 ? '#10b981' : '#ef4444')
-                          }}>
-                            {Math.abs(todayPnL) < 0.01 ? '' : (todayPnL >= 0 ? '+' : '-')}{symbol}{Math.abs(todayPnL).toFixed(2)}
+                          <span className={`today-trades-total ${Math.abs(todayTradesPnL) < 0.01 ? 'neutral' : (todayTradesPnL >= 0 ? 'positive' : 'negative')}`}>
+                            {Math.abs(todayTradesPnL) < 0.01 ? '' : (todayTradesPnL >= 0 ? '+' : '-')}{symbol}{Math.abs(todayTradesPnL).toFixed(2)}
                           </span>
                         </div>
                         <ChevronRight
                           size={14}
-                          style={{
-                            color: 'var(--text-secondary)',
-                            transform: tradesExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                            transition: 'transform 0.2s'
-                          }}
+                          className={`today-trades-chevron ${tradesExpanded ? 'expanded' : ''}`}
                         />
                       </button>
 
-                      {tradesExpanded && (
-                        <div style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '0.375rem',
-                          marginTop: '0.625rem',
-                          paddingTop: '0.625rem',
-                          borderTop: `1px solid ${todayPnL >= 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`
-                        }}>
-                          {todayTrades.map((trade) => {
-                            const amount = parseFloat(trade.amount) || 0;
-                            const fees = parseFloat(trade.fees) || 0;
-                            // Always: amount - fees
-                            const pnl = amount - fees;
+                      <div className={`today-trades-list ${tradesExpanded ? 'expanded' : ''}`} aria-hidden={!tradesExpanded}>
+                        {todayTrades.map((trade, tradeIndex) => {
+                          const amount = parseFloat(trade.amount) || 0;
+                          const fees = parseFloat(trade.fees) || 0;
+                          // Always: amount - fees
+                          const pnl = amount - fees;
+                          const tradeTagNames = Array.isArray(trade.tags)
+                            ? trade.tags
+                              .map((tag) => (typeof tag === 'string' ? tag : tag?.name))
+                              .filter(Boolean)
+                            : [];
+                          const tradeTagDetails = tradeTagNames
+                            .map((tagName) => availableTags.find((tag) => tag.name === tagName) || { name: tagName, color: '#3b82f6' })
+                            .slice(0, 3);
+                          const overflowTagCount = tradeTagNames.length - tradeTagDetails.length;
 
-                            return (
-                              <div
-                                key={trade.id}
-                                style={{
-                                  display: 'flex',
-                                  justifyContent: 'space-between',
-                                  alignItems: 'center',
-                                  padding: '0.5rem',
-                                  background: 'var(--bg-primary)',
-                                  borderRadius: '0.375rem',
-                                  cursor: 'pointer',
-                                  border: '1px solid transparent',
-                                  transition: 'all 0.2s ease',
-                                  transform: 'scale(1)'
-                                }}
-                                onClick={() => handleEditTrade(trade)}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.background = 'rgba(148, 163, 184, 0.1)';
-                                  e.currentTarget.style.borderColor = 'var(--border-color)';
-                                  e.currentTarget.style.transform = 'scale(1.02)';
-                                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.background = 'var(--bg-primary)';
-                                  e.currentTarget.style.borderColor = 'transparent';
-                                  e.currentTarget.style.transform = 'scale(1)';
-                                  e.currentTarget.style.boxShadow = 'none';
-                                }}
-                              >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
-                                  <span style={{
-                                    fontWeight: 600,
-                                    fontSize: '0.8125rem',
-                                    color: 'var(--text-primary)'
-                                  }}>
-                                    {trade.symbol}
-                                  </span>
-                                  <span style={{
-                                    fontSize: '0.6875rem',
-                                    color: 'var(--text-secondary)',
-                                    padding: '0.125rem 0.375rem',
-                                    background: 'var(--bg-secondary)',
-                                    borderRadius: '0.25rem'
-                                  }}>
-                                    {trade.category}
-                                  </span>
-                                  <span
-                                    style={{
-                                      fontSize: '0.8125rem',
-                                      fontWeight: 600,
-                                      color: Math.abs(pnl) < 0.01 ? '#94a3b8' : (pnl >= 0 ? '#10b981' : '#ef4444'),
-                                      marginLeft: 'auto',
-                                      marginRight: '0.5rem'
-                                    }}
-                                  >
-                                    {Math.abs(pnl) < 0.01 ? '' : (pnl >= 0 ? '+' : '-')}{symbol}{Math.abs(pnl).toFixed(2)}
-                                  </span>
+                          return (
+                            <div
+                              key={trade.id}
+                              className="today-trade-row"
+                              style={{ '--today-trade-delay': `${Math.min(tradeIndex * 45, 220)}ms` }}
+                              onClick={() => handleEditTrade(trade)}
+                            >
+                              <div className="today-trade-main">
+                                <div className="today-trade-line">
+                                  <span className="today-trade-symbol">{trade.symbol}</span>
+                                  <span className="today-trade-separator">-</span>
+                                  <span className="today-trade-market">{trade.category}</span>
+                                  {tradeTagDetails.length > 0 && (
+                                    <div className="today-trade-tags-inline">
+                                      {tradeTagDetails.map((tag) => (
+                                        <span
+                                          key={`${trade.id}-${tag.name}`}
+                                          className="today-trade-tag"
+                                          style={{
+                                            backgroundColor: `${tag.color}1A`,
+                                            borderColor: `${tag.color}4D`,
+                                            color: tag.color
+                                          }}
+                                        >
+                                          {tag.name}
+                                        </span>
+                                      ))}
+                                      {overflowTagCount > 0 && (
+                                        <span className="today-trade-tag today-trade-tag-more">
+                                          +{overflowTagCount}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteTrade(trade.id);
-                                  }}
-                                  style={{
-                                    background: 'none',
-                                    border: 'none',
-                                    color: 'var(--text-secondary)',
-                                    cursor: 'pointer',
-                                    padding: '0.25rem',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    opacity: 0.6,
-                                    transition: 'opacity 0.2s, color 0.2s'
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.opacity = '1';
-                                    e.currentTarget.style.color = '#ef4444';
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.opacity = '0.6';
-                                    e.currentTarget.style.color = 'var(--text-secondary)';
-                                  }}
-                                  title="Delete trade"
-                                >
-                                  <X size={14} />
-                                </button>
                               </div>
-                            );
-                          })}
-                        </div>
-                      )}
+                              <div className="today-trade-actions">
+                                <span className={`today-trade-pnl ${Math.abs(pnl) < 0.01 ? 'neutral' : (pnl >= 0 ? 'positive' : 'negative')}`}>
+                                  {Math.abs(pnl) < 0.01 ? '' : (pnl >= 0 ? '+' : '-')}{symbol}{Math.abs(pnl).toFixed(2)}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteTrade(trade.id);
+                                }}
+                                className="today-trade-delete"
+                                title="Delete trade"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -2330,9 +2570,9 @@ function App() {
                                 padding: '0.375rem 0.625rem',
                                 borderRadius: '0.5rem',
                                 fontSize: '0.75rem',
-                                background: isSelected ? tag.color : 'rgba(148, 163, 184, 0.08)',
-                                border: `1px solid ${isSelected ? tag.color : 'rgba(148, 163, 184, 0.2)'}`,
-                                color: isSelected ? 'white' : 'var(--text-primary)',
+                                border: `1px solid ${isSelected ? `${tag.color}4D` : 'rgba(148, 163, 184, 0.2)'}`,
+                                color: isSelected ? tag.color : 'var(--text-primary)',
+                                background: isSelected ? `${tag.color}1A` : 'rgba(148, 163, 184, 0.08)',
                                 cursor: 'pointer',
                                 transition: 'all 0.15s',
                                 whiteSpace: 'nowrap',
@@ -2347,12 +2587,11 @@ function App() {
                               onMouseLeave={(e) => {
                                 if (!isSelected) {
                                   e.currentTarget.style.borderColor = 'rgba(148, 163, 184, 0.3)';
-                                  e.currentTarget.style.color = '#94a3b8';
+                                  e.currentTarget.style.color = 'var(--text-primary)';
                                 }
                               }}
                             >
                               {tag.name}
-                              {isSelected && <span style={{ fontSize: '0.625rem' }}>✓</span>}
                             </button>
                           );
                         })}
@@ -2362,13 +2601,13 @@ function App() {
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: '0.25rem',
+                            gap: '0.375rem',
                             padding: '0.375rem 0.625rem',
                             borderRadius: '0.5rem',
                             fontSize: '0.75rem',
-                            background: 'transparent',
-                            border: '1px dashed rgba(148, 163, 184, 0.3)',
-                            color: 'var(--text-secondary)',
+                            background: 'rgba(59, 130, 246, 0.08)',
+                            border: '1px dashed rgba(59, 130, 246, 0.3)',
+                            color: 'var(--accent-blue)',
                             cursor: 'pointer',
                             transition: 'all 0.15s',
                             whiteSpace: 'nowrap',
@@ -2376,25 +2615,26 @@ function App() {
                           }}
                           onMouseEnter={(e) => {
                             e.currentTarget.style.borderColor = 'var(--accent-blue)';
-                            e.currentTarget.style.color = 'var(--accent-blue)';
-                            e.currentTarget.style.background = 'rgba(59, 130, 246, 0.08)';
+                            e.currentTarget.style.background = 'rgba(59, 130, 246, 0.12)';
+                            e.currentTarget.style.borderStyle = 'solid';
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.borderColor = 'rgba(148, 163, 184, 0.3)';
-                            e.currentTarget.style.color = 'var(--text-secondary)';
-                            e.currentTarget.style.background = 'transparent';
+                            e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+                            e.currentTarget.style.background = 'rgba(59, 130, 246, 0.08)';
+                            e.currentTarget.style.borderStyle = 'dashed';
                           }}
                         >
-                          + add
+                          <PlusCircle size={12} />
+                          Add tag
                         </button>
                       </div>
                     </div>
                 )}
 
-              </form>
-              </div>
-            ) : modalTab === 'journal' ? (
-              <div key="journal-tab" className="journal-editor-container tab-content-animate">
+                </form>
+                </div>
+              ) : modalTab === 'journal' ? (
+                <div ref={modalJournalPanelRef} key="journal-tab" className="journal-editor-container tab-content-animate modal-tab-panel">
                 <div className="journal-toolbar">
                   <div className="journal-toolbar-group">
                     <button
@@ -2521,8 +2761,9 @@ function App() {
                   className="journal-image-input"
                   onChange={handleImageUpload}
                 />
-              </div>
-            ) : null}
+                </div>
+              ) : null}
+            </div>
 
             {/* Action buttons with keyboard shortcuts */}
             {!viewingJournal && (
@@ -2559,7 +2800,7 @@ function App() {
                     onClick={handleSaveEntry}
                     style={{
                       flex: 2,
-                      background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                      background: `linear-gradient(135deg, ${primaryStart} 0%, ${primaryEnd} 100%)`,
                       border: 'none',
                       color: 'white',
                       padding: '0.75rem 1.25rem',
@@ -2572,16 +2813,16 @@ function App() {
                       justifyContent: 'center',
                       gap: '0.5rem',
                       transition: 'all 0.2s',
-                      boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)',
+                      boxShadow: `0 4px 12px ${primaryShadow}`,
                       position: 'relative'
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.35)';
+                      e.currentTarget.style.boxShadow = `0 6px 16px ${primaryShadowHover}`;
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.25)';
+                      e.currentTarget.style.boxShadow = `0 4px 12px ${primaryShadow}`;
                     }}
                   >
                     {editingTrade ? <EditIcon size={16} strokeWidth={2.5} /> : <PlusCircle size={16} strokeWidth={2.5} />}
@@ -2610,6 +2851,74 @@ function App() {
   };
 
   const renderSidebar = () => {
+    if (activeTab === 'Year') {
+      const formatSignedCurrency = (value) => {
+        const prefix = Math.abs(value) < 0.01 ? '' : value >= 0 ? '+' : '-';
+        return `${prefix}${symbol}${Math.abs(value).toFixed(2)}`;
+      };
+
+      const getPnLClass = (value) => {
+        if (Math.abs(value) < 0.01) return '';
+        return value >= 0 ? 'positive' : 'negative';
+      };
+
+      return (
+        <aside className="sidebar-section year-review-sidebar">
+          <h2 className="sidebar-title">{yearReviewData.year} Playbook</h2>
+
+          <div className="info-card">
+            <span className="info-label">Repeat More</span>
+            <div className="year-playbook-title">
+              {yearReviewData.repeatItem
+                ? `${yearReviewData.repeatItem.source}: ${yearReviewData.repeatItem.name}`
+                : 'No strong edge pattern yet'}
+            </div>
+            <div className={`year-playbook-value ${getPnLClass(yearReviewData.repeatItem?.pnl || 0)}`}>
+              {yearReviewData.repeatItem
+                ? `${formatSignedCurrency(yearReviewData.repeatItem.pnl)} across ${yearReviewData.repeatItem.count} trades`
+                : 'Add more tagged and categorized trades to identify repeatable edge.'}
+            </div>
+          </div>
+
+          <div className="info-card">
+            <span className="info-label">Cut This Leak</span>
+            <div className="year-playbook-title">
+              {yearReviewData.avoidItem
+                ? `${yearReviewData.avoidItem.source}: ${yearReviewData.avoidItem.name}`
+                : 'No recurring leak detected'}
+            </div>
+            <div className={`year-playbook-value ${getPnLClass(yearReviewData.avoidItem?.pnl || 0)}`}>
+              {yearReviewData.avoidItem
+                ? `${formatSignedCurrency(yearReviewData.avoidItem.pnl)} across ${yearReviewData.avoidItem.count} trades`
+                : 'Good sign: no repeated losing pattern with enough sample size.'}
+            </div>
+          </div>
+
+          <div className="info-card">
+            <span className="info-label">Review Queue</span>
+            <div className="year-playbook-sub">Most expensive days first. Open and annotate before next session.</div>
+            <div className="year-review-queue">
+              {yearReviewData.reviewQueue.length > 0 ? yearReviewData.reviewQueue.map((day) => (
+                <button
+                  key={day.dateKey}
+                  type="button"
+                  className="year-review-queue-item"
+                  onClick={() => openModal(new Date(day.dateKey), false)}
+                >
+                  <span className="year-review-queue-date">{format(new Date(day.dateKey), 'EEE, MMM d')}</span>
+                  <span className={`year-review-queue-pnl ${getPnLClass(day.pnl)}`}>
+                    {formatSignedCurrency(day.pnl)}
+                  </span>
+                </button>
+              )) : (
+                <div className="year-playbook-sub">No trade days found for this year.</div>
+              )}
+            </div>
+          </div>
+        </aside>
+      );
+    }
+
     // Determine date range and title based on active tab
     let startDate, endDate, title;
 
@@ -2617,10 +2926,6 @@ function App() {
       startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
       endDate = endOfWeek(currentDate, { weekStartsOn: 1 });
       title = `${format(startDate, 'MMM d')} - ${format(endDate, 'd, yyyy')}`;
-    } else if (activeTab === 'Year') {
-      startDate = startOfYear(currentDate);
-      endDate = endOfYear(currentDate);
-      title = `${format(currentDate, 'yyyy')} Statistics`;
     } else {
       // Default to Month
       startDate = startOfMonth(currentDate);
@@ -3161,7 +3466,7 @@ function App() {
                 onClick={() => setCurrentView('journalEntries')}
               >
                 <FileText size={16} />
-                Journal Entries
+                Journal
               </button>
             </div>
           </div>
