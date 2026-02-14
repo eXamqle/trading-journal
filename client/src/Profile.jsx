@@ -493,13 +493,13 @@ function Profile({ availableTags, setAvailableTags }) {
                       setEditingTag(null);
                       setShowTagModal(true);
                     }}
-                    className="journal-add-button tags-add-button"
+                    className="profile-update-button tags-add-button"
                     style={{
                       margin: 0
                     }}
                   >
                     <Plus size={16} />
-                    Add Tag
+                    Add
                   </button>
                 </div>
 
