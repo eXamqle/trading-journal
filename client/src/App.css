@@ -3374,26 +3374,31 @@ input, textarea, [contenteditable="true"], code {
 
 .analyze-type-badge {
   display: inline-block;
-  padding: 0.2rem 0.5rem;
-  border-radius: 9999px;
+  padding: 0.18rem 0.44rem;
+  border-radius: 0.38rem;
+  border: 1px solid transparent;
   font-size: 0.6875rem;
   font-weight: 600;
+  line-height: 1;
   text-transform: capitalize;
 }
 
 .analyze-type-profit {
   background: rgba(16, 185, 129, 0.1);
   color: var(--accent-green);
+  border-color: rgba(16, 185, 129, 0.28);
 }
 
 .analyze-type-loss {
   background: rgba(239, 68, 68, 0.1);
   color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.28);
 }
 
 .analyze-type-break-even {
   background: rgba(99, 102, 241, 0.1);
   color: #6366f1;
+  border-color: rgba(99, 102, 241, 0.28);
 }
 
 .nav-link {
@@ -7669,6 +7674,10 @@ button.new-tag-color-picker:focus {
   display: none;
 }
 
+.analyze-col-actions .actions-label-short {
+  display: none;
+}
+
 .analyze-pagination {
   display: flex;
   justify-content: space-between;
@@ -7773,13 +7782,28 @@ button.new-tag-color-picker:focus {
     padding: 0.15rem 0.35rem;
   }
 
+  .analyze-col-type {
+    width: 58px;
+  }
+
   .analyze-col-net {
     white-space: nowrap;
   }
 
   .analyze-col-actions {
     text-align: center;
-    width: 40px;
+    width: 48px;
+    min-width: 48px;
+    text-transform: none;
+    letter-spacing: 0.02em;
+  }
+
+  .analyze-col-actions .actions-label-full {
+    display: none;
+  }
+
+  .analyze-col-actions .actions-label-short {
+    display: inline;
   }
 
   .analyze-col-actions button {
@@ -7949,12 +7973,29 @@ button.new-tag-color-picker:focus {
   }
 
   .analyze-col-type .analyze-type-badge {
-    font-size: 0.62rem;
-    padding: 0.14rem 0.36rem;
+    font-size: 0.58rem;
+    padding: 0.12rem 0.3rem;
+    border-radius: 0.32rem;
+  }
+
+  .analyze-col-type {
+    width: 60px;
+    white-space: nowrap;
   }
 
   .analyze-col-actions {
-    width: 46px;
+    width: 50px;
+    min-width: 50px;
+    text-transform: none;
+    letter-spacing: 0.02em;
+  }
+
+  .analyze-col-actions .actions-label-full {
+    display: none;
+  }
+
+  .analyze-col-actions .actions-label-short {
+    display: inline;
   }
 
   .analyze-pagination {

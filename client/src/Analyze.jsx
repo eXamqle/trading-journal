@@ -1355,7 +1355,10 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                           Net P/L {getSortIcon('netPL')}
                         </div>
                       </th>
-                      <th className="analyze-col-actions" style={{ width: '60px', textAlign: 'center' }}>Actions</th>
+                      <th className="analyze-col-actions" style={{ width: '60px', textAlign: 'center' }}>
+                        <span className="actions-label-full">Actions</span>
+                        <span className="actions-label-short">Act</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1372,6 +1375,10 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                         const netPL = trade.type === 'profit' ? Math.abs(amount) - fees :
                                       trade.type === 'loss' ? -(Math.abs(amount) + fees) : -fees;
 
+                        const typeLabel = trade.type === 'break-even'
+                          ? (isCompactViewport ? 'BE' : 'Break Even')
+                          : trade.type.charAt(0).toUpperCase() + trade.type.slice(1);
+
                         return (
                           <tr
                             key={trade.id}
@@ -1386,8 +1393,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                             <td className="analyze-col-symbol"><strong>{trade.symbol}</strong></td>
                             <td className="analyze-col-type">
                               <span className={`analyze-type-badge analyze-type-${trade.type}`}>
-                                {trade.type === 'break-even' ? 'Break Even' :
-                                 trade.type.charAt(0).toUpperCase() + trade.type.slice(1)}
+                                {typeLabel}
                               </span>
                             </td>
                             <td className="analyze-col-category">{trade.category}</td>
