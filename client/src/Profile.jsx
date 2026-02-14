@@ -7,7 +7,7 @@ import { tagsAPI } from './api/tags';
 import AddTagModal from './AddTagModal';
 import { getTagColorMeta } from './tagColors';
 
-function Profile({ availableTags, setAvailableTags }) {
+function Profile({ availableTags, setAvailableTags, onTagsChanged }) {
   const { user, updateUser } = useAuth();
   const { currency, setCurrency } = useCurrency();
   const [activeTab, setActiveTab] = useState('account');
@@ -54,7 +54,7 @@ function Profile({ availableTags, setAvailableTags }) {
   useEffect(() => {
     const handleEscape = (e) => {
       if (e.key === 'Escape' && confirmModal.open) {
-        setConfirmModal({ ...confirmModal, open: false });
+        setConfirmModal({ open: false, message: '', title: 'Confirm', onConfirm: null });
       }
     };
 
@@ -159,6 +159,9 @@ function Profile({ availableTags, setAvailableTags }) {
             : tag
         );
         setAvailableTags(updatedTags);
+        if (typeof onTagsChanged === 'function') {
+          onTagsChanged();
+        }
       } else {
         // Create new tag
         const { data } = await tagsAPI.create({
@@ -172,6 +175,9 @@ function Profile({ availableTags, setAvailableTags }) {
           description: data.tag.description,
           id: data.tag.id
         }]);
+        if (typeof onTagsChanged === 'function') {
+          onTagsChanged();
+        }
       }
       setShowTagModal(false);
       setEditingTag(null);
@@ -189,15 +195,37 @@ function Profile({ availableTags, setAvailableTags }) {
     try {
       await tagsAPI.delete(tag.id);
       setAvailableTags(availableTags.filter((_, i) => i !== index));
+      if (typeof onTagsChanged === 'function') {
+        onTagsChanged();
+      }
+      setConfirmModal({ open: false, message: '', title: 'Confirm', onConfirm: null });
       setShowTagModal(false);
       setEditingTag(null);
     } catch (error) {
+      setConfirmModal({ open: false, message: '', title: 'Confirm', onConfirm: null });
       setAlertModal({
         open: true,
         message: error.response?.data?.message || 'Failed to delete tag. Please try again.',
         title: 'Error'
       });
     }
+  };
+
+  const requestDeleteTag = (tagId) => {
+    const tagIndex = availableTags.findIndex((t) => t.id === tagId);
+    if (tagIndex === -1) {
+      return;
+    }
+
+    const tag = availableTags[tagIndex];
+    const tagLabel = tag?.name ? `"${tag.name}"` : 'this tag';
+
+    setConfirmModal({
+      open: true,
+      title: 'Delete Tag Permanently',
+      message: `Delete ${tagLabel}? This is irreversible and will remove it from all existing trades.`,
+      onConfirm: () => handleDeleteTag(tagIndex)
+    });
   };
 
 
@@ -566,12 +594,7 @@ function Profile({ availableTags, setAvailableTags }) {
             setEditingTag(null);
           }}
           onSave={handleSaveTag}
-          onDelete={(tagId) => {
-            const tagIndex = availableTags.findIndex(t => t.id === tagId);
-            if (tagIndex !== -1) {
-              handleDeleteTag(tagIndex);
-            }
-          }}
+          onDelete={requestDeleteTag}
           editingTag={editingTag}
         />
       )}
@@ -706,7 +729,7 @@ function Profile({ availableTags, setAvailableTags }) {
           }}>
             <button
               className="close-modal"
-              onClick={() => setConfirmModal({ ...confirmModal, open: false })}
+              onClick={() => setConfirmModal({ open: false, message: '', title: 'Confirm', onConfirm: null })}
               style={{ zIndex: 10 }}
             >
               <X size={20} />
@@ -766,7 +789,7 @@ function Profile({ availableTags, setAvailableTags }) {
               gap: '0.75rem'
             }}>
               <button
-                onClick={() => setConfirmModal({ ...confirmModal, open: false })}
+                onClick={() => setConfirmModal({ open: false, message: '', title: 'Confirm', onConfirm: null })}
                 style={{
                   flex: 1,
                   padding: '0.75rem 1.5rem',

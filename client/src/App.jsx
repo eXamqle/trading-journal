@@ -126,6 +126,18 @@ function App() {
   // Tags management
   const [availableTags, setAvailableTags] = useState([]);
   const [showAddTagModal, setShowAddTagModal] = useState(false);
+  const availableTagMap = useMemo(() => {
+    const map = new Map();
+    availableTags.forEach((tag) => {
+      if (typeof tag?.name === 'string') {
+        const key = tag.name.trim().toLowerCase();
+        if (key) {
+          map.set(key, tag);
+        }
+      }
+    });
+    return map;
+  }, [availableTags]);
 
   // Recent markets tracking
   const [recentMarkets, setRecentMarkets] = useState(() => {
@@ -160,6 +172,29 @@ function App() {
   useEffect(() => {
     localStorage.setItem('recentMarkets', JSON.stringify(recentMarkets));
   }, [recentMarkets]);
+
+  useEffect(() => {
+    setFormData((prev) => {
+      if (!Array.isArray(prev.tags) || prev.tags.length === 0) {
+        return prev;
+      }
+
+      const nextTags = prev.tags.filter((tagName) => {
+        if (typeof tagName !== 'string') return false;
+        const key = tagName.trim().toLowerCase();
+        return key && availableTagMap.has(key);
+      });
+
+      if (nextTags.length === prev.tags.length) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        tags: nextTags
+      };
+    });
+  }, [availableTagMap]);
 
   // Handle Escape key for alert modal
   useEffect(() => {
@@ -279,15 +314,22 @@ function App() {
   const loadTags = async () => {
     try {
       const { data } = await tagsAPI.getAll();
-      setAvailableTags(data.tags.map(tag => ({
+      const mappedTags = data.tags.map(tag => ({
         name: tag.name,
         color: tag.color,
         description: tag.description,
         id: tag.id
-      })));
+      }));
+      setAvailableTags(mappedTags);
+      return mappedTags;
     } catch (error) {
       console.error('Failed to load tags:', error);
+      return [];
     }
+  };
+
+  const handleTagsChanged = async () => {
+    await Promise.all([loadTags(), loadTrades()]);
   };
 
   const updateRecentMarkets = (market) => {
@@ -1293,6 +1335,12 @@ function App() {
 
       // Save trade if form is filled
       if (formData.symbol && formData.amount && formData.category) {
+        const validTagNames = formData.tags.filter((tagName) => {
+          if (typeof tagName !== 'string') return false;
+          const key = tagName.trim().toLowerCase();
+          return key && availableTagMap.has(key);
+        });
+
         const tradeData = {
           date: format(selectedDate, 'yyyy-MM-dd'),
           type: tradeType,
@@ -1300,7 +1348,7 @@ function App() {
           amount: formData.amount,
           category: formData.category,
           fees: formData.fees || '0',
-          tags: formData.tags
+          tags: validTagNames
         };
 
         if (editingTrade) {
@@ -1607,10 +1655,13 @@ function App() {
                 : []
             );
             const dayTags = [...new Set(tradeTags)];
-            const uniqueTagsWithColors = dayTags
-              .map(tagName => availableTags.find(t => t.name === tagName))
+            const matchedDayTags = dayTags
+              .map((tagName) => {
+                const key = typeof tagName === 'string' ? tagName.trim().toLowerCase() : '';
+                return key ? availableTagMap.get(key) : null;
+              })
               .filter(Boolean)
-              .slice(0, 3); // Limit to 3 tags
+            const uniqueTagsWithColors = matchedDayTags.slice(0, 3); // Limit to 3 tags
 
             return (
               <div
@@ -1642,12 +1693,12 @@ function App() {
                         </span>
                       </span>
                     ))}
-                    {dayTags.length > 3 && (
+                    {matchedDayTags.length > 3 && (
                       <span className="day-tag-more tag-tooltip-anchor">
-                        +{dayTags.length - 3}
+                        +{matchedDayTags.length - 3}
                         <span className="tag-hover-tooltip">
-                          <span className="tag-hover-title">+{dayTags.length - 3} more tags</span>
-                          <span className="tag-hover-desc">{dayTags.slice(3).join(' • ')}</span>
+                          <span className="tag-hover-title">+{matchedDayTags.length - 3} more tags</span>
+                          <span className="tag-hover-desc">{matchedDayTags.slice(3).map((tag) => tag.name).join(' • ')}</span>
                         </span>
                       </span>
                     )}
@@ -1725,10 +1776,13 @@ function App() {
                 : []
             );
             const dayTags = [...new Set(tradeTags)];
-            const uniqueTagsWithColors = dayTags
-              .map(tagName => availableTags.find(t => t.name === tagName))
+            const matchedDayTags = dayTags
+              .map((tagName) => {
+                const key = typeof tagName === 'string' ? tagName.trim().toLowerCase() : '';
+                return key ? availableTagMap.get(key) : null;
+              })
               .filter(Boolean)
-              .slice(0, 4); // Limit to 4 tags
+            const uniqueTagsWithColors = matchedDayTags.slice(0, 4); // Limit to 4 tags
 
             return (
               <div
@@ -1776,12 +1830,12 @@ function App() {
                               </span>
                             </span>
                           ))}
-                          {dayTags.length > 4 && (
+                          {matchedDayTags.length > 4 && (
                             <span className="week-tag-more tag-tooltip-anchor">
-                              +{dayTags.length - 4}
+                              +{matchedDayTags.length - 4}
                               <span className="tag-hover-tooltip">
-                                <span className="tag-hover-title">+{dayTags.length - 4} more tags</span>
-                                <span className="tag-hover-desc">{dayTags.slice(4).join(' • ')}</span>
+                                <span className="tag-hover-title">+{matchedDayTags.length - 4} more tags</span>
+                                <span className="tag-hover-desc">{matchedDayTags.slice(4).map((tag) => tag.name).join(' • ')}</span>
                               </span>
                             </span>
                           )}
@@ -2456,10 +2510,14 @@ function App() {
                               .map((tag) => (typeof tag === 'string' ? tag : tag?.name))
                               .filter(Boolean)
                             : [];
-                          const tradeTagDetails = tradeTagNames
-                            .map((tagName) => availableTags.find((tag) => tag.name === tagName) || { name: tagName, color: '#3b82f6' })
-                            .slice(0, 3);
-                          const overflowTagCount = tradeTagNames.length - tradeTagDetails.length;
+                          const resolvedTradeTags = tradeTagNames
+                            .map((tagName) => {
+                              const key = typeof tagName === 'string' ? tagName.trim().toLowerCase() : '';
+                              return key ? availableTagMap.get(key) : null;
+                            })
+                            .filter(Boolean);
+                          const tradeTagDetails = resolvedTradeTags.slice(0, 3);
+                          const overflowTagCount = Math.max(0, resolvedTradeTags.length - tradeTagDetails.length);
 
                           return (
                             <div
@@ -3028,13 +3086,10 @@ function App() {
     )))];
     const readerTagDetails = readerTagNames
       .map((tagName) => {
-        const match = availableTags.find((tag) => tag.name === tagName);
-        return {
-          name: tagName,
-          color: match?.color || '#3b82f6',
-          description: match?.description || ''
-        };
-      });
+        const key = typeof tagName === 'string' ? tagName.trim().toLowerCase() : '';
+        return key ? availableTagMap.get(key) : null;
+      })
+      .filter(Boolean);
     const readerPnLClass = Math.abs(readerPnL) < 0.01 ? 'neutral' : (readerPnL >= 0 ? 'profit' : 'loss');
     const readerPnLPrefix = Math.abs(readerPnL) < 0.01 ? '' : (readerPnL >= 0 ? '+' : '-');
 
@@ -3452,6 +3507,7 @@ function App() {
         <Profile
           availableTags={availableTags}
           setAvailableTags={setAvailableTags}
+          onTagsChanged={handleTagsChanged}
         />
       ) : currentView === 'journalEntries' ? (
         <JournalEntries

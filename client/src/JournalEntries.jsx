@@ -26,6 +26,18 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
   const [dateFilter, setDateFilter] = useState('');
   const [expandedYears, setExpandedYears] = useState({});
   const [expandedMonths, setExpandedMonths] = useState({});
+  const availableTagMap = useMemo(() => {
+    const map = new Map();
+    availableTags.forEach((tag) => {
+      if (typeof tag?.name === 'string') {
+        const key = tag.name.trim().toLowerCase();
+        if (key) {
+          map.set(key, tag);
+        }
+      }
+    });
+    return map;
+  }, [availableTags]);
 
   const today = new Date();
   const currentYear = format(today, 'yyyy');
@@ -90,6 +102,10 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
         const tags = entry.trades
           .flatMap((t) => (Array.isArray(t.tags) ? t.tags : []))
           .map((tag) => (typeof tag === 'string' ? tag : tag?.name || ''))
+          .filter((tagName) => {
+            const key = tagName.trim().toLowerCase();
+            return key && availableTagMap.has(key);
+          })
           .join(' ')
           .toLowerCase();
 
@@ -106,7 +122,7 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
     }
 
     return filtered;
-  }, [entriesArray, searchQuery, dateFilter]);
+  }, [entriesArray, searchQuery, dateFilter, availableTagMap]);
 
   // Sort entries by date (most recent first)
   const sortedEntries = useMemo(() => {
@@ -268,6 +284,10 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
         ? trade.tags
           .map((tag) => (typeof tag === 'string' ? tag : tag?.name))
           .filter(Boolean)
+          .filter((tagName) => {
+            const key = tagName.trim().toLowerCase();
+            return key && availableTagMap.has(key);
+          })
         : [];
 
       tagNames.forEach((tagName) => {
@@ -315,7 +335,7 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
       reviewQueue: lossQueue.length > 0 ? lossQueue : fallbackQueue,
       reviewQueueIsLossBased: lossQueue.length > 0
     };
-  }, [entriesArray, trades]);
+  }, [entriesArray, trades, availableTagMap]);
 
   return (
     <>
@@ -460,17 +480,14 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                                             : []
                                         )))]
                                         : [];
-                                      const entryTagDetails = entryTagNames
+                                      const matchedEntryTags = entryTagNames
                                         .map((tagName) => {
-                                          const match = availableTags.find((tag) => tag.name === tagName);
-                                          return {
-                                            name: tagName,
-                                            color: match?.color || '#3b82f6',
-                                            description: match?.description || ''
-                                          };
+                                          const key = typeof tagName === 'string' ? tagName.trim().toLowerCase() : '';
+                                          return key ? availableTagMap.get(key) : null;
                                         })
-                                        .slice(0, 6);
-                                      const hiddenTagCount = Math.max(0, entryTagNames.length - entryTagDetails.length);
+                                        .filter(Boolean);
+                                      const entryTagDetails = matchedEntryTags.slice(0, 6);
+                                      const hiddenTagCount = Math.max(0, matchedEntryTags.length - entryTagDetails.length);
 
                                       return (
                                         <div
