@@ -497,7 +497,7 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                                           tabIndex={0}
                                           onClick={() => onViewEntry(entry.date)}
                                           onKeyDown={(e) => {
-                                            if (e.key === 'Enter' || e.key === ' ') {
+                                            if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
                                               e.preventDefault();
                                               onViewEntry(entry.date);
                                             }
