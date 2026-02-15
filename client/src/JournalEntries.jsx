@@ -209,9 +209,29 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
     return `${text.substring(0, maxLength)}...`;
   };
 
+  const formatCompactValue = (absoluteValue) => {
+    if (absoluteValue < 1000) return absoluteValue.toFixed(2);
+    const tiers = [
+      { threshold: 1e12, suffix: 'T' },
+      { threshold: 1e9, suffix: 'B' },
+      { threshold: 1e6, suffix: 'M' },
+      { threshold: 1e3, suffix: 'k' },
+    ];
+    for (const { threshold, suffix } of tiers) {
+      if (absoluteValue >= threshold) {
+        const scaled = absoluteValue / threshold;
+        const formatted = scaled >= 100 ? scaled.toFixed(0)
+          : scaled >= 10 ? scaled.toFixed(1).replace(/\.0$/, '')
+          : scaled.toFixed(2).replace(/\.?0+$/, '');
+        return `${formatted}${suffix}`;
+      }
+    }
+    return absoluteValue.toFixed(2);
+  };
+
   const formatPnL = (value) => {
     const prefix = Math.abs(value) < 0.01 ? '' : value >= 0 ? '+' : '-';
-    return `${prefix}${symbol}${Math.abs(value).toFixed(2)}`;
+    return `${prefix}${symbol}${formatCompactValue(Math.abs(value))}`;
   };
 
   const getPnLClass = (value) => {
@@ -367,10 +387,14 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                   }}
                 />
               </div>
-              <div className="journal-date-filter">
+              <div className={`journal-date-filter${dateFilter ? ' has-value' : ''}`}>
+                <CalendarIcon size={15} className="journal-date-icon" />
+                <span className="journal-date-label">
+                  {dateFilter ? format(parseISO(dateFilter), 'MMM d, yyyy') : 'Filter date'}
+                </span>
                 <input
                   type="date"
-                  className="form-input journal-date-input"
+                  className="journal-date-input-native"
                   value={dateFilter}
                   onChange={(e) => setDateFilter(e.target.value)}
                 />

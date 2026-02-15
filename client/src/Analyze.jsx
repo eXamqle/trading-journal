@@ -47,6 +47,26 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
   const exportDropdownRef = useRef(null);
   const equityChartContainerRef = useRef(null);
 
+  const formatCompactValue = (absoluteValue) => {
+    if (absoluteValue < 1000) return absoluteValue.toFixed(2);
+    const tiers = [
+      { threshold: 1e12, suffix: 'T' },
+      { threshold: 1e9, suffix: 'B' },
+      { threshold: 1e6, suffix: 'M' },
+      { threshold: 1e3, suffix: 'k' },
+    ];
+    for (const { threshold, suffix } of tiers) {
+      if (absoluteValue >= threshold) {
+        const scaled = absoluteValue / threshold;
+        const formatted = scaled >= 100 ? scaled.toFixed(0)
+          : scaled >= 10 ? scaled.toFixed(1).replace(/\.0$/, '')
+          : scaled.toFixed(2).replace(/\.?0+$/, '');
+        return `${formatted}${suffix}`;
+      }
+    }
+    return absoluteValue.toFixed(2);
+  };
+
   const periods = ['Custom Range', 'This Week', 'This Month', 'Last 30 Days', 'This Year', 'All Time'];
   const types = ['All Types', 'Profit', 'Loss', 'Break Even'];
   const categories = ['All Categories', 'Crypto', 'Forex', 'Futures', 'Options', 'Stocks'];
@@ -726,10 +746,10 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                 </div>
               </div>
               <div className={`analyze-kpi-value ${Math.abs(kpis.netProfit) < 0.01 ? 'analyze-kpi-value-default' : (kpis.netProfit >= 0 ? 'analyze-kpi-value-profit' : 'analyze-kpi-value-loss')}`}>
-                {Math.abs(kpis.netProfit) < 0.01 ? '' : (kpis.netProfit >= 0 ? '+' : '-')}{symbol}{Math.abs(kpis.netProfit).toFixed(2)}
+                {Math.abs(kpis.netProfit) < 0.01 ? '' : (kpis.netProfit >= 0 ? '+' : '-')}{symbol}{formatCompactValue(Math.abs(kpis.netProfit))}
               </div>
               <p className="analyze-kpi-sublabel">
-                {kpis.totalFees > 0 ? `${symbol}${kpis.totalFees.toFixed(2)} in fees` : 'No fees recorded'}
+                {kpis.totalFees > 0 ? `${symbol}${formatCompactValue(kpis.totalFees)} in fees` : 'No fees recorded'}
               </p>
             </div>
 
@@ -784,7 +804,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                 </div>
               </div>
               <div className={`analyze-kpi-value ${Math.abs(kpis.bestDay) < 0.01 ? 'analyze-kpi-value-default' : (kpis.bestDay >= 0 ? 'analyze-kpi-value-profit' : 'analyze-kpi-value-loss')}`}>
-                {Math.abs(kpis.bestDay) < 0.01 ? '' : (kpis.bestDay >= 0 ? '+' : '-')}{symbol}{Math.abs(kpis.bestDay).toFixed(2)}
+                {Math.abs(kpis.bestDay) < 0.01 ? '' : (kpis.bestDay >= 0 ? '+' : '-')}{symbol}{formatCompactValue(Math.abs(kpis.bestDay))}
               </div>
               <p className="analyze-kpi-sublabel">Highest daily P&L</p>
             </div>
@@ -797,7 +817,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                 </div>
               </div>
               <div className={`analyze-kpi-value ${Math.abs(kpis.worstDay) < 0.01 ? 'analyze-kpi-value-default' : (kpis.worstDay >= 0 ? 'analyze-kpi-value-profit' : 'analyze-kpi-value-loss')}`}>
-                {Math.abs(kpis.worstDay) < 0.01 ? '' : (kpis.worstDay >= 0 ? '+' : '-')}{symbol}{Math.abs(kpis.worstDay).toFixed(2)}
+                {Math.abs(kpis.worstDay) < 0.01 ? '' : (kpis.worstDay >= 0 ? '+' : '-')}{symbol}{formatCompactValue(Math.abs(kpis.worstDay))}
               </div>
               <p className="analyze-kpi-sublabel">Lowest daily P&L</p>
             </div>
@@ -810,7 +830,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                 </div>
               </div>
               <div className={`analyze-kpi-value ${Math.abs(kpis.avgWin) < 0.01 ? 'analyze-kpi-value-default' : 'analyze-kpi-value-profit'}`}>
-                {Math.abs(kpis.avgWin) < 0.01 ? '' : '+'}{symbol}{kpis.avgWin.toFixed(2)}
+                {Math.abs(kpis.avgWin) < 0.01 ? '' : '+'}{symbol}{formatCompactValue(kpis.avgWin)}
               </div>
               <p className="analyze-kpi-sublabel">Average winning trade</p>
             </div>
@@ -823,7 +843,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                 </div>
               </div>
               <div className={`analyze-kpi-value ${Math.abs(kpis.avgLoss) < 0.01 ? 'analyze-kpi-value-default' : 'analyze-kpi-value-loss'}`}>
-                {Math.abs(kpis.avgLoss) < 0.01 ? '' : '-'}{symbol}{kpis.avgLoss.toFixed(2)}
+                {Math.abs(kpis.avgLoss) < 0.01 ? '' : '-'}{symbol}{formatCompactValue(kpis.avgLoss)}
               </div>
               <p className="analyze-kpi-sublabel">Average losing trade</p>
             </div>
@@ -914,7 +934,7 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                           fontWeight: '700',
                           color: netPL >= 0 ? '#10b981' : '#ef4444'
                         }}>
-                          {netPL >= 0 ? '+' : '-'}{symbol}{Math.abs(netPL).toFixed(2)}
+                          {netPL >= 0 ? '+' : '-'}{symbol}{formatCompactValue(Math.abs(netPL))}
                         </p>
                         <p style={{
                           color: 'var(--text-secondary)',
@@ -1182,10 +1202,10 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                           {dataPoints[hoveredPoint].symbol}
                         </div>
                         <div style={{ fontSize: isPhoneChart ? '0.8125rem' : '0.875rem', fontWeight: '600', color: dataPoints[hoveredPoint].netPL >= 0 ? '#10b981' : '#ef4444' }}>
-                          {dataPoints[hoveredPoint].netPL >= 0 ? '+' : '-'}{symbol}{Math.abs(dataPoints[hoveredPoint].netPL).toFixed(2)}
+                          {dataPoints[hoveredPoint].netPL >= 0 ? '+' : '-'}{symbol}{formatCompactValue(Math.abs(dataPoints[hoveredPoint].netPL))}
                         </div>
                         <div style={{ fontSize: isPhoneChart ? '0.6875rem' : '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)' }}>
-                          Total: {dataPoints[hoveredPoint].y >= 0 ? '+' : '-'}{symbol}{Math.abs(dataPoints[hoveredPoint].y).toFixed(2)}
+                          Total: {dataPoints[hoveredPoint].y >= 0 ? '+' : '-'}{symbol}{formatCompactValue(Math.abs(dataPoints[hoveredPoint].y))}
                         </div>
                       </div>
                     )}
@@ -1397,10 +1417,10 @@ function Analyze({ trades, onEditTrade, onDeleteTrade }) {
                               </span>
                             </td>
                             <td className="analyze-col-category">{trade.category}</td>
-                            <td className="text-right analyze-col-amount">{symbol}{amount.toFixed(2)}</td>
-                            <td className="text-right analyze-col-fees">{symbol}{fees.toFixed(2)}</td>
+                            <td className="text-right analyze-col-amount">{symbol}{formatCompactValue(amount)}</td>
+                            <td className="text-right analyze-col-fees">{symbol}{formatCompactValue(fees)}</td>
                             <td className={`text-right analyze-col-net ${netPL >= 0 ? 'text-profit' : 'text-loss'}`}>
-                              {netPL >= 0 ? '+' : '-'}{symbol}{Math.abs(netPL).toFixed(2)}
+                              {netPL >= 0 ? '+' : '-'}{symbol}{formatCompactValue(Math.abs(netPL))}
                             </td>
                             <td className="analyze-col-actions" style={{ textAlign: 'center' }}>
                               {onDeleteTrade && (

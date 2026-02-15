@@ -373,52 +373,41 @@ function App() {
     return tradesArray.reduce((sum, trade) => sum + getTradeNet(trade), 0);
   };
 
-  const formatMobileKValue = (absoluteValue) => {
-    // Keep cents without rounding up so the compact view matches the raw value.
-    const cents = Math.max(0, Math.trunc(absoluteValue * 100));
-    const whole = Math.floor(cents / 100).toString();
-    const fraction = (cents % 100).toString().padStart(2, '0');
-    const fixed = `${whole}.${fraction}`;
-
-    if (Number(whole) < 1000) {
-      return fixed;
+  const formatCompactValue = (absoluteValue) => {
+    if (absoluteValue < 1000) {
+      return absoluteValue.toFixed(2);
     }
 
-    const kCount = Math.max(1, whole.length - 3);
-    const divisor = 10 ** (kCount + 2);
-    const scaledHundredths = Math.trunc(cents / divisor);
-    const integerPart = Math.floor(scaledHundredths / 100);
-    const fracPart = (scaledHundredths % 100).toString().padStart(2, '0');
-    const scaled = fracPart === '00'
-      ? `${integerPart}`
-      : fracPart.endsWith('0')
-        ? `${integerPart}.${fracPart[0]}`
-        : `${integerPart}.${fracPart}`;
+    const tiers = [
+      { threshold: 1e12, suffix: 'T' },
+      { threshold: 1e9, suffix: 'B' },
+      { threshold: 1e6, suffix: 'M' },
+      { threshold: 1e3, suffix: 'k' },
+    ];
 
-    return `${scaled}${'K'.repeat(kCount)}`;
+    for (const { threshold, suffix } of tiers) {
+      if (absoluteValue >= threshold) {
+        const scaled = absoluteValue / threshold;
+        const formatted = scaled >= 100 ? scaled.toFixed(0)
+          : scaled >= 10 ? scaled.toFixed(1).replace(/\.0$/, '')
+          : scaled.toFixed(2).replace(/\.?0+$/, '');
+        return `${formatted}${suffix}`;
+      }
+    }
+
+    return absoluteValue.toFixed(2);
   };
 
   const formatDayCellPnL = (value) => {
     if (Math.abs(value) < 0.01) return '';
-
     const prefix = value >= 0 ? '+' : '-';
-    const absolute = Math.abs(value);
-    const isCompactViewport = typeof window !== 'undefined' && window.innerWidth <= 1200;
-    const shouldCompact = isCompactViewport;
-    const formattedValue = shouldCompact ? formatMobileKValue(absolute) : absolute.toFixed(2);
-
-    return `${prefix}${symbol}${formattedValue}`;
+    return `${prefix}${symbol}${formatCompactValue(Math.abs(value))}`;
   };
 
   const formatWeekRowPnL = (value) => {
     if (Math.abs(value) < 0.01) return '';
-
     const prefix = value >= 0 ? '+' : '-';
-    const absolute = Math.abs(value);
-    const isCompactViewport = typeof window !== 'undefined' && window.innerWidth <= 768;
-    const formattedValue = isCompactViewport ? formatMobileKValue(absolute) : absolute.toFixed(2);
-
-    return `${prefix}${symbol}${formattedValue}`;
+    return `${prefix}${symbol}${formatCompactValue(Math.abs(value))}`;
   };
 
   // Get trades for a specific date range
@@ -584,6 +573,23 @@ function App() {
     const profitableMonths = monthRows.filter((row) => row.tradeCount > 0 && row.pnl > 0).length;
     const profitableMonthRate = tradedMonths > 0 ? (profitableMonths / tradedMonths) * 100 : 0;
 
+    const allNets = yearTrades.map((trade) => getTradeNet(trade));
+    const totalWins = allNets.filter((n) => n > 0).length;
+    const totalLosses = allNets.filter((n) => n < 0).length;
+    const overallWinRate = totalTrades > 0 ? (totalWins / totalTrades) * 100 : 0;
+    const grossProfit = allNets.filter((n) => n > 0).reduce((s, v) => s + v, 0);
+    const grossLoss = Math.abs(allNets.filter((n) => n < 0).reduce((s, v) => s + v, 0));
+    const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
+    const totalFees = yearTrades.reduce((s, t) => s + (parseFloat(t.fees) || 0), 0);
+
+    const tradedMonthRows = monthRows.filter((r) => r.tradeCount > 0);
+    const bestMonth = tradedMonthRows.length > 0
+      ? [...tradedMonthRows].sort((a, b) => b.pnl - a.pnl)[0]
+      : null;
+    const worstMonth = tradedMonthRows.length > 0
+      ? [...tradedMonthRows].sort((a, b) => a.pnl - b.pnl)[0]
+      : null;
+
     return {
       year: format(currentDate, 'yyyy'),
       totalTrades,
@@ -593,6 +599,13 @@ function App() {
       profitableMonths,
       profitableMonthRate,
       maxDrawdown: Math.abs(maxDrawdown),
+      totalWins,
+      totalLosses,
+      overallWinRate,
+      profitFactor,
+      totalFees,
+      bestMonth,
+      worstMonth,
       monthRows,
       repeatItem,
       avoidItem,
@@ -1915,13 +1928,50 @@ function App() {
   const renderYearView = () => {
     const formatSignedCurrency = (value) => {
       const prefix = Math.abs(value) < 0.01 ? '' : value >= 0 ? '+' : '-';
-      return `${prefix}${symbol}${Math.abs(value).toFixed(2)}`;
+      return `${prefix}${symbol}${formatCompactValue(Math.abs(value))}`;
     };
 
     const getPnLClass = (value) => {
       if (Math.abs(value) < 0.01) return '';
       return value >= 0 ? 'positive' : 'negative';
     };
+
+    // --- Bar chart helpers ---
+    const barChartRows = yearReviewData.monthRows;
+    const maxAbsPnL = Math.max(...barChartRows.map((r) => Math.abs(r.pnl)), 1);
+    const barSvgWidth = 600;
+    const barSvgHeight = 200;
+    const barMarginLeft = 55;
+    const barMarginRight = 10;
+    const barMarginTop = 12;
+    const barMarginBottom = 28;
+    const barChartW = barSvgWidth - barMarginLeft - barMarginRight;
+    const barChartH = barSvgHeight - barMarginTop - barMarginBottom;
+    const barGap = 6;
+    const barW = (barChartW - barGap * 11) / 12;
+    const barZeroY = barMarginTop + barChartH / 2;
+
+    // Nice Y-axis ticks for bar chart
+    const getBarTicks = () => {
+      const step = (() => {
+        const raw = maxAbsPnL / 2;
+        const mag = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+        const norm = raw / mag;
+        if (norm <= 1) return mag;
+        if (norm <= 2) return 2 * mag;
+        if (norm <= 5) return 5 * mag;
+        return 10 * mag;
+      })();
+      const ticks = [];
+      for (let v = -step * 2; v <= step * 2; v += step) {
+        if (Math.abs(v) <= maxAbsPnL * 1.1) ticks.push(v);
+      }
+      if (!ticks.includes(0)) ticks.push(0);
+      return ticks.sort((a, b) => a - b);
+    };
+    const barTicks = getBarTicks();
+
+    const barYScale = (val) => barZeroY - (val / maxAbsPnL) * (barChartH / 2);
 
     return (
       <div key="year-view" className="year-view-container animate-fade-in">
@@ -1939,6 +1989,7 @@ function App() {
           </div>
         </div>
 
+        {/* KPI Cards - 8 cards */}
         <div className="year-review-kpis">
           <div className="info-card year-review-kpi">
             <span className="info-label">Net P&L</span>
@@ -1948,11 +1999,25 @@ function App() {
             <div className="info-subtext">{yearReviewData.totalTrades} total trades</div>
           </div>
           <div className="info-card year-review-kpi">
-            <span className="info-label">Expectancy / Trade</span>
+            <span className="info-label">Win Rate</span>
+            <div className="info-value">
+              {yearReviewData.overallWinRate.toFixed(0)}%
+            </div>
+            <div className="info-subtext">{yearReviewData.totalWins}W / {yearReviewData.totalLosses}L</div>
+          </div>
+          <div className="info-card year-review-kpi">
+            <span className="info-label">Profit Factor</span>
+            <div className={`info-value ${yearReviewData.profitFactor >= 1 ? 'positive' : yearReviewData.profitFactor > 0 ? 'negative' : ''}`}>
+              {yearReviewData.profitFactor === Infinity ? '∞' : yearReviewData.profitFactor.toFixed(2)}
+            </div>
+            <div className="info-subtext">Gross profit / gross loss</div>
+          </div>
+          <div className="info-card year-review-kpi">
+            <span className="info-label">Expectancy</span>
             <div className={`info-value ${getPnLClass(yearReviewData.expectancy)}`}>
               {formatSignedCurrency(yearReviewData.expectancy)}
             </div>
-            <div className="info-subtext">Average outcome per trade</div>
+            <div className="info-subtext">Average per trade</div>
           </div>
           <div className="info-card year-review-kpi">
             <span className="info-label">Profitable Months</span>
@@ -1964,12 +2029,91 @@ function App() {
           <div className="info-card year-review-kpi">
             <span className="info-label">Max Drawdown</span>
             <div className={`info-value ${yearReviewData.maxDrawdown > 0 ? 'negative' : ''}`}>
-              -{symbol}{yearReviewData.maxDrawdown.toFixed(2)}
+              -{symbol}{formatCompactValue(yearReviewData.maxDrawdown)}
             </div>
-            <div className="info-subtext">Largest peak-to-trough drop</div>
+            <div className="info-subtext">Largest peak-to-trough</div>
+          </div>
+          <div className="info-card year-review-kpi">
+            <span className="info-label">Total Fees</span>
+            <div className="info-value">
+              {symbol}{formatCompactValue(yearReviewData.totalFees)}
+            </div>
+            <div className="info-subtext">Across {yearReviewData.totalTrades} trades</div>
+          </div>
+          <div className="info-card year-review-kpi">
+            <span className="info-label">Best Month</span>
+            <div className={`info-value ${getPnLClass(yearReviewData.bestMonth?.pnl || 0)}`}>
+              {yearReviewData.bestMonth ? formatSignedCurrency(yearReviewData.bestMonth.pnl) : '—'}
+            </div>
+            <div className="info-subtext">{yearReviewData.bestMonth?.monthLongLabel || 'No trades yet'}</div>
           </div>
         </div>
 
+        {/* Monthly P&L Bar Chart */}
+        <div className="year-bar-chart-card">
+          <div className="year-bar-chart-title">Monthly P&L</div>
+          <div className="year-bar-chart-wrapper">
+            <svg viewBox={`0 0 ${barSvgWidth} ${barSvgHeight}`} className="year-bar-chart-svg" preserveAspectRatio="xMidYMid meet">
+              {/* Y-axis grid lines and labels */}
+              {barTicks.map((tick) => (
+                <g key={tick}>
+                  <line
+                    x1={barMarginLeft}
+                    x2={barSvgWidth - barMarginRight}
+                    y1={barYScale(tick)}
+                    y2={barYScale(tick)}
+                    stroke="var(--border-color)"
+                    strokeWidth={tick === 0 ? 1.2 : 0.5}
+                    strokeDasharray={tick === 0 ? 'none' : '4,3'}
+                  />
+                  <text
+                    x={barMarginLeft - 6}
+                    y={barYScale(tick) + 3.5}
+                    textAnchor="end"
+                    fill="var(--text-secondary)"
+                    fontSize="9"
+                    fontFamily="inherit"
+                  >
+                    {tick >= 0 ? '' : '-'}{symbol}{formatCompactValue(Math.abs(tick))}
+                  </text>
+                </g>
+              ))}
+              {/* Bars */}
+              {barChartRows.map((row, i) => {
+                const x = barMarginLeft + i * (barW + barGap);
+                const barHeight = Math.abs(row.pnl) / maxAbsPnL * (barChartH / 2);
+                const y = row.pnl >= 0 ? barZeroY - barHeight : barZeroY;
+                return (
+                  <g key={row.key}>
+                    <rect
+                      x={x}
+                      y={y}
+                      width={barW}
+                      height={Math.max(barHeight, 1)}
+                      rx={2}
+                      fill={row.tradeCount === 0 ? 'var(--bg-tertiary)' : row.pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}
+                      opacity={row.tradeCount === 0 ? 0.3 : 0.85}
+                    >
+                      <title>{row.monthLongLabel}: {row.tradeCount > 0 ? formatSignedCurrency(row.pnl) : 'No trades'}</title>
+                    </rect>
+                    <text
+                      x={x + barW / 2}
+                      y={barSvgHeight - 8}
+                      textAnchor="middle"
+                      fill="var(--text-secondary)"
+                      fontSize="9.5"
+                      fontFamily="inherit"
+                    >
+                      {row.monthLabel}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+        </div>
+
+        {/* Enriched Monthly Table */}
         <div className="year-review-table-card">
           <div className="year-review-table-meta">
             Click a month to open the calendar and review execution day by day.
@@ -1979,6 +2123,9 @@ function App() {
             <span>Net</span>
             <span>Trades</span>
             <span>Win %</span>
+            <span>Avg Win</span>
+            <span>Avg Loss</span>
+            <span>Days</span>
             <span></span>
           </div>
           <div className="year-review-table-body">
@@ -1999,6 +2146,15 @@ function App() {
                 <span className="year-review-cell year-review-trades">{row.tradeCount > 0 ? row.tradeCount : '—'}</span>
                 <span className="year-review-cell year-review-winrate">
                   {row.tradeCount > 0 ? `${row.winRate.toFixed(0)}%` : '—'}
+                </span>
+                <span className="year-review-cell year-review-avgwin">
+                  {row.wins > 0 ? `${symbol}${formatCompactValue(row.avgWin)}` : '—'}
+                </span>
+                <span className="year-review-cell year-review-avgloss">
+                  {row.losses > 0 ? `${symbol}${formatCompactValue(row.avgLoss)}` : '—'}
+                </span>
+                <span className="year-review-cell year-review-days">
+                  {row.tradeCount > 0 ? row.activeDays : '—'}
                 </span>
                 <span className="year-review-cell year-review-open">
                   Inspect
@@ -2071,7 +2227,7 @@ function App() {
 
     return (
       <div className="modal-overlay">
-        <div className="modal-content" style={{ maxWidth: '680px' }}>
+        <div className="modal-content" style={{ maxWidth: '780px' }}>
           {/* Unified Header - Date, Stats, Trades, Tabs all in one cohesive section */}
           <div style={{
             background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%)',
@@ -2100,7 +2256,7 @@ function App() {
                 }}>
                   <HeaderPnlIcon size={16} color={headerPnlColor} strokeWidth={2.5} />
                   <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: headerPnlColor }}>
-                    {headerPnlPrefix}{symbol}{Math.abs(totalDailyPnL).toFixed(2)}
+                    {headerPnlPrefix}{symbol}{formatCompactValue(Math.abs(totalDailyPnL))}
                   </span>
                 </div>
               </div>
@@ -2536,7 +2692,7 @@ function App() {
                             {todayTradeCount} {todayTradeCount === 1 ? 'trade' : 'trades'}
                           </span>
                           <span className={`today-trades-total ${Math.abs(todayTradesPnL) < 0.01 ? 'neutral' : (todayTradesPnL >= 0 ? 'positive' : 'negative')}`}>
-                            {Math.abs(todayTradesPnL) < 0.01 ? '' : (todayTradesPnL >= 0 ? '+' : '-')}{symbol}{Math.abs(todayTradesPnL).toFixed(2)}
+                            {Math.abs(todayTradesPnL) < 0.01 ? '' : (todayTradesPnL >= 0 ? '+' : '-')}{symbol}{formatCompactValue(Math.abs(todayTradesPnL))}
                           </span>
                         </div>
                         <ChevronRight
@@ -2603,7 +2759,7 @@ function App() {
                               </div>
                               <div className="today-trade-actions">
                                 <span className={`today-trade-pnl ${Math.abs(pnl) < 0.01 ? 'neutral' : (pnl >= 0 ? 'positive' : 'negative')}`}>
-                                  {Math.abs(pnl) < 0.01 ? '' : (pnl >= 0 ? '+' : '-')}{symbol}{Math.abs(pnl).toFixed(2)}
+                                  {Math.abs(pnl) < 0.01 ? '' : (pnl >= 0 ? '+' : '-')}{symbol}{formatCompactValue(Math.abs(pnl))}
                                 </span>
                               </div>
                               <button
@@ -2941,7 +3097,7 @@ function App() {
     if (activeTab === 'Year') {
       const formatSignedCurrency = (value) => {
         const prefix = Math.abs(value) < 0.01 ? '' : value >= 0 ? '+' : '-';
-        return `${prefix}${symbol}${Math.abs(value).toFixed(2)}`;
+        return `${prefix}${symbol}${formatCompactValue(Math.abs(value))}`;
       };
 
       const getPnLClass = (value) => {
@@ -3070,7 +3226,7 @@ function App() {
         <div className="info-card">
           <span className="info-label">Net Total</span>
           <div className={`info-value ${Math.abs(totalPnL) < 0.01 ? '' : (totalPnL >= 0 ? 'positive' : 'negative')}`}>
-            {Math.abs(totalPnL) < 0.01 ? '' : (totalPnL >= 0 ? '+' : '-')}{symbol}{Math.abs(totalPnL).toFixed(2)}
+            {Math.abs(totalPnL) < 0.01 ? '' : (totalPnL >= 0 ? '+' : '-')}{symbol}{formatCompactValue(Math.abs(totalPnL))}
           </div>
           <div className="info-subtext">Period P&L</div>
         </div>
@@ -3086,13 +3242,13 @@ function App() {
           <div className="perf-row">
             <span className="perf-label">Best Day</span>
             <span className={`perf-value ${Math.abs(bestDay) < 0.01 ? '' : (bestDay >= 0 ? 'positive' : 'negative')}`}>
-              {Math.abs(bestDay) < 0.01 ? '' : (bestDay >= 0 ? '+' : '-')}{symbol}{Math.abs(bestDay).toFixed(2)}
+              {Math.abs(bestDay) < 0.01 ? '' : (bestDay >= 0 ? '+' : '-')}{symbol}{formatCompactValue(Math.abs(bestDay))}
             </span>
           </div>
           <div className="perf-row">
             <span className="perf-label">Worst Day</span>
             <span className={`perf-value ${Math.abs(worstDay) < 0.01 ? '' : (worstDay >= 0 ? 'positive' : 'negative')}`}>
-              {Math.abs(worstDay) < 0.01 ? '' : (worstDay >= 0 ? '+' : '-')}{symbol}{Math.abs(worstDay).toFixed(2)}
+              {Math.abs(worstDay) < 0.01 ? '' : (worstDay >= 0 ? '+' : '-')}{symbol}{formatCompactValue(Math.abs(worstDay))}
             </span>
           </div>
         </div>
@@ -3102,13 +3258,13 @@ function App() {
           <div className="perf-row">
             <span className="perf-label">Avg Win</span>
             <span className={`perf-value ${Math.abs(avgWin) < 0.01 ? '' : 'positive'}`}>
-              {Math.abs(avgWin) < 0.01 ? '' : '+'}{symbol}{avgWin.toFixed(2)}
+              {Math.abs(avgWin) < 0.01 ? '' : '+'}{symbol}{formatCompactValue(avgWin)}
             </span>
           </div>
           <div className="perf-row">
             <span className="perf-label">Avg Loss</span>
             <span className={`perf-value ${Math.abs(avgLoss) < 0.01 ? '' : 'negative'}`}>
-              {Math.abs(avgLoss) < 0.01 ? '' : '-'}{symbol}{avgLoss.toFixed(2)}
+              {Math.abs(avgLoss) < 0.01 ? '' : '-'}{symbol}{formatCompactValue(avgLoss)}
             </span>
           </div>
         </div>
@@ -3145,54 +3301,48 @@ function App() {
         style={{ zIndex: 9999 }}
       >
         <div
-          className="modal-content"
-          style={{ maxWidth: '820px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+          className="modal-content reader-modal-content"
+          style={{ maxWidth: '820px', display: 'flex', flexDirection: 'column' }}
         >
           <button className="close-modal" onClick={handleCloseReader}>
             <X size={20} />
           </button>
 
-          <div className="modal-header" style={{ textAlign: 'left', padding: 'clamp(1rem, 3vw, 1.65rem) clamp(1rem, 3.5vw, 2rem) clamp(0.9rem, 2.4vw, 1.15rem)', borderBottom: '1px solid var(--border-color)', flexShrink: 0 }}>
-            <div className="reader-date-line">
-              <FileText size={24} color="#6366f1" />
-              <h2 className="modal-title" style={{ textAlign: 'left', margin: 0, fontSize: '1.25rem' }}>
+          <div className="reader-header">
+            <div className="reader-header-top">
+              <FileText size={20} color="#6366f1" />
+              <h2 className="reader-header-date">
                 {format(selectedDate, 'EEEE, MMMM d, yyyy')}
               </h2>
-              {readerTradeCount > 0 && (
-                <>
-                  <span className="reader-date-dot">•</span>
-                  <span className="reader-inline-meta">{readerTradeCount} {readerTradeCount === 1 ? 'trade' : 'trades'}</span>
-                  <span className={`journal-entry-inline-pnl reader-date-pnl ${readerPnLClass}`}>
-                    {readerPnLPrefix}{symbol}{Math.abs(readerPnL).toFixed(2)}
-                  </span>
-                </>
-              )}
             </div>
-            <div className="reader-subtitle-row">
-              <p className="modal-subtitle" style={{ textAlign: 'left', margin: 0 }}>
-                Journal Entry
-              </p>
-              {readerTagDetails.length > 0 && (
-                <div className="reader-inline-tags">
-                  {readerTagDetails.map((tag) => (
-                    <span
-                      key={`${format(selectedDate, 'yyyy-MM-dd')}-${tag.name}`}
-                      className="tag-chip reader-tag-chip tag-tooltip-anchor"
-                      style={{
-                        backgroundColor: `${tag.color}1A`,
-                        borderColor: `${tag.color}45`,
-                        color: tag.color
-                      }}
-                    >
-                      {tag.name}
-                      <span className="tag-hover-tooltip">
-                        <span className="tag-hover-title">{tag.name}</span>
-                        {tag.description && <span className="tag-hover-desc">{tag.description}</span>}
-                      </span>
-                    </span>
-                  ))}
-                </div>
+            <div className="reader-header-meta">
+              {readerTradeCount > 0 && (
+                <span className="reader-meta-chip">
+                  {readerTradeCount} {readerTradeCount === 1 ? 'trade' : 'trades'}
+                </span>
               )}
+              {readerTradeCount > 0 && (
+                <span className={`reader-meta-chip reader-meta-pnl ${readerPnLClass}`}>
+                  {readerPnLPrefix}{symbol}{formatCompactValue(Math.abs(readerPnL))}
+                </span>
+              )}
+              {readerTagDetails.length > 0 && readerTagDetails.map((tag) => (
+                <span
+                  key={`${format(selectedDate, 'yyyy-MM-dd')}-${tag.name}`}
+                  className="tag-chip reader-tag-chip tag-tooltip-anchor"
+                  style={{
+                    backgroundColor: `${tag.color}1A`,
+                    borderColor: `${tag.color}45`,
+                    color: tag.color
+                  }}
+                >
+                  {tag.name}
+                  <span className="tag-hover-tooltip">
+                    <span className="tag-hover-title">{tag.name}</span>
+                    {tag.description && <span className="tag-hover-desc">{tag.description}</span>}
+                  </span>
+                </span>
+              ))}
             </div>
           </div>
 
