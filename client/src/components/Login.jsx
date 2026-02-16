@@ -177,6 +177,7 @@ function Login() {
                 inputMode="email"
                 autoCorrect="on"
                 autoCapitalize="none"
+                autoComplete="email"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}

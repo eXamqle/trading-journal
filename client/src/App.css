@@ -7161,7 +7161,7 @@ button.new-tag-color-picker:focus {
 
   /* Header adjustments */
   .header {
-    padding: 8px 1rem;
+    padding: calc(8px + env(safe-area-inset-top)) 1rem 8px;
     flex-wrap: wrap;
     gap: 12px;
   }
@@ -7752,7 +7752,7 @@ button.new-tag-color-picker:focus {
 
   /* Further reduce header */
   .header {
-    padding: 8px 0.75rem;
+    padding: calc(8px + env(safe-area-inset-top)) 0.75rem 8px;
   }
 
   .logo-section {
