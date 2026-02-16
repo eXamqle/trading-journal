@@ -6935,15 +6935,14 @@ button.new-tag-color-picker:focus {
 
 @media (max-width: 640px) {
   .modal-content {
-    max-height: 100dvh;
-    border-radius: 0;
-    height: 100%;
+    max-height: 95vh;
+    border-radius: 12px;
     display: flex;
     flex-direction: column;
   }
 
   .modal-overlay {
-    padding: 0;
+    padding: 10px;
   }
 
   .modal-header {
@@ -7168,6 +7167,8 @@ button.new-tag-color-picker:focus {
     top: 0;
     z-index: 100;
     max-width: none;
+    margin-left: -16px;
+    margin-right: -16px;
     background: color-mix(in srgb, var(--bg-color) 85%, transparent);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
@@ -7760,6 +7761,8 @@ button.new-tag-color-picker:focus {
   /* Further reduce header */
   .header {
     padding: calc(8px + env(safe-area-inset-top)) 0.75rem 8px;
+    margin-left: -0.75rem;
+    margin-right: -0.75rem;
   }
 
   .logo-section {
@@ -7932,12 +7935,14 @@ button.new-tag-color-picker:focus {
 
   /* Modal - make more compact */
   .modal-overlay {
-    padding: 8px;
+    padding: 0;
   }
 
   .modal-content {
-    border-radius: 12px;
-    margin-top: 8px;
+    border-radius: 0;
+    height: 100%;
+    max-height: 100dvh;
+    margin-top: 0;
   }
 
   .modal-header {
