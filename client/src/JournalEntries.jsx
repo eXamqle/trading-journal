@@ -428,11 +428,7 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                 {entriesArray.length === 0 ? (
                   <>
                     <h3>Start Your Trading Journal</h3>
-                    <p>Traders who journal consistently improve their win rate. Click any date in the calendar to write your first entry.</p>
-                    <button onClick={onAddJournal} className="journal-empty-cta">
-                      <PlusCircle size={16} />
-                      Write First Entry
-                    </button>
+                    <p>Traders who journal consistently improve their win rate. Click any date in the calendar or click Add Journal to add a new journal entry!</p>
                   </>
                 ) : (
                   <>
