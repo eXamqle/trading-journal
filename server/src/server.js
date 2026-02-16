@@ -52,6 +52,11 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
 
+    // In development, allow local network access (LAN IPs)
+    if (process.env.NODE_ENV !== 'production' && /^http:\/\/(localhost|127\.|192\.168\.|10\.)/.test(origin)) {
+      return callback(null, true);
+    }
+
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {

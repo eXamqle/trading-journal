@@ -2839,38 +2839,23 @@ function App() {
               ) : modalTab === 'journal' ? (
                 <div ref={modalJournalPanelRef} key="journal-tab" className="journal-editor-container tab-content-animate modal-tab-panel">
                 <div className="journal-toolbar">
-                  <button
-                    type="button"
-                    className={`journal-toolbar-btn ${showToolbar ? 'active' : ''}`}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      setShowToolbar(v => !v);
-                    }}
-                    title="Formatting"
-                  >
-                    <Bold size={14} />
-                  </button>
-                  {showToolbar && (
-                    <>
-                      <div className="journal-toolbar-group">
-                        <button type="button" className={`journal-toolbar-btn ${activeFormats.bold ? 'active' : ''}`} onMouseDown={(e) => { e.preventDefault(); formatText('bold'); }} title="Bold"><Bold size={16} /></button>
-                        <button type="button" className={`journal-toolbar-btn ${activeFormats.italic ? 'active' : ''}`} onMouseDown={(e) => { e.preventDefault(); formatText('italic'); }} title="Italic"><Italic size={16} /></button>
-                        <button type="button" className={`journal-toolbar-btn ${activeFormats.underline ? 'active' : ''}`} onMouseDown={(e) => { e.preventDefault(); formatText('underline'); }} title="Underline"><Underline size={16} /></button>
-                      </div>
-                      <div className="journal-toolbar-group">
-                        <button type="button" className={`journal-toolbar-btn ${activeFormats.h1 ? 'active' : ''}`} onMouseDown={(e) => { e.preventDefault(); formatText('formatBlock', 'h1'); }} title="Heading 1"><Heading1 size={16} /></button>
-                        <button type="button" className={`journal-toolbar-btn ${activeFormats.h2 ? 'active' : ''}`} onMouseDown={(e) => { e.preventDefault(); formatText('formatBlock', 'h2'); }} title="Heading 2"><Heading2 size={16} /></button>
-                        <button type="button" className={`journal-toolbar-btn ${activeFormats.h3 ? 'active' : ''}`} onMouseDown={(e) => { e.preventDefault(); formatText('formatBlock', 'h3'); }} title="Heading 3"><Heading3 size={16} /></button>
-                      </div>
-                      <div className="journal-toolbar-group">
-                        <button type="button" className={`journal-toolbar-btn ${activeFormats.insertUnorderedList ? 'active' : ''}`} onMouseDown={(e) => { e.preventDefault(); formatText('insertUnorderedList'); }} title="Bullet List"><List size={16} /></button>
-                        <button type="button" className={`journal-toolbar-btn ${activeFormats.insertOrderedList ? 'active' : ''}`} onMouseDown={(e) => { e.preventDefault(); formatText('insertOrderedList'); }} title="Numbered List"><ListOrdered size={16} /></button>
-                      </div>
-                      <div className="journal-toolbar-group">
-                        <button type="button" className="journal-toolbar-btn" onClick={() => imageInputRef.current?.click()} title="Insert Image"><ImageIcon size={16} /></button>
-                      </div>
-                    </>
-                  )}
+                  <div className="journal-toolbar-group">
+                    <button type="button" className={`journal-toolbar-btn ${activeFormats.bold ? 'active' : ''}`} onMouseDown={(e) => { e.preventDefault(); formatText('bold'); }} title="Bold"><Bold size={16} /></button>
+                    <button type="button" className={`journal-toolbar-btn ${activeFormats.italic ? 'active' : ''}`} onMouseDown={(e) => { e.preventDefault(); formatText('italic'); }} title="Italic"><Italic size={16} /></button>
+                    <button type="button" className={`journal-toolbar-btn ${activeFormats.underline ? 'active' : ''}`} onMouseDown={(e) => { e.preventDefault(); formatText('underline'); }} title="Underline"><Underline size={16} /></button>
+                  </div>
+                  <div className="journal-toolbar-group">
+                    <button type="button" className={`journal-toolbar-btn ${activeFormats.h1 ? 'active' : ''}`} onMouseDown={(e) => { e.preventDefault(); formatText('formatBlock', 'h1'); }} title="Heading 1"><Heading1 size={16} /></button>
+                    <button type="button" className={`journal-toolbar-btn ${activeFormats.h2 ? 'active' : ''}`} onMouseDown={(e) => { e.preventDefault(); formatText('formatBlock', 'h2'); }} title="Heading 2"><Heading2 size={16} /></button>
+                    <button type="button" className={`journal-toolbar-btn ${activeFormats.h3 ? 'active' : ''}`} onMouseDown={(e) => { e.preventDefault(); formatText('formatBlock', 'h3'); }} title="Heading 3"><Heading3 size={16} /></button>
+                  </div>
+                  <div className="journal-toolbar-group">
+                    <button type="button" className={`journal-toolbar-btn ${activeFormats.insertUnorderedList ? 'active' : ''}`} onMouseDown={(e) => { e.preventDefault(); formatText('insertUnorderedList'); }} title="Bullet List"><List size={16} /></button>
+                    <button type="button" className={`journal-toolbar-btn ${activeFormats.insertOrderedList ? 'active' : ''}`} onMouseDown={(e) => { e.preventDefault(); formatText('insertOrderedList'); }} title="Numbered List"><ListOrdered size={16} /></button>
+                  </div>
+                  <div className="journal-toolbar-group">
+                    <button type="button" className="journal-toolbar-btn" onClick={() => imageInputRef.current?.click()} title="Insert Image"><ImageIcon size={16} /></button>
+                  </div>
                 </div>
                 <div
                   ref={editorRef}
@@ -2898,8 +2883,8 @@ function App() {
 
             {/* Action buttons with keyboard shortcuts */}
             {!viewingJournal && (
-              <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
-                <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <div className="modal-actions">
+                <div className="modal-actions-buttons">
                   <button
                     type="button"
                     onClick={() => closeModal(false)}
@@ -3190,7 +3175,6 @@ function App() {
       >
         <div
           className="modal-content reader-modal-content"
-          style={{ maxWidth: '820px', display: 'flex', flexDirection: 'column' }}
         >
           <button className="close-modal" onClick={handleCloseReader}>
             <X size={20} />
@@ -3198,21 +3182,21 @@ function App() {
 
           <div className="reader-header">
             <div className="reader-header-top">
-              <FileText size={20} color="#6366f1" />
+              <FileText size={22} color="#6366f1" style={{ flexShrink: 0 }} />
               <h2 className="reader-header-date">
                 {format(selectedDate, 'EEEE, MMMM d, yyyy')}
               </h2>
             </div>
             <div className="reader-header-meta">
               {readerTradeCount > 0 && (
-                <span className="reader-meta-chip">
-                  {readerTradeCount} {readerTradeCount === 1 ? 'trade' : 'trades'}
-                </span>
-              )}
-              {readerTradeCount > 0 && (
-                <span className={`reader-meta-chip reader-meta-pnl ${readerPnLClass}`}>
-                  {readerPnLPrefix}{symbol}{formatCompactValue(Math.abs(readerPnL))}
-                </span>
+                <>
+                  <span className="reader-meta-chip">
+                    {readerTradeCount} {readerTradeCount === 1 ? 'trade' : 'trades'}
+                  </span>
+                  <span className={`reader-meta-chip reader-meta-pnl ${readerPnLClass}`}>
+                    {readerPnLPrefix}{symbol}{formatCompactValue(Math.abs(readerPnL))}
+                  </span>
+                </>
               )}
               {readerTagDetails.length > 0 && readerTagDetails.map((tag) => (
                 <span
@@ -3234,38 +3218,15 @@ function App() {
             </div>
           </div>
 
-          <div className="modal-body" style={{ padding: 'clamp(1rem, 3vw, 1.75rem) clamp(1rem, 3.5vw, 2rem)', overflow: 'hidden', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+          <div className="reader-body">
             {hasContent ? (
               <div
                 className="journal-view-content"
                 dangerouslySetInnerHTML={{ __html: journalContent }}
-                style={{
-                  flex: 1,
-                  overflowY: 'auto',
-                  padding: 'clamp(1rem, 3vw, 1.5rem)',
-                  background: 'var(--bg-secondary)',
-                  borderRadius: '0.75rem',
-                  border: '1px solid var(--border-color)',
-                  lineHeight: '1.8',
-                  fontSize: '0.9375rem',
-                  marginBottom: '1.25rem'
-                }}
               />
             ) : (
-              <div style={{
-                textAlign: 'center',
-                padding: 'clamp(2rem, 6vw, 3.25rem) clamp(1rem, 3.5vw, 1.75rem)',
-                background: 'rgba(148, 163, 184, 0.05)',
-                borderRadius: '0.75rem',
-                border: '1px dashed var(--border-color)',
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: '1.25rem'
-              }}>
-                <FileText size={48} style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }} />
+              <div className="reader-empty-state">
+                <FileText size={48} style={{ color: 'var(--text-secondary)', opacity: 0.5, marginBottom: '1rem' }} />
                 <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                   No Journal Entry
                 </h3>
@@ -3274,42 +3235,16 @@ function App() {
                 </p>
               </div>
             )}
+          </div>
 
-            <div style={{ flexShrink: 0, paddingTop: '0.75rem' }}>
-              <button
-                onClick={handleEditJournalFromReader}
-                style={{
-                  width: '100%',
-                  background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                  border: 'none',
-                  color: 'white',
-                  padding: '0.625rem 1.25rem',
-                  borderRadius: '0.5rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.5rem',
-                  transition: 'all 0.2s',
-                  boxShadow: '0 2px 8px rgba(99, 102, 241, 0.2)'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(99, 102, 241, 0.3)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(99, 102, 241, 0.2)';
-                }}
-              >
-                <EditIcon size={16} />
-                {hasContent ? 'Edit' : 'Write'}
-              </button>
-            </div>
+          <div className="reader-footer">
+            <button
+              onClick={handleEditJournalFromReader}
+              className="reader-edit-button"
+            >
+              <EditIcon size={16} />
+              {hasContent ? 'Edit' : 'Write'}
+            </button>
           </div>
         </div>
       </div>
