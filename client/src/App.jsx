@@ -122,6 +122,7 @@ function App() {
   const [editingTrade, setEditingTrade] = useState(null);
   const [modalTabPanelHeight, setModalTabPanelHeight] = useState(null);
   const [isModalTabAnimating, setIsModalTabAnimating] = useState(false);
+  const [showToolbar, setShowToolbar] = useState(false);
 
   // Tags management
   const [availableTags, setAvailableTags] = useState([]);
@@ -2261,66 +2262,25 @@ function App() {
                 </div>
               </div>
 
-              {!journalOnlyMode && (
-                <div style={{
-                  display: 'flex',
-                  gap: '0.25rem',
-                  padding: '0.25rem',
-                  background: 'var(--bg-secondary)',
-                  borderRadius: '0.5rem',
-                  border: '1px solid var(--border-color)'
-                }}>
-                  <button
-                    onClick={() => {
-                      switchModalTab('add');
-                    }}
-                    style={{
-                      padding: '0.375rem 0.75rem',
-                      height: '2rem',
-                      borderRadius: '0.375rem',
-                      border: 'none',
-                      background: modalTab === 'add' ? 'var(--accent-blue)' : 'transparent',
-                      color: modalTab === 'add' ? 'white' : 'var(--text-secondary)',
-                      fontSize: '0.8125rem',
-                      fontWeight: 500,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.375rem',
-                      whiteSpace: 'nowrap'
-                    }}
-                  >
-                    <PlusCircle size={14} />
-                    Trade
-                  </button>
-                  <button
-                    onClick={() => {
-                      switchModalTab('journal');
-                    }}
-                    style={{
-                      padding: '0.375rem 0.75rem',
-                      height: '2rem',
-                      borderRadius: '0.375rem',
-                      border: 'none',
-                      background: modalTab === 'journal' ? '#8b5cf6' : 'transparent',
-                      color: modalTab === 'journal' ? 'white' : 'var(--text-secondary)',
-                      fontSize: '0.8125rem',
-                      fontWeight: 500,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.375rem',
-                      whiteSpace: 'nowrap'
-                    }}
-                  >
-                    <FileText size={14} />
-                    Journal
-                  </button>
-                </div>
-              )}
             </div>
+            {!journalOnlyMode && (
+              <div className="modal-tab-switcher">
+                <button
+                  className={`modal-tab-btn ${modalTab === 'add' ? 'active trade' : ''}`}
+                  onClick={() => switchModalTab('add')}
+                >
+                  <PlusCircle size={13} />
+                  Trade
+                </button>
+                <button
+                  className={`modal-tab-btn ${modalTab === 'journal' ? 'active journal' : ''}`}
+                  onClick={() => switchModalTab('journal')}
+                >
+                  <FileText size={13} />
+                  Journal
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="modal-body modal-body-entry">
@@ -2879,110 +2839,38 @@ function App() {
               ) : modalTab === 'journal' ? (
                 <div ref={modalJournalPanelRef} key="journal-tab" className="journal-editor-container tab-content-animate modal-tab-panel">
                 <div className="journal-toolbar">
-                  <div className="journal-toolbar-group">
-                    <button
-                      type="button"
-                      className={`journal-toolbar-btn ${activeFormats.bold ? 'active' : ''}`}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        formatText('bold');
-                      }}
-                      title="Bold"
-                    >
-                      <Bold size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className={`journal-toolbar-btn ${activeFormats.italic ? 'active' : ''}`}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        formatText('italic');
-                      }}
-                      title="Italic"
-                    >
-                      <Italic size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className={`journal-toolbar-btn ${activeFormats.underline ? 'active' : ''}`}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        formatText('underline');
-                      }}
-                      title="Underline"
-                    >
-                      <Underline size={16} />
-                    </button>
-                  </div>
-                  <div className="journal-toolbar-group">
-                    <button
-                      type="button"
-                      className={`journal-toolbar-btn ${activeFormats.h1 ? 'active' : ''}`}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        formatText('formatBlock', 'h1');
-                      }}
-                      title="Heading 1"
-                    >
-                      <Heading1 size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className={`journal-toolbar-btn ${activeFormats.h2 ? 'active' : ''}`}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        formatText('formatBlock', 'h2');
-                      }}
-                      title="Heading 2"
-                    >
-                      <Heading2 size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className={`journal-toolbar-btn ${activeFormats.h3 ? 'active' : ''}`}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        formatText('formatBlock', 'h3');
-                      }}
-                      title="Heading 3"
-                    >
-                      <Heading3 size={16} />
-                    </button>
-                  </div>
-                  <div className="journal-toolbar-group">
-                    <button
-                      type="button"
-                      className={`journal-toolbar-btn ${activeFormats.insertUnorderedList ? 'active' : ''}`}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        formatText('insertUnorderedList');
-                      }}
-                      title="Bullet List"
-                    >
-                      <List size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className={`journal-toolbar-btn ${activeFormats.insertOrderedList ? 'active' : ''}`}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        formatText('insertOrderedList');
-                      }}
-                      title="Numbered List"
-                    >
-                      <ListOrdered size={16} />
-                    </button>
-                  </div>
-                  <div className="journal-toolbar-group">
-                    <button
-                      type="button"
-                      className="journal-toolbar-btn"
-                      onClick={() => imageInputRef.current?.click()}
-                      title="Insert Image"
-                    >
-                      <ImageIcon size={16} />
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    className={`journal-toolbar-btn ${showToolbar ? 'active' : ''}`}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setShowToolbar(v => !v);
+                    }}
+                    title="Formatting"
+                  >
+                    <Bold size={14} />
+                  </button>
+                  {showToolbar && (
+                    <>
+                      <div className="journal-toolbar-group">
+                        <button type="button" className={`journal-toolbar-btn ${activeFormats.bold ? 'active' : ''}`} onMouseDown={(e) => { e.preventDefault(); formatText('bold'); }} title="Bold"><Bold size={16} /></button>
+                        <button type="button" className={`journal-toolbar-btn ${activeFormats.italic ? 'active' : ''}`} onMouseDown={(e) => { e.preventDefault(); formatText('italic'); }} title="Italic"><Italic size={16} /></button>
+                        <button type="button" className={`journal-toolbar-btn ${activeFormats.underline ? 'active' : ''}`} onMouseDown={(e) => { e.preventDefault(); formatText('underline'); }} title="Underline"><Underline size={16} /></button>
+                      </div>
+                      <div className="journal-toolbar-group">
+                        <button type="button" className={`journal-toolbar-btn ${activeFormats.h1 ? 'active' : ''}`} onMouseDown={(e) => { e.preventDefault(); formatText('formatBlock', 'h1'); }} title="Heading 1"><Heading1 size={16} /></button>
+                        <button type="button" className={`journal-toolbar-btn ${activeFormats.h2 ? 'active' : ''}`} onMouseDown={(e) => { e.preventDefault(); formatText('formatBlock', 'h2'); }} title="Heading 2"><Heading2 size={16} /></button>
+                        <button type="button" className={`journal-toolbar-btn ${activeFormats.h3 ? 'active' : ''}`} onMouseDown={(e) => { e.preventDefault(); formatText('formatBlock', 'h3'); }} title="Heading 3"><Heading3 size={16} /></button>
+                      </div>
+                      <div className="journal-toolbar-group">
+                        <button type="button" className={`journal-toolbar-btn ${activeFormats.insertUnorderedList ? 'active' : ''}`} onMouseDown={(e) => { e.preventDefault(); formatText('insertUnorderedList'); }} title="Bullet List"><List size={16} /></button>
+                        <button type="button" className={`journal-toolbar-btn ${activeFormats.insertOrderedList ? 'active' : ''}`} onMouseDown={(e) => { e.preventDefault(); formatText('insertOrderedList'); }} title="Numbered List"><ListOrdered size={16} /></button>
+                      </div>
+                      <div className="journal-toolbar-group">
+                        <button type="button" className="journal-toolbar-btn" onClick={() => imageInputRef.current?.click()} title="Insert Image"><ImageIcon size={16} /></button>
+                      </div>
+                    </>
+                  )}
                 </div>
                 <div
                   ref={editorRef}

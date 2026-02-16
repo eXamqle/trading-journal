@@ -362,18 +362,17 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
       <main className="dashboard-grid journal-view-grid">
         <div className="main-content">
           <div className="journal-entries-header">
-            <div className="journal-entries-header-left">
-              <div className="journal-entries-icon">
-                <FileText size={26} strokeWidth={2.5} color="white" />
-              </div>
-              <div>
+            <div className="journal-entries-header-top">
+              <div className="journal-entries-header-left">
                 <h2 className="journal-entries-title">Journal</h2>
-                <p className="journal-entries-subtitle">
-                  {entriesArray.length} {entriesArray.length === 1 ? 'entry' : 'entries'} total • review, refine, and execute better
-                </p>
+                <span className="journal-entries-count">{entriesArray.length} {entriesArray.length === 1 ? 'entry' : 'entries'}</span>
               </div>
+              <button onClick={onAddJournal} className="journal-add-button">
+                <PlusCircle size={16} />
+                Add Journal
+              </button>
             </div>
-            <div className="journal-entries-header-right">
+            <div className="journal-entries-header-controls">
               <div className="journal-entries-search">
                 <Search size={16} className="journal-search-icon" />
                 <input
@@ -407,10 +406,6 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                   </button>
                 )}
               </div>
-              <button onClick={onAddJournal} className="journal-add-button">
-                <PlusCircle size={16} />
-                Add Journal
-              </button>
             </div>
           </div>
 
@@ -432,8 +427,12 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                 </div>
                 {entriesArray.length === 0 ? (
                   <>
-                    <h3>No Entries Yet</h3>
-                    <p>Start documenting your trading journey by clicking on a date in the calendar.</p>
+                    <h3>Start Your Trading Journal</h3>
+                    <p>Traders who journal consistently improve their win rate. Click any date in the calendar to write your first entry.</p>
+                    <button onClick={onAddJournal} className="journal-empty-cta">
+                      <PlusCircle size={16} />
+                      Write First Entry
+                    </button>
                   </>
                 ) : (
                   <>
@@ -527,60 +526,47 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                                             }
                                           }}
                                         >
-                                          <div className="journal-entry-row-main">
-                                            <div className="journal-entry-row-header">
-                                              <div className="journal-entry-row-date">
-                                                <CalendarIcon size={14} />
-                                                <span className="journal-entry-row-day">{format(parseISO(entry.date), 'EEE, MMM d')}</span>
-                                              </div>
+                                          <div className="journal-entry-row-top">
+                                            <div className="journal-entry-row-date">
+                                              <span className="journal-entry-row-day">{format(parseISO(entry.date), 'EEE, MMM d')}</span>
                                               {hasTrades && (
-                                                <span className={`journal-entry-inline-pnl ${getPnLClass(entry.pnl)}`}>
-                                                  {formatPnL(entry.pnl)}
-                                                </span>
+                                                <span className="journal-entry-row-trades">{entry.tradeCount} {entry.tradeCount === 1 ? 'trade' : 'trades'}</span>
                                               )}
                                               {hasImages && (
-                                                <span className="journal-entry-row-image" title="Contains image">
-                                                  <ImageIcon size={13} />
+                                                <ImageIcon size={13} className="journal-entry-row-img-icon" />
+                                              )}
+                                              {entryTagDetails.length > 0 && entryTagDetails.map((tag) => (
+                                                <span
+                                                  key={`${entry.date}-${tag.name}`}
+                                                  className="tag-chip journal-entry-inline-tag tag-tooltip-anchor"
+                                                  style={{
+                                                    backgroundColor: `${tag.color}1A`,
+                                                    borderColor: `${tag.color}45`,
+                                                    color: tag.color
+                                                  }}
+                                                >
+                                                  {tag.name}
+                                                  <span className="tag-hover-tooltip">
+                                                    <span className="tag-hover-title">{tag.name}</span>
+                                                    {tag.description && <span className="tag-hover-desc">{tag.description}</span>}
+                                                  </span>
                                                 </span>
+                                              ))}
+                                              {hiddenTagCount > 0 && (
+                                                <span className="tag-chip tag-chip-more journal-entry-inline-tag-more">+{hiddenTagCount}</span>
                                               )}
                                             </div>
-
-                                            <div className="journal-entry-row-preview">
-                                              {getPreviewText(entry.textContent) || 'No text preview'}
-                                            </div>
-
-                                            {entryTagDetails.length > 0 && (
-                                              <div className="journal-entry-tags-row">
-                                                {entryTagDetails.map((tag) => (
-                                                  <span
-                                                    key={`${entry.date}-${tag.name}`}
-                                                    className="tag-chip journal-entry-inline-tag tag-tooltip-anchor"
-                                                    style={{
-                                                      backgroundColor: `${tag.color}1A`,
-                                                      borderColor: `${tag.color}45`,
-                                                      color: tag.color
-                                                    }}
-                                                  >
-                                                    {tag.name}
-                                                    <span className="tag-hover-tooltip">
-                                                      <span className="tag-hover-title">{tag.name}</span>
-                                                      {tag.description && <span className="tag-hover-desc">{tag.description}</span>}
-                                                    </span>
-                                                  </span>
-                                                ))}
-                                                {hiddenTagCount > 0 && (
-                                                  <span className="tag-chip tag-chip-more journal-entry-inline-tag-more">+{hiddenTagCount}</span>
-                                                )}
-                                              </div>
+                                            {hasTrades && (
+                                              <span className={`journal-entry-inline-pnl ${getPnLClass(entry.pnl)}`}>
+                                                {formatPnL(entry.pnl)}
+                                              </span>
                                             )}
                                           </div>
 
-                                          <div className="journal-entry-row-right">
-                                            {hasTrades && (
-                                              <span className="journal-entry-trade-count">
-                                                {entry.tradeCount} {entry.tradeCount === 1 ? 'trade' : 'trades'}
-                                              </span>
-                                            )}
+                                          <div className="journal-entry-row-bottom">
+                                            <div className="journal-entry-row-preview">
+                                              {getPreviewText(entry.textContent, 150) || 'No text content'}
+                                            </div>
                                             <button
                                               type="button"
                                               className="journal-entry-delete"
@@ -590,7 +576,7 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                                               }}
                                               title="Delete journal entry"
                                             >
-                                              <Trash2 size={15} />
+                                              <Trash2 size={14} />
                                             </button>
                                           </div>
                                         </div>
