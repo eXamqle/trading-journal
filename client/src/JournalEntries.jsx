@@ -245,7 +245,7 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
 
     return (
       <span className={`journal-group-pnl ${pnlClass}`}>
-        <PnLIcon size={12} strokeWidth={2.25} />
+        <PnLIcon size={11} strokeWidth={2.25} />
         <span>{formatPnL(value)}</span>
       </span>
     );
@@ -461,7 +461,7 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                         </div>
                         <div className="journal-year-meta-right">
                           {renderHeaderPnL(yearGroup.pnl)}
-                          <ChevronDown size={16} className={`journal-collapse-icon ${isYearExpanded ? 'expanded' : ''}`} />
+                          <ChevronDown size={14} className={`journal-collapse-icon ${isYearExpanded ? 'expanded' : ''}`} />
                         </div>
                       </button>
 
@@ -485,7 +485,7 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                                   </div>
                                   <div className="journal-month-meta-right">
                                     {renderHeaderPnL(monthGroup.pnl)}
-                                    <ChevronDown size={14} className={`journal-collapse-icon ${isMonthExpanded ? 'expanded' : ''}`} />
+                                    <ChevronDown size={12} className={`journal-collapse-icon ${isMonthExpanded ? 'expanded' : ''}`} />
                                   </div>
                                 </button>
 

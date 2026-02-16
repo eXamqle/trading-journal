@@ -1287,7 +1287,7 @@ code {
 .modal-content {
   background: var(--bg-color);
   border-radius: 16px;
-  max-width: 950px;
+  max-width: 1800px;
   width: 100%;
   max-height: 90vh;
   overflow: hidden;
@@ -4437,7 +4437,7 @@ code {
 
 .journal-editor {
   flex: 1;
-  min-height: 0;
+  min-height: clamp(200px, 40vh, 500px);
   padding: 0.75rem 1rem;
   border: none;
   background: transparent;
@@ -5626,16 +5626,15 @@ button.new-tag-color-picker:focus {
 .journal-groups {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 1rem;
 }
 
 .journal-year-group {
-  background: var(--bg-color);
-  border: 1px solid rgba(148, 163, 184, 0.15);
-  border-radius: 12px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
   overflow: hidden;
   min-width: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .journal-year-toggle {
@@ -5643,25 +5642,26 @@ button.new-tag-color-picker:focus {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
+  gap: 0.5rem;
+  padding: 0.375rem 0.25rem;
   border: none;
-  background: linear-gradient(135deg, rgba(var(--journal-accent-rgb), 0.08), rgba(var(--journal-accent-rgb), 0.04));
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  background: transparent;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.15s ease;
   min-width: 0;
   flex-wrap: wrap;
 }
 
 .journal-year-toggle:hover {
-  background: linear-gradient(135deg, rgba(var(--journal-accent-rgb), 0.14), rgba(var(--journal-accent-rgb), 0.08));
+  background: rgba(148, 163, 184, 0.04);
 }
 
 .journal-year-meta,
 .journal-month-meta {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.4rem;
   min-width: 0;
 }
 
@@ -5669,45 +5669,46 @@ button.new-tag-color-picker:focus {
 .journal-month-meta-right {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.4rem;
   flex-shrink: 1;
   min-width: 0;
 }
 
 .journal-year-title {
-  font-size: 1rem;
+  font-size: 0.8125rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   color: var(--text-primary);
 }
 
 .journal-year-count,
 .journal-month-count {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 500;
   color: var(--text-secondary);
+  opacity: 0.7;
 }
 
 .journal-month-title {
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--text-primary);
 }
 
 .journal-group-pnl {
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: 0.75rem;
+  font-weight: 600;
   line-height: 1;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
-  padding: 0.3125rem 0.5rem;
-  border-radius: 6px;
+  padding: 0;
+  border-radius: 0;
   border: none;
-  background: rgba(148, 163, 184, 0.08);
+  background: none;
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.25rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5716,23 +5717,24 @@ button.new-tag-color-picker:focus {
 
 .journal-group-pnl.profit {
   color: #10b981;
-  background: rgba(16, 185, 129, 0.12);
+  background: none;
 }
 
 .journal-group-pnl.loss {
   color: #ef4444;
-  background: rgba(239, 68, 68, 0.12);
+  background: none;
 }
 
 .journal-group-pnl.neutral {
   color: var(--text-secondary);
-  background: rgba(148, 163, 184, 0.08);
-  opacity: 0.9;
+  background: none;
+  opacity: 0.7;
 }
 
 .journal-collapse-icon {
   color: var(--text-secondary);
   transition: transform 0.18s ease;
+  opacity: 0.5;
 }
 
 .journal-collapse-icon.expanded {
@@ -5742,20 +5744,21 @@ button.new-tag-color-picker:focus {
 .journal-month-groups {
   display: flex;
   flex-direction: column;
-  gap: 0.625rem;
-  padding: 0.75rem;
+  gap: 0.375rem;
+  padding: 0.5rem 0 0 0.75rem;
 }
 
 .journal-month-group {
-  border: 1px solid rgba(148, 163, 184, 0.15);
-  border-radius: 10px;
-  background: var(--bg-secondary);
+  border: none;
+  border-left: 2px solid rgba(148, 163, 184, 0.1);
+  border-radius: 0;
+  background: transparent;
   overflow: hidden;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: border-color 0.15s ease;
 }
 
 .journal-month-group:hover {
-  border-color: rgba(148, 163, 184, 0.25);
+  border-left-color: rgba(148, 163, 184, 0.25);
 }
 
 .journal-month-toggle {
@@ -5763,25 +5766,25 @@ button.new-tag-color-picker:focus {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.625rem 0.875rem;
+  gap: 0.5rem;
+  padding: 0.3rem 0.625rem;
   border: none;
   background: transparent;
   cursor: pointer;
-  transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 0.15s ease;
   min-width: 0;
   flex-wrap: wrap;
 }
 
 .journal-month-toggle:hover {
-  background: rgba(148, 163, 184, 0.06);
+  background: rgba(148, 163, 184, 0.04);
 }
 
 .journal-entry-rows {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.14rem 0.5rem 0.5rem;
+  gap: 0.375rem;
+  padding: 0.25rem 0.5rem 0.375rem;
 }
 
 .journal-entry-row {
@@ -6491,20 +6494,12 @@ button.new-tag-color-picker:focus {
     font-size: 0.8125rem;
   }
 
-  .journal-year-toggle {
-    padding: 0.625rem 0.875rem;
-  }
-
-  .journal-month-toggle {
-    padding: 0.5rem 0.75rem;
-  }
-
   .journal-year-title {
-    font-size: 0.9375rem;
+    font-size: 0.8125rem;
   }
 
   .journal-month-title {
-    font-size: 0.8125rem;
+    font-size: 0.75rem;
   }
 }
 
@@ -6538,11 +6533,6 @@ button.new-tag-color-picker:focus {
     width: 100%;
   }
 
-  .journal-year-toggle,
-  .journal-month-toggle {
-    padding: 0.6rem 0.65rem;
-  }
-
   .journal-date-filter,
   .journal-add-button {
     width: 100%;
@@ -6552,7 +6542,7 @@ button.new-tag-color-picker:focus {
   .journal-year-toggle,
   .journal-month-toggle {
     flex-wrap: wrap;
-    gap: 0.4rem;
+    gap: 0.35rem;
   }
 
   .journal-year-meta,
@@ -6565,17 +6555,16 @@ button.new-tag-color-picker:focus {
   .journal-month-meta-right {
     flex-shrink: 1;
     min-width: 0;
-    gap: 0.4rem;
+    gap: 0.35rem;
   }
 
   .journal-group-pnl {
-    font-size: 0.8125rem;
-    padding: 0.25rem 0.4375rem;
+    font-size: 0.6875rem;
     max-width: 160px;
   }
 
   .journal-month-groups {
-    padding: 0.35rem;
+    padding: 0.375rem 0 0 0.5rem;
   }
 
   .journal-entry-rows {
@@ -6722,33 +6711,16 @@ button.new-tag-color-picker:focus {
     padding: 0.375rem;
   }
 
-  .journal-year-group {
-    border-radius: 10px;
-  }
-
-  .journal-month-group {
-    border-radius: 8px;
-  }
-
-  .journal-year-toggle {
-    padding: 0.625rem 0.75rem;
-  }
-
-  .journal-month-toggle {
-    padding: 0.5rem 0.625rem;
-  }
-
   .journal-year-title {
-    font-size: 0.9375rem;
+    font-size: 0.75rem;
   }
 
   .journal-month-title {
-    font-size: 0.8125rem;
+    font-size: 0.75rem;
   }
 
   .journal-group-pnl {
-    font-size: 0.8125rem;
-    padding: 0.3125rem 0.5rem;
+    font-size: 0.6875rem;
   }
 }
 
@@ -6901,12 +6873,11 @@ button.new-tag-color-picker:focus {
 
   .journal-year-toggle,
   .journal-month-toggle {
-    gap: 0.5rem;
+    gap: 0.35rem;
   }
 
   .journal-group-pnl {
-    font-size: 0.75rem;
-    padding: 0.25rem 0.4375rem;
+    font-size: 0.625rem;
   }
 }
 
@@ -6929,8 +6900,7 @@ button.new-tag-color-picker:focus {
   }
 
   .modal-content {
-    max-width: 1187px;
-    /* 950px * 1.25 */
+    max-width: 2100px;
   }
 
   .profile-container {
@@ -7151,8 +7121,7 @@ button.new-tag-color-picker:focus {
   }
 
   .modal-content {
-    max-width: 1425px;
-    /* 950px * 1.5 */
+    max-width: 2600px;
   }
 
   .profile-container {
