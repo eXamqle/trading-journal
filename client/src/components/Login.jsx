@@ -110,10 +110,10 @@ function Login() {
         </p>
 
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} action="#" method="post">
           {!isLogin && (
             <div style={{ marginBottom: '20px' }}>
-              <label style={{
+              <label htmlFor="name" style={{
                 display: 'block',
                 marginBottom: '8px',
                 color: '#f8fafc',
@@ -131,6 +131,7 @@ function Login() {
                   color: '#94a3b8'
                 }} />
                 <input
+                  id="name"
                   type="text"
                   name="name"
                   autoComplete="name"
@@ -143,7 +144,7 @@ function Login() {
                     background: '#111827',
                     border: '1px solid #334155',
                     borderRadius: '6px',
-                    fontSize: '14px',
+                    fontSize: '16px',
                     color: '#f8fafc',
                     outline: 'none',
                     transition: 'border-color 0.2s'
@@ -156,7 +157,7 @@ function Login() {
           )}
 
           <div style={{ marginBottom: '20px' }}>
-            <label style={{
+            <label htmlFor="email" style={{
               display: 'block',
               marginBottom: '8px',
               color: '#f8fafc',
@@ -174,6 +175,7 @@ function Login() {
                 color: '#94a3b8'
               }} />
               <input
+                id="email"
                 type="email"
                 autoComplete="email"
                 name="email"
@@ -187,7 +189,7 @@ function Login() {
                   background: '#111827',
                   border: '1px solid #334155',
                   borderRadius: '6px',
-                  fontSize: '14px',
+                  fontSize: '16px',
                   color: '#f8fafc',
                   outline: 'none',
                   transition: 'border-color 0.2s'
@@ -199,7 +201,7 @@ function Login() {
           </div>
 
           <div style={{ marginBottom: '24px' }}>
-            <label style={{
+            <label htmlFor="password" style={{
               display: 'block',
               marginBottom: '8px',
               color: '#f8fafc',
@@ -217,6 +219,7 @@ function Login() {
                 color: '#94a3b8'
               }} />
               <input
+                id="password"
                 type="password"
                 name="password"
                 autoComplete="current-password"
@@ -230,7 +233,7 @@ function Login() {
                   background: '#111827',
                   border: '1px solid #334155',
                   borderRadius: '6px',
-                  fontSize: '14px',
+                  fontSize: '16px',
                   color: '#f8fafc',
                   outline: 'none',
                   transition: 'border-color 0.2s'
