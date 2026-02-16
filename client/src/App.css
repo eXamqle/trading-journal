@@ -5492,6 +5492,7 @@ button.new-tag-color-picker:focus {
   display: grid;
   grid-template-columns: 1fr;
   gap: 0.6rem;
+  padding-bottom: 2rem;
 }
 
 .journal-active-filter {
