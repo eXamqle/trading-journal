@@ -7167,8 +7167,9 @@ button.new-tag-color-picker:focus {
     position: sticky;
     top: 0;
     z-index: 100;
-    background: var(--bg-color);
-    margin-bottom: 0;
+    background: color-mix(in srgb, var(--bg-color) 85%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
 
   .logo-text h1 {
