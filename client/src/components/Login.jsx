@@ -173,7 +173,10 @@ function Login() {
                 color: '#94a3b8'
               }} />
               <input
-                type="email"
+                type="text"
+                inputMode="email"
+                autoCorrect="on"
+                autoCapitalize="none"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
