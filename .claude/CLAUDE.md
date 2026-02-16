@@ -1,0 +1,1 @@
+Save tokens at the end of your tasks. Just say done and that's it. Don't provide summaries.
