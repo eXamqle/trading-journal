@@ -1495,6 +1495,7 @@ function App() {
 
   const renderHeader = () => {
     return (
+      <>
       <header className="header">
         <div
           className="logo-section"
@@ -1580,53 +1581,55 @@ function App() {
           <Menu size={24} />
         </button>
 
-        {mobileMenuOpen && (
-          <>
-            <div className="mobile-nav-overlay" onClick={() => setMobileMenuOpen(false)} />
-            <nav className="mobile-nav">
-              <div className="mobile-nav-header">
-                <span className="mobile-nav-title">Menu</span>
-                <button
-                  className="mobile-nav-close"
-                  onClick={() => setMobileMenuOpen(false)}
-                  aria-label="Close menu"
-                >
-                  <X size={22} />
-                </button>
-              </div>
-              <div
-                className="mobile-nav-item"
-                onClick={() => { setCurrentView('calendar'); setMobileMenuOpen(false); }}
-              >
-                <CalendarIcon size={20} />
-                <span>Calendar</span>
-              </div>
-              <div
-                className="mobile-nav-item"
-                onClick={() => { setCurrentView('journalEntries'); setMobileMenuOpen(false); }}
-              >
-                <FileText size={20} />
-                <span>Journal Entries</span>
-              </div>
-              <div
-                className="mobile-nav-item"
-                onClick={() => { setCurrentView('profile'); setMobileMenuOpen(false); }}
-              >
-                <User size={20} />
-                <span>Profile</span>
-              </div>
-              <div className="mobile-nav-separator" />
-              <div
-                className="mobile-nav-item mobile-nav-item-danger"
-                onClick={() => { setMobileMenuOpen(false); logout(); }}
-              >
-                <LogOut size={20} />
-                <span>Sign Out</span>
-              </div>
-            </nav>
-          </>
-        )}
       </header>
+
+      {mobileMenuOpen && (
+        <>
+          <div className="mobile-nav-overlay" onClick={() => setMobileMenuOpen(false)} />
+          <nav className="mobile-nav">
+            <div className="mobile-nav-header">
+              <span className="mobile-nav-title">Menu</span>
+              <button
+                className="mobile-nav-close"
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="Close menu"
+              >
+                <X size={22} />
+              </button>
+            </div>
+            <div
+              className="mobile-nav-item"
+              onClick={() => { setCurrentView('calendar'); setMobileMenuOpen(false); }}
+            >
+              <CalendarIcon size={20} />
+              <span>Calendar</span>
+            </div>
+            <div
+              className="mobile-nav-item"
+              onClick={() => { setCurrentView('journalEntries'); setMobileMenuOpen(false); }}
+            >
+              <FileText size={20} />
+              <span>Journal Entries</span>
+            </div>
+            <div
+              className="mobile-nav-item"
+              onClick={() => { setCurrentView('profile'); setMobileMenuOpen(false); }}
+            >
+              <User size={20} />
+              <span>Profile</span>
+            </div>
+            <div className="mobile-nav-separator" />
+            <div
+              className="mobile-nav-item mobile-nav-item-danger"
+              onClick={() => { setMobileMenuOpen(false); logout(); }}
+            >
+              <LogOut size={20} />
+              <span>Sign Out</span>
+            </div>
+          </nav>
+        </>
+      )}
+      </>
     );
   };
 

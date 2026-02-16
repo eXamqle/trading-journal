@@ -7940,6 +7940,7 @@ button.new-tag-color-picker:focus {
 
   .modal-content {
     border-radius: 0;
+    border: none;
     height: 100%;
     max-height: 100dvh;
     margin-top: 0;
@@ -8745,10 +8746,6 @@ button.new-tag-color-picker:focus {
     padding: 0 0.5rem;
   }
 
-  /* Compact modal */
-  .modal-overlay {
-    padding: 4px;
-  }
 }
 
 /* Stabilized mobile overrides for statistics controls */
