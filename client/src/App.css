@@ -261,7 +261,7 @@ code {
   gap: 18px;
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 2rem;
+  padding: 0 2rem 2rem;
 }
 
 .dashboard-grid.full-width {
@@ -5492,7 +5492,6 @@ button.new-tag-color-picker:focus {
   display: grid;
   grid-template-columns: 1fr;
   gap: 0.6rem;
-  padding-bottom: 2rem;
 }
 
 .journal-active-filter {
