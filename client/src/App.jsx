@@ -2912,7 +2912,7 @@ function App() {
                       e.currentTarget.style.borderColor = 'var(--border-color)';
                     }}
                   >
-                    Cancel
+                    Discard
                   </button>
                   <button
                     type="button"
