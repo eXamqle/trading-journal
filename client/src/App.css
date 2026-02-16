@@ -7169,7 +7169,7 @@ button.new-tag-color-picker:focus {
     max-width: none;
     margin-left: -16px;
     margin-right: -16px;
-    background: color-mix(in srgb, var(--bg-color) 85%, transparent);
+    background: linear-gradient(to bottom, var(--bg-color) 15%, color-mix(in srgb, var(--bg-color) 75%, transparent));
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
   }
