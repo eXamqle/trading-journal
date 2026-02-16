@@ -526,58 +526,51 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                                             }
                                           }}
                                         >
-                                          <div className="journal-entry-row-top">
-                                            <div className="journal-entry-row-date">
-                                              <span className="journal-entry-row-day">{format(parseISO(entry.date), 'EEE, MMM d')}</span>
+                                          <div className="journal-entry-row-accent" />
+                                          <div className="journal-entry-row-content">
+                                            <div className="journal-entry-row-header">
+                                              <div className="journal-entry-row-meta">
+                                                <span className="journal-entry-row-day">{format(parseISO(entry.date), 'EEE, MMM d')}</span>
+                                                {hasTrades && (
+                                                  <span className="journal-entry-row-trades">{entry.tradeCount} {entry.tradeCount === 1 ? 'trade' : 'trades'}</span>
+                                                )}
+                                                {hasImages && (
+                                                  <ImageIcon size={13} className="journal-entry-row-img-icon" />
+                                                )}
+                                                {entryTagDetails.length > 0 && entryTagDetails.map((tag) => (
+                                                  <span
+                                                    key={`${entry.date}-${tag.name}`}
+                                                    className="journal-entry-tag-dot"
+                                                    style={{ backgroundColor: tag.color }}
+                                                    title={tag.name}
+                                                  />
+                                                ))}
+                                                {hiddenTagCount > 0 && (
+                                                  <span className="journal-entry-tag-dot-more">+{hiddenTagCount}</span>
+                                                )}
+                                              </div>
                                               {hasTrades && (
-                                                <span className="journal-entry-row-trades">{entry.tradeCount} {entry.tradeCount === 1 ? 'trade' : 'trades'}</span>
-                                              )}
-                                              {hasImages && (
-                                                <ImageIcon size={13} className="journal-entry-row-img-icon" />
-                                              )}
-                                              {entryTagDetails.length > 0 && entryTagDetails.map((tag) => (
-                                                <span
-                                                  key={`${entry.date}-${tag.name}`}
-                                                  className="tag-chip journal-entry-inline-tag tag-tooltip-anchor"
-                                                  style={{
-                                                    backgroundColor: `${tag.color}1A`,
-                                                    borderColor: `${tag.color}45`,
-                                                    color: tag.color
-                                                  }}
-                                                >
-                                                  {tag.name}
-                                                  <span className="tag-hover-tooltip">
-                                                    <span className="tag-hover-title">{tag.name}</span>
-                                                    {tag.description && <span className="tag-hover-desc">{tag.description}</span>}
-                                                  </span>
+                                                <span className={`journal-entry-inline-pnl ${getPnLClass(entry.pnl)}`}>
+                                                  {formatPnL(entry.pnl)}
                                                 </span>
-                                              ))}
-                                              {hiddenTagCount > 0 && (
-                                                <span className="tag-chip tag-chip-more journal-entry-inline-tag-more">+{hiddenTagCount}</span>
                                               )}
                                             </div>
-                                            {hasTrades && (
-                                              <span className={`journal-entry-inline-pnl ${getPnLClass(entry.pnl)}`}>
-                                                {formatPnL(entry.pnl)}
-                                              </span>
-                                            )}
-                                          </div>
-
-                                          <div className="journal-entry-row-bottom">
-                                            <div className="journal-entry-row-preview">
-                                              {getPreviewText(entry.textContent, 150) || 'No text content'}
+                                            <div className="journal-entry-row-footer">
+                                              <div className="journal-entry-row-preview">
+                                                {getPreviewText(entry.textContent, 150) || '\u00A0'}
+                                              </div>
+                                              <button
+                                                type="button"
+                                                className="journal-entry-delete"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  onDeleteEntry(entry.date);
+                                                }}
+                                                title="Delete journal entry"
+                                              >
+                                                <Trash2 size={14} />
+                                              </button>
                                             </div>
-                                            <button
-                                              type="button"
-                                              className="journal-entry-delete"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                onDeleteEntry(entry.date);
-                                              }}
-                                              title="Delete journal entry"
-                                            >
-                                              <Trash2 size={14} />
-                                            </button>
                                           </div>
                                         </div>
                                       );
