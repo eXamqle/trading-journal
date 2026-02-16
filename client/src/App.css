@@ -472,14 +472,6 @@ code {
     padding: 0.75rem 0.875rem;
   }
 
-  .journal-year-toggle {
-    padding: 0.625rem 0.875rem;
-  }
-
-  .journal-month-toggle {
-    padding: 0.5rem 0.75rem;
-  }
-
   .analyze-controls-row {
     flex-direction: column;
     align-items: stretch;
@@ -5650,7 +5642,8 @@ button.new-tag-color-picker:focus {
   cursor: pointer;
   transition: all 0.15s ease;
   min-width: 0;
-  flex-wrap: wrap;
+  min-height: 0;
+  flex-wrap: nowrap;
 }
 
 .journal-year-toggle:hover {
@@ -5773,7 +5766,8 @@ button.new-tag-color-picker:focus {
   cursor: pointer;
   transition: background 0.15s ease;
   min-width: 0;
-  flex-wrap: wrap;
+  min-height: 0;
+  flex-wrap: nowrap;
 }
 
 .journal-month-toggle:hover {
@@ -6542,12 +6536,6 @@ button.new-tag-color-picker:focus {
     min-width: 0;
   }
 
-  .journal-year-toggle,
-  .journal-month-toggle {
-    flex-wrap: wrap;
-    gap: 0.35rem;
-  }
-
   .journal-year-meta,
   .journal-month-meta {
     flex: 1 1 auto;
@@ -6878,11 +6866,6 @@ button.new-tag-color-picker:focus {
 
   .journal-month-title {
     font-size: 0.75rem;
-  }
-
-  .journal-year-toggle,
-  .journal-month-toggle {
-    gap: 0.35rem;
   }
 
   .journal-group-pnl {
@@ -7622,12 +7605,6 @@ button.new-tag-color-picker:focus {
 
   .journal-search {
     width: 100%;
-  }
-
-  .journal-year-toggle,
-  .journal-month-toggle {
-    align-items: flex-start;
-    flex-wrap: wrap;
   }
 
   .journal-year-meta-right,
