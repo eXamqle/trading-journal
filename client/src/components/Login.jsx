@@ -133,6 +133,7 @@ function Login() {
                 <input
                   type="text"
                   name="name"
+                  autoComplete="name"
                   value={formData.name}
                   onChange={handleChange}
                   placeholder="John Doe"
@@ -173,10 +174,7 @@ function Login() {
                 color: '#94a3b8'
               }} />
               <input
-                type="text"
-                inputMode="email"
-                autoCorrect="on"
-                autoCapitalize="none"
+                type="email"
                 autoComplete="email"
                 name="email"
                 value={formData.email}
@@ -221,6 +219,7 @@ function Login() {
               <input
                 type="password"
                 name="password"
+                autoComplete="current-password"
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="••••••••"
