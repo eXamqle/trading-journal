@@ -5734,6 +5734,79 @@ button.new-tag-color-picker:focus {
   transform: rotate(180deg);
 }
 
+/* ── Collapsible wrapper: smooth height via CSS grid ── */
+.journal-collapsible {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.journal-collapsible.expanded {
+  grid-template-rows: 1fr;
+}
+
+.journal-collapsible-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Fade content out quickly on collapse, in on expand */
+.journal-collapsible .journal-collapsible-inner > * {
+  opacity: 1;
+  transition: opacity 0.25s 0.05s ease;
+}
+
+.journal-collapsible:not(.expanded) .journal-collapsible-inner > * {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+/* ── Staggered cascade animation for entry rows ── */
+@keyframes journalCascadeIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-16px) translateY(-6px);
+    filter: blur(3px);
+  }
+  50% {
+    opacity: 0.8;
+    filter: blur(0.5px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) translateY(0);
+    filter: blur(0);
+  }
+}
+
+.journal-cascade-in {
+  animation: journalCascadeIn 0.4s cubic-bezier(0.25, 0.8, 0.25, 1) both;
+  animation-delay: calc(var(--cascade-i, 0) * 60ms + 80ms);
+}
+
+/* ── Staggered cascade for month groups when year expands ── */
+@keyframes journalMonthCascadeIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-10px);
+    filter: blur(2px);
+  }
+  60% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+    filter: blur(0);
+  }
+}
+
+.journal-month-cascade-in {
+  animation: journalMonthCascadeIn 0.35s cubic-bezier(0.25, 0.8, 0.25, 1) both;
+  animation-delay: calc(var(--cascade-i, 0) * 70ms + 50ms);
+}
+
 .journal-month-groups {
   display: flex;
   flex-direction: column;
@@ -5746,7 +5819,6 @@ button.new-tag-color-picker:focus {
   border-left: 2px solid rgba(148, 163, 184, 0.1);
   border-radius: 0;
   background: transparent;
-  overflow: hidden;
   transition: border-color 0.15s ease;
 }
 

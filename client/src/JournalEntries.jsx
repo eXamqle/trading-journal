@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   Search,
   Calendar as CalendarIcon,
@@ -26,6 +26,8 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
   const [dateFilter, setDateFilter] = useState('');
   const [expandedYears, setExpandedYears] = useState({});
   const [expandedMonths, setExpandedMonths] = useState({});
+  const justExpandedYearsRef = useRef(new Set());
+  const justExpandedMonthsRef = useRef(new Set());
   const availableTagMap = useMemo(() => {
     const map = new Map();
     availableTags.forEach((tag) => {
@@ -178,17 +180,27 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
   const hasActiveFilters = searchQuery.trim().length > 0 || Boolean(dateFilter);
 
   const toggleYear = (year, defaultExpanded) => {
-    setExpandedYears((prev) => ({
-      ...prev,
-      [year]: !(prev[year] ?? defaultExpanded)
-    }));
+    setExpandedYears((prev) => {
+      const wasExpanded = prev[year] ?? defaultExpanded;
+      if (wasExpanded) {
+        justExpandedYearsRef.current.delete(year);
+      } else {
+        justExpandedYearsRef.current.add(year);
+      }
+      return { ...prev, [year]: !wasExpanded };
+    });
   };
 
   const toggleMonth = (monthKey, defaultExpanded) => {
-    setExpandedMonths((prev) => ({
-      ...prev,
-      [monthKey]: !(prev[monthKey] ?? defaultExpanded)
-    }));
+    setExpandedMonths((prev) => {
+      const wasExpanded = prev[monthKey] ?? defaultExpanded;
+      if (wasExpanded) {
+        justExpandedMonthsRef.current.delete(monthKey);
+      } else {
+        justExpandedMonthsRef.current.add(monthKey);
+      }
+      return { ...prev, [monthKey]: !wasExpanded };
+    });
   };
 
   const applyCoachFilter = (query, label) => {
@@ -461,123 +473,134 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
                         </div>
                       </button>
 
-                      {isYearExpanded && (
-                        <div className="journal-month-groups">
-                          {yearGroup.months.map((monthGroup) => {
-                            const isMonthDefaultExpanded = monthGroup.key === currentMonthKey;
-                            const monthFallbackExpanded = hasActiveFilters ? true : isMonthDefaultExpanded;
-                            const isMonthExpanded = expandedMonths[monthGroup.key] ?? monthFallbackExpanded;
+                      <div className={`journal-collapsible ${isYearExpanded ? 'expanded' : ''}`}>
+                        <div className="journal-collapsible-inner">
+                          <div className="journal-month-groups">
+                            {yearGroup.months.map((monthGroup, monthIndex) => {
+                              const isMonthDefaultExpanded = monthGroup.key === currentMonthKey;
+                              const monthFallbackExpanded = hasActiveFilters ? true : isMonthDefaultExpanded;
+                              const isMonthExpanded = expandedMonths[monthGroup.key] ?? monthFallbackExpanded;
+                              const shouldStaggerMonths = justExpandedYearsRef.current.has(yearGroup.year);
+                              const shouldStaggerEntries = justExpandedMonthsRef.current.has(monthGroup.key);
 
-                            return (
-                              <div key={monthGroup.key} className="journal-month-group">
-                                <button
-                                  type="button"
-                                  className="journal-month-toggle"
-                                  onClick={() => toggleMonth(monthGroup.key, monthFallbackExpanded)}
+                              return (
+                                <div
+                                  key={monthGroup.key}
+                                  className={`journal-month-group ${shouldStaggerMonths ? 'journal-month-cascade-in' : ''}`}
+                                  style={shouldStaggerMonths ? { '--cascade-i': monthIndex } : undefined}
                                 >
-                                  <div className="journal-month-meta">
-                                    <span className="journal-month-title">{monthGroup.label}</span>
-                                    <span className="journal-month-count">{monthGroup.entriesCount} entries</span>
-                                  </div>
-                                  <div className="journal-month-meta-right">
-                                    {renderHeaderPnL(monthGroup.pnl)}
-                                    <ChevronDown size={12} className={`journal-collapse-icon ${isMonthExpanded ? 'expanded' : ''}`} />
-                                  </div>
-                                </button>
+                                  <button
+                                    type="button"
+                                    className="journal-month-toggle"
+                                    onClick={() => toggleMonth(monthGroup.key, monthFallbackExpanded)}
+                                  >
+                                    <div className="journal-month-meta">
+                                      <span className="journal-month-title">{monthGroup.label}</span>
+                                      <span className="journal-month-count">{monthGroup.entriesCount} entries</span>
+                                    </div>
+                                    <div className="journal-month-meta-right">
+                                      {renderHeaderPnL(monthGroup.pnl)}
+                                      <ChevronDown size={12} className={`journal-collapse-icon ${isMonthExpanded ? 'expanded' : ''}`} />
+                                    </div>
+                                  </button>
 
-                                {isMonthExpanded && (
-                                  <div className="journal-entry-rows">
-                                    {monthGroup.entries.map((entry) => {
-                                      const hasTrades = entry.tradeCount > 0;
-                                      const hasImages = entry.content.includes('<img');
-                                      const entryTagNames = hasTrades
-                                        ? [...new Set(entry.trades.flatMap((trade) => (
-                                          Array.isArray(trade.tags)
-                                            ? trade.tags
-                                              .map((tag) => (typeof tag === 'string' ? tag : tag?.name))
-                                              .filter(Boolean)
-                                            : []
-                                        )))]
-                                        : [];
-                                      const matchedEntryTags = entryTagNames
-                                        .map((tagName) => {
-                                          const key = typeof tagName === 'string' ? tagName.trim().toLowerCase() : '';
-                                          return key ? availableTagMap.get(key) : null;
-                                        })
-                                        .filter(Boolean);
-                                      const entryTagDetails = matchedEntryTags.slice(0, 6);
-                                      const hiddenTagCount = Math.max(0, matchedEntryTags.length - entryTagDetails.length);
+                                  <div className={`journal-collapsible ${isMonthExpanded ? 'expanded' : ''}`}>
+                                    <div className="journal-collapsible-inner">
+                                      <div className="journal-entry-rows">
+                                        {monthGroup.entries.map((entry, entryIndex) => {
+                                          const hasTrades = entry.tradeCount > 0;
+                                          const hasImages = entry.content.includes('<img');
+                                          const entryTagNames = hasTrades
+                                            ? [...new Set(entry.trades.flatMap((trade) => (
+                                              Array.isArray(trade.tags)
+                                                ? trade.tags
+                                                  .map((tag) => (typeof tag === 'string' ? tag : tag?.name))
+                                                  .filter(Boolean)
+                                                : []
+                                            )))]
+                                            : [];
+                                          const matchedEntryTags = entryTagNames
+                                            .map((tagName) => {
+                                              const key = typeof tagName === 'string' ? tagName.trim().toLowerCase() : '';
+                                              return key ? availableTagMap.get(key) : null;
+                                            })
+                                            .filter(Boolean);
+                                          const entryTagDetails = matchedEntryTags.slice(0, 6);
+                                          const hiddenTagCount = Math.max(0, matchedEntryTags.length - entryTagDetails.length);
 
-                                      return (
-                                        <div
-                                          key={entry.date}
-                                          className="journal-entry-row"
-                                          role="button"
-                                          tabIndex={0}
-                                          onClick={() => onViewEntry(entry.date)}
-                                          onKeyDown={(e) => {
-                                            if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
-                                              e.preventDefault();
-                                              onViewEntry(entry.date);
-                                            }
-                                          }}
-                                        >
-                                          <div className="journal-entry-row-accent" />
-                                          <div className="journal-entry-row-content">
-                                            <div className="journal-entry-row-header">
-                                              <div className="journal-entry-row-meta">
-                                                <span className="journal-entry-row-day">{format(parseISO(entry.date), 'EEE, MMM d')}</span>
-                                                {hasTrades && (
-                                                  <span className="journal-entry-row-trades">{entry.tradeCount} {entry.tradeCount === 1 ? 'trade' : 'trades'}</span>
-                                                )}
-                                                {hasImages && (
-                                                  <ImageIcon size={13} className="journal-entry-row-img-icon" />
-                                                )}
-                                                {entryTagDetails.length > 0 && entryTagDetails.map((tag) => (
-                                                  <span
-                                                    key={`${entry.date}-${tag.name}`}
-                                                    className="journal-entry-tag-dot"
-                                                    style={{ backgroundColor: tag.color }}
-                                                    title={tag.name}
-                                                  />
-                                                ))}
-                                                {hiddenTagCount > 0 && (
-                                                  <span className="journal-entry-tag-dot-more">+{hiddenTagCount}</span>
-                                                )}
+                                          return (
+                                            <div
+                                              key={entry.date}
+                                              className={`journal-entry-row ${shouldStaggerEntries ? 'journal-cascade-in' : ''}`}
+                                              style={shouldStaggerEntries ? { '--cascade-i': entryIndex } : undefined}
+                                              role="button"
+                                              tabIndex={isMonthExpanded ? 0 : -1}
+                                              onClick={() => onViewEntry(entry.date)}
+                                              onKeyDown={(e) => {
+                                                if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
+                                                  e.preventDefault();
+                                                  onViewEntry(entry.date);
+                                                }
+                                              }}
+                                            >
+                                              <div className="journal-entry-row-accent" />
+                                              <div className="journal-entry-row-content">
+                                                <div className="journal-entry-row-header">
+                                                  <div className="journal-entry-row-meta">
+                                                    <span className="journal-entry-row-day">{format(parseISO(entry.date), 'EEE, MMM d')}</span>
+                                                    {hasTrades && (
+                                                      <span className="journal-entry-row-trades">{entry.tradeCount} {entry.tradeCount === 1 ? 'trade' : 'trades'}</span>
+                                                    )}
+                                                    {hasImages && (
+                                                      <ImageIcon size={13} className="journal-entry-row-img-icon" />
+                                                    )}
+                                                    {entryTagDetails.length > 0 && entryTagDetails.map((tag) => (
+                                                      <span
+                                                        key={`${entry.date}-${tag.name}`}
+                                                        className="journal-entry-tag-dot"
+                                                        style={{ backgroundColor: tag.color }}
+                                                        title={tag.name}
+                                                      />
+                                                    ))}
+                                                    {hiddenTagCount > 0 && (
+                                                      <span className="journal-entry-tag-dot-more">+{hiddenTagCount}</span>
+                                                    )}
+                                                  </div>
+                                                  {hasTrades && (
+                                                    <span className={`journal-entry-inline-pnl ${getPnLClass(entry.pnl)}`}>
+                                                      {formatPnL(entry.pnl)}
+                                                    </span>
+                                                  )}
+                                                </div>
+                                                <div className="journal-entry-row-footer">
+                                                  <div className="journal-entry-row-preview">
+                                                    {getPreviewText(entry.textContent, 150) || '\u00A0'}
+                                                  </div>
+                                                  <button
+                                                    type="button"
+                                                    className="journal-entry-delete"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      onDeleteEntry(entry.date);
+                                                    }}
+                                                    title="Delete journal entry"
+                                                  >
+                                                    <Trash2 size={14} />
+                                                  </button>
+                                                </div>
                                               </div>
-                                              {hasTrades && (
-                                                <span className={`journal-entry-inline-pnl ${getPnLClass(entry.pnl)}`}>
-                                                  {formatPnL(entry.pnl)}
-                                                </span>
-                                              )}
                                             </div>
-                                            <div className="journal-entry-row-footer">
-                                              <div className="journal-entry-row-preview">
-                                                {getPreviewText(entry.textContent, 150) || '\u00A0'}
-                                              </div>
-                                              <button
-                                                type="button"
-                                                className="journal-entry-delete"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  onDeleteEntry(entry.date);
-                                                }}
-                                                title="Delete journal entry"
-                                              >
-                                                <Trash2 size={14} />
-                                              </button>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
                                   </div>
-                                )}
-                              </div>
-                            );
-                          })}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      )}
+                      </div>
                     </section>
                   );
                 })}
