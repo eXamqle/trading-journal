@@ -2586,6 +2586,7 @@ code {
   cursor: pointer;
   display: grid;
   grid-template-columns: 1.35fr 0.9fr 0.55fr 0.6fr 0.65fr 0.65fr 0.4fr auto;
+  grid-template-areas: "month net trades winrate avgwin avgloss days open";
   align-items: center;
   gap: 0.5rem;
   transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
