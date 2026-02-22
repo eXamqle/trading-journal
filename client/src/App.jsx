@@ -1256,17 +1256,29 @@ function App() {
   // Disable body scroll when any modal is open
   useEffect(() => {
     const isModalOpen = selectedDate || readerModalOpen;
-    if (isModalOpen) {
-      document.body.style.overflow = 'hidden';
-      document.documentElement.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-      document.documentElement.style.overflow = '';
-    }
+    if (!isModalOpen) return;
+
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    const preventBackgroundScroll = (e) => {
+      let target = e.target;
+      while (target && target !== document.body) {
+        const { overflowY } = window.getComputedStyle(target);
+        if ((overflowY === 'auto' || overflowY === 'scroll') && target.scrollHeight > target.clientHeight) {
+          return;
+        }
+        target = target.parentElement;
+      }
+      e.preventDefault();
+    };
+
+    document.addEventListener('touchmove', preventBackgroundScroll, { passive: false });
 
     return () => {
       document.body.style.overflow = '';
       document.documentElement.style.overflow = '';
+      document.removeEventListener('touchmove', preventBackgroundScroll);
     };
   }, [selectedDate, readerModalOpen]);
 
