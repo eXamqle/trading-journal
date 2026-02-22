@@ -59,8 +59,10 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
 
   // Helper function to calculate P&L
   const getTradeNet = (trade) => {
-    const amount = parseFloat(trade.amount) || 0;
+    const amount = Math.abs(parseFloat(trade.amount) || 0);
     const fees = parseFloat(trade.fees) || 0;
+    if (trade.type === 'loss') return -(amount + fees);
+    if (trade.type === 'break-even') return -fees;
     return amount - fees;
   };
 
@@ -133,6 +135,25 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
     return sorted;
   }, [filteredEntries]);
 
+  // Pre-compute monthly and yearly P/L from ALL trades (not just journal-entry days)
+  const periodPnL = useMemo(() => {
+    const monthly = {};
+    const yearly = {};
+
+    trades.forEach((trade) => {
+      const tradeDate = new Date(trade.date);
+      if (Number.isNaN(tradeDate.getTime())) return;
+      const year = format(tradeDate, 'yyyy');
+      const monthKey = format(tradeDate, 'yyyy-MM');
+      const net = getTradeNet(trade);
+
+      yearly[year] = (yearly[year] || 0) + net;
+      monthly[monthKey] = (monthly[monthKey] || 0) + net;
+    });
+
+    return { monthly, yearly };
+  }, [trades]);
+
   // Group entries by year -> month
   const groupedEntries = useMemo(() => {
     const groups = {};
@@ -147,7 +168,6 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
         groups[year] = {
           year,
           entriesCount: 0,
-          pnl: 0,
           months: {}
         };
       }
@@ -157,15 +177,12 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
           key: monthKey,
           label: monthLabel,
           entriesCount: 0,
-          pnl: 0,
           entries: []
         };
       }
 
       groups[year].entriesCount += 1;
-      groups[year].pnl += entry.pnl;
       groups[year].months[monthKey].entriesCount += 1;
-      groups[year].months[monthKey].pnl += entry.pnl;
       groups[year].months[monthKey].entries.push(entry);
     });
 
@@ -173,9 +190,15 @@ function JournalEntries({ journalEntries, onViewEntry, trades = [], onAddJournal
       .sort((a, b) => Number(b.year) - Number(a.year))
       .map((yearGroup) => ({
         ...yearGroup,
-        months: Object.values(yearGroup.months).sort((a, b) => b.key.localeCompare(a.key))
+        pnl: periodPnL.yearly[yearGroup.year] || 0,
+        months: Object.values(yearGroup.months)
+          .sort((a, b) => b.key.localeCompare(a.key))
+          .map((month) => ({
+            ...month,
+            pnl: periodPnL.monthly[month.key] || 0
+          }))
       }));
-  }, [sortedEntries]);
+  }, [sortedEntries, periodPnL]);
 
   const hasActiveFilters = searchQuery.trim().length > 0 || Boolean(dateFilter);
 
