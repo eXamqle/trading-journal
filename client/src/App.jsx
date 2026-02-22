@@ -2159,26 +2159,28 @@ function App() {
                 }}
               >
                 <span className="year-review-cell year-review-month">{row.monthLongLabel}</span>
-                <span className={`year-review-cell year-review-net ${getPnLClass(row.pnl)}`}>
-                  {formatSignedCurrency(row.pnl)}
-                </span>
-                <span className="year-review-cell year-review-trades">{row.tradeCount}</span>
-                <span className="year-review-cell year-review-winrate">
-                  {`${row.winRate.toFixed(0)}%`}
-                </span>
-                <span className="year-review-cell year-review-avgwin">
-                  {row.wins > 0 ? `${symbol}${formatCompactValue(row.avgWin)}` : '—'}
-                </span>
-                <span className="year-review-cell year-review-avgloss">
-                  {row.losses > 0 ? `${symbol}${formatCompactValue(row.avgLoss)}` : '—'}
-                </span>
-                <span className="year-review-cell year-review-days">
-                  {row.activeDays}
-                </span>
                 <span className="year-review-cell year-review-open">
                   Inspect
                   <ChevronRight size={14} />
                 </span>
+                <div className="year-review-stats-row">
+                  <span className={`year-review-cell year-review-net ${getPnLClass(row.pnl)}`}>
+                    {formatSignedCurrency(row.pnl)}
+                  </span>
+                  <span className="year-review-cell year-review-trades">{row.tradeCount}</span>
+                  <span className="year-review-cell year-review-winrate">
+                    {`${row.winRate.toFixed(0)}%`}
+                  </span>
+                  <span className="year-review-cell year-review-avgwin">
+                    {row.wins > 0 ? `${symbol}${formatCompactValue(row.avgWin)}` : '—'}
+                  </span>
+                  <span className="year-review-cell year-review-avgloss">
+                    {row.losses > 0 ? `${symbol}${formatCompactValue(row.avgLoss)}` : '—'}
+                  </span>
+                  <span className="year-review-cell year-review-days">
+                    {row.activeDays}
+                  </span>
+                </div>
               </button>
             ))}
           </div>
