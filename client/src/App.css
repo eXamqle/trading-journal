@@ -2592,10 +2592,6 @@ code {
   text-align: left;
 }
 
-.year-review-stats-row {
-  display: contents;
-}
-
 .year-review-row:hover {
   border-color: var(--accent-blue);
   background: rgba(59, 130, 246, 0.05);
@@ -2893,16 +2889,14 @@ code {
 
   .year-review-row {
     grid-template-columns: 1fr auto;
-    gap: 0.3rem;
+    grid-template-areas:
+      "month open"
+      "net trades"
+      "winrate days"
+      "avgwin avgloss";
+    align-items: start;
+    gap: 0.2rem 0.45rem;
     padding: 0.6rem;
-  }
-
-  .year-review-stats-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.1rem 0.5rem;
-    align-items: center;
-    grid-column: 1 / -1;
   }
 
   .year-review-month {
