@@ -2148,11 +2148,11 @@ function App() {
             <span></span>
           </div>
           <div className="year-review-table-body">
-            {yearReviewData.monthRows.map((row) => (
+            {yearReviewData.monthRows.filter((row) => row.tradeCount > 0).map((row) => (
               <button
                 key={row.key}
                 type="button"
-                className={`year-review-row ${row.tradeCount === 0 ? 'empty' : ''}`}
+                className="year-review-row"
                 onClick={() => {
                   setCurrentDate(row.monthDate);
                   setActiveTab('Month');
@@ -2160,11 +2160,11 @@ function App() {
               >
                 <span className="year-review-cell year-review-month">{row.monthLongLabel}</span>
                 <span className={`year-review-cell year-review-net ${getPnLClass(row.pnl)}`}>
-                  {row.tradeCount > 0 ? formatSignedCurrency(row.pnl) : '—'}
+                  {formatSignedCurrency(row.pnl)}
                 </span>
-                <span className="year-review-cell year-review-trades">{row.tradeCount > 0 ? row.tradeCount : '—'}</span>
+                <span className="year-review-cell year-review-trades">{row.tradeCount}</span>
                 <span className="year-review-cell year-review-winrate">
-                  {row.tradeCount > 0 ? `${row.winRate.toFixed(0)}%` : '—'}
+                  {`${row.winRate.toFixed(0)}%`}
                 </span>
                 <span className="year-review-cell year-review-avgwin">
                   {row.wins > 0 ? `${symbol}${formatCompactValue(row.avgWin)}` : '—'}
@@ -2173,7 +2173,7 @@ function App() {
                   {row.losses > 0 ? `${symbol}${formatCompactValue(row.avgLoss)}` : '—'}
                 </span>
                 <span className="year-review-cell year-review-days">
-                  {row.tradeCount > 0 ? row.activeDays : '—'}
+                  {row.activeDays}
                 </span>
                 <span className="year-review-cell year-review-open">
                   Inspect
