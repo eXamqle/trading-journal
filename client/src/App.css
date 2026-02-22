@@ -1262,6 +1262,7 @@ code {
   padding: 20px;
   animation: modalFadeIn 0.2s ease-out;
   backdrop-filter: blur(4px);
+  overscroll-behavior: contain;
 }
 
 @keyframes modalFadeIn {
