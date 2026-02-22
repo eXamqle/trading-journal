@@ -1253,19 +1253,36 @@ function App() {
     }
   }, [selectedDate, modalTab, viewingJournal]);
 
-  // Disable body scroll when modal is open
+  // Disable body scroll when any modal is open
   useEffect(() => {
-    if (selectedDate) {
+    const isModalOpen = selectedDate || readerModalOpen;
+    if (isModalOpen) {
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.left = '0';
+      document.body.style.right = '0';
       document.body.style.overflow = 'hidden';
     } else {
-      document.body.style.overflow = 'unset';
+      const scrollY = Math.abs(parseInt(document.body.style.top || '0', 10));
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.overflow = '';
+      window.scrollTo(0, scrollY);
     }
 
-    // Cleanup on unmount
     return () => {
-      document.body.style.overflow = 'unset';
+      const scrollY = Math.abs(parseInt(document.body.style.top || '0', 10));
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.overflow = '';
+      window.scrollTo(0, scrollY);
     };
-  }, [selectedDate]);
+  }, [selectedDate, readerModalOpen]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
